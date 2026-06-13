@@ -1,0 +1,65 @@
+# =========================
+# Frontend & Backend
+# =========================
+
+# Dependencies
+FE/node_modules/
+BE/node_modules/
+
+# Build files
+FE/build/
+FE/dist/
+BE/dist/
+
+# Environment Variables
+FE/.env
+FE/.env.local
+FE/.env.development.local
+FE/.env.production.local
+
+BE/.env
+BE/.env.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Coverage
+coverage/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary Files
+*.tmp
+*.temp
+
+# Backend Uploads (optional)
+BE/uploads/
+
+# React Build Artifacts
+FE/.next/
+FE/out/
+
+# Node Process Manager
+.pm2/
+
+# Misc
+.env
