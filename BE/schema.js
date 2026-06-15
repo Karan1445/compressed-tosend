@@ -2,11 +2,16 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const User = require('./schema');
+const { authenticateToken } = require('./middleware/auth');
+const pdfTemplateRoutes = require('./routes/pdfTemplateRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use('/', authRoutes);
+app.use('/pdf-templates', authenticateToken, pdfTemplateRoutes);
 
 const uri = "mongodb+srv://karangohel_db_user:Karan8141@cluster0.oodok9z.mongodb.net/myFirstDatabase?appName=Cluster0";
 

@@ -49,12 +49,16 @@ import { toast } from "sonner"
 const navigationItems = [
   { title: "User List", url: "/", icon: Users },
   { title: "Add Question", url: "/question", icon: FileQuestion },
-  { title: "PDF Management", url: "/pdf", icon: FileText },
+  { title: "PDF Management", url: "/pdf-form-designer", icon: FileText },
+  { title: "View Data", url: "/view-data", icon: FileText },
 ]
 
 export default function Layout({ children }) {
   const currentUser = JSON.parse(sessionStorage.getItem("user"))
-  const navigate = useNavigate();
+  const userRole = String(currentUser?.role || '').trim().toLowerCase()
+  const visibleNavigationItems = userRole === 'signer'
+    ? navigationItems.filter((item) => item.url === '/' || item.url === '/pdf-form-designer')
+    : navigationItems;
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -140,7 +144,7 @@ export default function Layout({ children }) {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {navigationItems.map((item) => (
+                  {visibleNavigationItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild tooltip={item.title}>
                         <Link to={item.url} className="flex items-center gap-3">

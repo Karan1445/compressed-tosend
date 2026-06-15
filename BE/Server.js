@@ -6,13 +6,15 @@ const nodemailer = require('nodemailer');
 
 const authRoutes = require('./routes/authRoutes');
 const questionRoutes = require('./routes/questionRoute')
+const pdfTemplateRoutes = require('./routes/pdfTemplateRoutes')
 const User = require('./models/User');
 const { authenticateToken } = require('./middleware/auth');
 
 const app = express();
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+// PDF templates can include large base64 payloads, so raise the body limit.
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(cors({
   origin: '*',
   methods: '*',
@@ -21,6 +23,7 @@ app.use(cors({
 
 app.use('/', authRoutes);
 app.use('/question',authenticateToken ,questionRoutes)
+app.use('/pdf-templates', authenticateToken, pdfTemplateRoutes);
 app.get("/", authenticateToken, async (req, res) => {
   try {
     const data = await User.find().lean();
