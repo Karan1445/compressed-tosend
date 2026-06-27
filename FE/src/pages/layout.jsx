@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "../components/ui/sidebar"
-import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical } from "lucide-react"
+import { Users, FileQuestion, LogOutIcon, KeyRound, MoreVertical } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,16 +49,10 @@ import { toast } from "sonner"
 const navigationItems = [
   { title: "User List", url: "/", icon: Users },
   { title: "Add Question", url: "/question", icon: FileQuestion },
-  { title: "PDF Management", url: "/pdf-form-designer", icon: FileText },
-  { title: "View Data", url: "/view-data", icon: FileText },
 ]
 
 export default function Layout({ children }) {
   const currentUser = JSON.parse(sessionStorage.getItem("user"))
-  const userRole = String(currentUser?.role || '').trim().toLowerCase()
-  const visibleNavigationItems = userRole === 'signer'
-    ? navigationItems.filter((item) => item.url === '/' || item.url === '/pdf-form-designer')
-    : navigationItems;
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -144,7 +138,7 @@ export default function Layout({ children }) {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {visibleNavigationItems.map((item) => (
+                  {navigationItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild tooltip={item.title}>
                         <Link to={item.url} className="flex items-center gap-3">

@@ -6,9 +6,8 @@ import { AuthProvider } from './context/authContext';
 import Layout from './pages/layout';
 import HomePage from './pages/home';
 import { QuestionPage } from './pages/question';
-import PdfDesignerPage from './pages/pdf-designer/PdfDesignerPage';
-import ViewDataPage from './pages/viewData';
 import './index.css';
+
 function App() {
   return (<>
     <Toaster position="top-right" richColors />
@@ -19,8 +18,6 @@ function App() {
           <Route path='/register' element={<SignupForm />} />
           <Route path='/' element={<Layout><HomePage/></Layout>} />
           <Route path="/question" element={<Layout><QuestionPage/></Layout>}/>
-          <Route path="/pdf-form-designer" element={<Layout><PdfDesignerPage/></Layout>} />
-          <Route path="/view-data" element={<Layout><ViewDataPage/></Layout>} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>
