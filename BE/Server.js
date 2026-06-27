@@ -5,8 +5,10 @@ const cors = require('cors');
 
 const authRoutes = require('./routes/authRoutes');
 const questionRoutes = require('./routes/questionRoute');
+const docxRoutes = require('./routes/docxRoute');
 const User = require('./models/User');
 const { authenticateToken } = require('./middleware/auth');
+const path = require('path');
 
 const app = express();
 
@@ -20,6 +22,8 @@ app.use(cors({
 
 app.use('/', authRoutes);
 app.use('/question', authenticateToken, questionRoutes);
+app.use('/docx', authenticateToken, docxRoutes);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get("/", authenticateToken, async (req, res) => {
   try {
     const data = await User.find().lean();

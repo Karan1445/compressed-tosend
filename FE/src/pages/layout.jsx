@@ -1,136 +1,94 @@
-import { Link, useNavigate } from "react-router-dom"
-import { SidebarProvider, SidebarTrigger } from "../components/ui/sidebar"
+import { Link, useNavigate } from 'react-router-dom';
+import { SidebarProvider, SidebarTrigger } from '../components/ui/sidebar';
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-} from "../components/ui/sidebar"
-import { Users, FileQuestion, LogOutIcon, KeyRound, MoreVertical } from "lucide-react"
+  Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
+  SidebarGroupLabel, SidebarGroupContent, SidebarMenu,
+  SidebarMenuItem, SidebarMenuButton,
+} from '../components/ui/sidebar';
+import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical } from 'lucide-react';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../components/ui/alert-dialog"
-import { Button } from "../components/ui/button"
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '../components/ui/alert-dialog';
+import { Button } from '../components/ui/button';
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../components/ui/dialog"
-import { Input } from "../components/ui/input"
-import { Label } from "../components/ui/label"
+  Dialog, DialogClose, DialogContent, DialogDescription,
+  DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from '../components/ui/dialog';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-}
-  from "../components/ui/dropdown-menu"
-import { useState } from "react"
-import { toast } from "sonner"
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { useDispatch, useSelector } from 'react-redux';
+import { logout, resetPassword } from '../store/slices/authSlice';
 
 const navigationItems = [
-  { title: "User List", url: "/", icon: Users },
-  { title: "Add Question", url: "/question", icon: FileQuestion },
-]
+  { title: 'User List',    url: '/',            icon: Users },
+  { title: 'Add Question', url: '/question',     icon: FileQuestion },
+  { title: 'DOCX Viewer',  url: '/docx-viewer',  icon: FileText },
+];
 
 export default function Layout({ children }) {
-  const currentUser = JSON.parse(sessionStorage.getItem("user"))
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    email: "",
-    oldPassword: "",
-    newPassword: "",
-  });
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useSelector((state) => state.auth);
 
-  const handleChange = (e) => {
+  const [resetForm, setResetForm] = useState({ email: '', oldPassword: '', newPassword: '' });
+  const [resetLoading, setResetLoading] = useState(false);
+
+  function handleResetChange(e) {
     const { id, value } = e.target;
-    const key = id === "old-password" ? "oldPassword" : id === "new-password" ? "newPassword" : id;
-    setFormData((prev) => ({ ...prev, [key]: value }));
-  };
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    const key = id === 'old-password' ? 'oldPassword' : id === 'new-password' ? 'newPassword' : id;
+    setResetForm((prev) => ({ ...prev, [key]: value }));
+  }
 
-    const { email, oldPassword, newPassword } = formData;
+  async function handleResetSubmit(e) {
+    e.preventDefault();
+    const { email, oldPassword, newPassword } = resetForm;
 
     if (!email || !oldPassword || !newPassword) {
-      toast.error("All fields are required.");
+      toast.error('All fields are required.');
       return;
     }
-
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      toast.error("Please enter a valid email address.");
+      toast.error('Please enter a valid email address.');
       return;
     }
-
     if (newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters long.");
+      toast.error('New password must be at least 6 characters.');
       return;
     }
 
     try {
-      setLoading(true);
-      const response = await fetch("http://localhost:8888/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${sessionStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
-          email,
-          oldPassword,
-          newPassword,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to reset password.");
-      }
-
-      toast.success("Password reset successful. Logging you out...");
-
+      setResetLoading(true);
+      await dispatch(resetPassword({ email, oldPassword, newPassword })).unwrap();
+      toast.success('Password updated successfully! Logging you out... 🔐');
       setTimeout(() => {
-        sessionStorage.removeItem("token");
-        sessionStorage.removeItem("user");
-
-        window.location.href = "/login";
+        dispatch(logout());
+        navigate('/login', { replace: true });
       }, 1500);
-
-    } catch (error) {
-      toast.error(error.message || "Something went wrong.");
+    } catch (err) {
+      toast.error(err || 'Failed to reset password. Please try again.');
     } finally {
-      setLoading(false);
+      setResetLoading(false);
     }
-  };
-  function handleLogout() {
-    sessionStorage.clear("token")
-    sessionStorage.clear("user")
-    window.location.replace("/login");
   }
+
+  function handleLogout() {
+    dispatch(logout());
+    toast.success('Logged out successfully. See you soon! 👋');
+    navigate('/login', { replace: true });
+  }
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-        <Sidebar variant="sidebar" collapsible="icon">
+        <Sidebar variant="sidebar" collapsible="icon" className="bg-white border-r shadow-sm">
           <SidebarContent>
             <SidebarGroup>
               <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">
@@ -155,11 +113,14 @@ export default function Layout({ children }) {
 
           <SidebarFooter className="border-t p-3">
             <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center gap-3 w-full">
-
               <div className="flex items-center gap-3 min-w-0 overflow-hidden">
                 <div className="flex flex-col text-left min-w-0 group-data-[collapsible=icon]:hidden">
-                  <span className="text-sm font-medium leading-none truncate">{currentUser?.name ?? "Guest User"}</span>
-                  <span className="text-xs text-muted-foreground truncate mt-0.5">{currentUser?.email ?? "No email provided"}</span>
+                  <span className="text-sm font-medium leading-none truncate capitalize">
+                    {user?.name ?? 'Guest User'}
+                  </span>
+                  <span className="text-xs text-muted-foreground truncate mt-0.5">
+                    {user?.email ?? 'No email provided'}
+                  </span>
                 </div>
               </div>
 
@@ -175,14 +136,14 @@ export default function Layout({ children }) {
 
                       <DropdownMenuContent align="end" className="w-48">
                         <DialogTrigger asChild>
-                          <DropdownMenuItem className="hover:bg-gray-200">
+                          <DropdownMenuItem className="hover:bg-gray-200 cursor-pointer">
                             <KeyRound className="mr-2 h-4 w-4" />
                             <span>Reset Password</span>
                           </DropdownMenuItem>
                         </DialogTrigger>
 
                         <AlertDialogTrigger asChild>
-                          <DropdownMenuItem className="text-destructive focus:text-destructive hover:bg-gray-200">
+                          <DropdownMenuItem className="text-destructive focus:text-destructive hover:bg-gray-200 cursor-pointer">
                             <LogOutIcon className="mr-2 h-4 w-4" />
                             <span>Log out</span>
                           </DropdownMenuItem>
@@ -190,84 +151,73 @@ export default function Layout({ children }) {
                       </DropdownMenuContent>
                     </DropdownMenu>
 
+                    {/* Reset Password Dialog */}
                     <DialogContent className="bg-white sm:max-w-[425px]">
                       <DialogHeader>
                         <DialogTitle>Reset Password</DialogTitle>
                         <DialogDescription>
-                          Update your account password here. Click save when you are done.
+                          Update your account password here. Click save when done.
                         </DialogDescription>
                       </DialogHeader>
-
-                      {/* Wrapped in a form element to handle submit properly */}
-                      <form onSubmit={handleSubmit}>
+                      <form onSubmit={handleResetSubmit}>
                         <div className="grid gap-4 py-4">
                           <div className="grid gap-2">
                             <Label htmlFor="email">Email address</Label>
                             <Input
-                              id="email"
-                              type="email"
+                              id="email" type="email"
                               placeholder="name@example.com"
-                              value={formData.email}
-                              onChange={handleChange}
+                              value={resetForm.email}
+                              onChange={handleResetChange}
                             />
                           </div>
                           <div className="grid gap-2">
                             <Label htmlFor="old-password">Old Password</Label>
                             <Input
-                              id="old-password"
-                              type="password"
-                              value={formData.oldPassword}
-                              onChange={handleChange}
+                              id="old-password" type="password"
+                              value={resetForm.oldPassword}
+                              onChange={handleResetChange}
                             />
                           </div>
                           <div className="grid gap-2">
                             <Label htmlFor="new-password">New Password</Label>
                             <Input
-                              id="new-password"
-                              type="password"
-                              value={formData.newPassword}
-                              onChange={handleChange}
+                              id="new-password" type="password"
+                              value={resetForm.newPassword}
+                              onChange={handleResetChange}
                             />
                           </div>
                         </div>
-
                         <DialogFooter>
                           <DialogClose asChild>
-                            <Button type="button" variant="outline" disabled={loading}>
-                              Cancel
-                            </Button>
+                            <Button type="button" variant="outline" disabled={resetLoading}>Cancel</Button>
                           </DialogClose>
-                          <Button
-                            type="submit"
-                            className="bg-black text-white"
-                            disabled={loading}
-                          >
-                            {loading ? "Saving..." : "Save changes"}
+                          <Button type="submit" className="bg-black text-white" disabled={resetLoading}>
+                            {resetLoading ? 'Saving...' : 'Save changes'}
                           </Button>
                         </DialogFooter>
                       </form>
                     </DialogContent>
                   </Dialog>
 
+                  {/* Logout Confirm Dialog */}
                   <AlertDialogContent className="bg-white">
                     <AlertDialogHeader>
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. This will permanently Log-out your
-                        account from this device.
+                        This will log you out from your account on this device.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction className="bg-black text-white" onClick={handleLogout}>Continue</AlertDialogAction>
+                      <AlertDialogAction className="bg-black text-white" onClick={handleLogout}>
+                        Log out
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
-
             </div>
           </SidebarFooter>
-
         </Sidebar>
 
         <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
@@ -276,13 +226,9 @@ export default function Layout({ children }) {
             <div className="h-4 w-px bg-border" />
             <h1 className="text-sm font-medium text-muted-foreground">Workspace</h1>
           </header>
-
-          <div className="p-6 md:p-8 flex-1">
-            {children}
-          </div>
+          <div className="p-6 md:p-8 flex-1">{children}</div>
         </main>
-
       </div>
     </SidebarProvider>
-  )
+  );
 }

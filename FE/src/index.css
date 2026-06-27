@@ -2,9 +2,21 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* DOCX viewer scoping — keep docx-preview styles contained */
+.docx-viewer-container .docx-wrapper {
+  background: transparent !important;
+  padding: 0 !important;
+}
+.docx-viewer-container .docx {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  margin: 0 auto;
+}
+
 
 body {
   margin: 0;

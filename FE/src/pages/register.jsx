@@ -1,258 +1,169 @@
-import { Link, useNavigate } from "react-router-dom"
-import { Button } from "../components/ui/button"
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '../components/ui/field';
+import { Input } from '../components/ui/input';
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "../components/ui/card"
-import {
-    Field,
-    FieldDescription,
-    FieldGroup,
-    FieldLabel,
-} from "../components/ui/field"
-import { Input } from "../components/ui/input"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
-    DropdownMenuTrigger
-} from "../components/ui/dropdown-menu"
-import { useState } from "react"
-import { toast } from "sonner"
+  DropdownMenu, DropdownMenuContent,
+  DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { useDispatch, useSelector } from 'react-redux';
+import { registerUser, clearAuthError } from '../store/slices/authSlice';
+import { cn } from '../lib/utils';
 
 export function SignupForm() {
-    const [signupObject, setSignupObject] = useState({
-        name: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-        role: "Sender"
-    })
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { loading, error } = useSelector((state) => state.auth);
 
-    const [errors, setErrors] = useState({
-        name: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-    })
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'Sender' });
+  const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', password: '', confirmPassword: '' });
 
-    const [loading, setLoading] = useState(false)
-    const navigator = useNavigate();
-
-    function handleChange(e) {
-        const { name, value } = e.target
-        setSignupObject({ ...signupObject, [name]: value })
-        setErrors((prev) => ({ ...prev, [name]: "" }))
+  // Show backend error as toast
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      dispatch(clearAuthError());
     }
+  }, [error, dispatch]);
 
-    function handleRoleChange(value) {
-        setSignupObject({ ...signupObject, role: value })
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+    setFieldErrors((prev) => ({ ...prev, [name]: '' }));
+  }
+
+  function handleRoleChange(value) { setForm((prev) => ({ ...prev, role: value })); }
+
+  function validateForm() {
+    const errs = { name: '', email: '', password: '', confirmPassword: '' };
+    let valid = true;
+    if (!form.name) { errs.name = 'Name is required.'; valid = false; }
+    else if (form.name.length < 3) { errs.name = 'Name must be at least 3 characters.'; valid = false; }
+    if (!form.email) { errs.email = 'Email is required.'; valid = false; }
+    else if (!emailRegex.test(form.email)) { errs.email = 'Please enter a valid email.'; valid = false; }
+    if (!form.password) { errs.password = 'Password is required.'; valid = false; }
+    else if (form.password.length < 6) { errs.password = 'Password must be at least 6 characters.'; valid = false; }
+    if (!form.confirmPassword) { errs.confirmPassword = 'Please confirm your password.'; valid = false; }
+    else if (form.password !== form.confirmPassword) { errs.confirmPassword = 'Passwords do not match.'; valid = false; }
+    setFieldErrors(errs);
+    return valid;
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!validateForm()) return;
+    try {
+      const result = await dispatch(registerUser({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role: form.role,
+      })).unwrap();
+      toast.success(`Account created! Welcome aboard, ${result.user.name}! 🎉`);
+      navigate('/', { replace: true });
+    } catch (err) {
+      // handled by useEffect above
     }
+  }
 
-    function validateForm() {
-        let valid = true
-        const newErrors = { email: "", password: "", confirmPassword: "" }
+  return (
+    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
+      <div className="w-full max-w-md shadow-xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Create an account</CardTitle>
+            <CardDescription>Fill in your details to get started</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit}>
+              <FieldGroup className="space-y-4">
 
-        if (!signupObject.name) {
-            newErrors.name = "Name is required.";
-            valid = false
-        } else if (signupObject.name.length < 3) {
-            newErrors.name = "Please provide valid name";
-            valid = false
-        }
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        if (!signupObject.email) {
-            newErrors.email = "Email is required."
-            valid = false
-        } else if (!emailRegex.test(signupObject.email)) {
-            newErrors.email = "Please provide a valid email address."
-            valid = false
-        }
+                <Field>
+                  <FieldLabel htmlFor="name">Full Name</FieldLabel>
+                  <Input
+                    id="name" name="name" type="text"
+                    placeholder="John Doe"
+                    value={form.name}
+                    onChange={handleChange}
+                    className={cn(fieldErrors.name && 'border-destructive focus-visible:ring-destructive')}
+                  />
+                  {fieldErrors.name && <p className="text-sm text-red-600 mt-1">{fieldErrors.name}</p>}
+                </Field>
 
-        if (!signupObject.password) {
-            newErrors.password = "Password is required."
-            valid = false
-        } else if (signupObject.password.length < 6) {
-            newErrors.password = "Password must be at least 6 characters long."
-            valid = false
-        }
+                <Field>
+                  <FieldLabel htmlFor="email">Email</FieldLabel>
+                  <Input
+                    id="email" name="email" type="text"
+                    placeholder="m@example.com"
+                    value={form.email}
+                    onChange={handleChange}
+                    className={cn(fieldErrors.email && 'border-destructive focus-visible:ring-destructive')}
+                  />
+                  {fieldErrors.email && <p className="text-sm text-red-600 mt-1">{fieldErrors.email}</p>}
+                </Field>
 
-        if (!signupObject.confirmPassword) {
-            newErrors.confirmPassword = "Please confirm your password."
-            valid = false
-        } else if (signupObject.password !== signupObject.confirmPassword) {
-            newErrors.confirmPassword = "Passwords do not match."
-            valid = false
-        }
+                <Field>
+                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <Input
+                    id="password" name="password" type="password"
+                    value={form.password}
+                    onChange={handleChange}
+                    className={cn(fieldErrors.password && 'border-destructive focus-visible:ring-destructive')}
+                  />
+                  {fieldErrors.password && <p className="text-sm text-red-600 mt-1">{fieldErrors.password}</p>}
+                </Field>
 
-        setErrors(newErrors)
-        return valid
-    }
+                <Field>
+                  <FieldLabel htmlFor="confirmPassword">Confirm Password</FieldLabel>
+                  <Input
+                    id="confirmPassword" name="confirmPassword" type="password"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                    className={cn(fieldErrors.confirmPassword && 'border-destructive focus-visible:ring-destructive')}
+                  />
+                  {fieldErrors.confirmPassword && (
+                    <p className="text-sm text-red-600 mt-1">{fieldErrors.confirmPassword}</p>
+                  )}
+                </Field>
 
-    async function handleSubmit(e) {
-        e.preventDefault()
+                <Field>
+                  <FieldLabel>Role</FieldLabel>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        {form.role}
+                        <span className="ml-2 opacity-50">▾</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-full bg-white">
+                      <DropdownMenuRadioGroup value={form.role} onValueChange={handleRoleChange}>
+                        <DropdownMenuRadioItem value="Sender" className="cursor-pointer">Sender</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="Signer" className="cursor-pointer">Signer</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </Field>
 
-        if (!validateForm()) return
+                <Field className="pt-2">
+                  <Button type="submit" className="w-full bg-black text-white hover:bg-neutral-800" disabled={loading}>
+                    {loading ? 'Creating account...' : 'Create Account'}
+                  </Button>
+                  <FieldDescription className="text-center mt-2">
+                    Already have an account?{' '}
+                    <Link to="/login" className="underline underline-offset-4 hover:text-primary">Log in</Link>
+                  </FieldDescription>
+                </Field>
 
-        setLoading(true)
-
-        const payload = {
-            name: signupObject.name,
-            email: signupObject.email,
-            password: signupObject.password,
-            role: signupObject.role
-        }
-
-        try {
-            const response = await fetch("http://localhost:8888/register", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            })
-
-            const data = await response.json()
-            if (!response.ok) {
-                const backendError = data.error || (data.errors ? data.errors.join(", ") : "Registration failed")
-                throw new Error(backendError)
-            }
-
-            toast.success("Account created successfully!")
-            sessionStorage.setItem("token", data?.token)
-            sessionStorage.setItem("user", JSON.stringify({ ...data?.user }));
-            navigator("/",{ replace: true })
-
-            setSignupObject({ name: "", email: "", password: "", confirmPassword: "", role: "Sender" })
-
-        } catch (err) {
-            toast.error(err.message || "An unexpected error occurred")
-        } finally {
-            setLoading(false)
-        }
-    }
-    return (
-        <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-            <div className="w-full max-w-lg shadow-xl">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Create an account</CardTitle>
-                        <CardDescription>
-                            Enter your information below to create your account
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleSubmit}>
-                            <FieldGroup className="space-y-4">
-
-                                <Field>
-                                    <FieldLabel htmlFor="email">Name</FieldLabel>
-                                    <Input
-                                        id="name"
-                                        type="text"
-                                        name="name"
-                                        placeholder="Karan Gohel"
-                                        value={signupObject.name}
-                                        onChange={handleChange}
-                                        className={errors.name ? "border-destructive focus-visible:ring-destructive" : ""}
-                                    />
-                                    {errors.name && (
-                                        <p className="text-sm font-medium text-red-600 mt-1">{errors.name}</p>
-                                    )}
-                                </Field>
-                                <Field>
-                                    <FieldLabel htmlFor="email">Email</FieldLabel>
-                                    <Input
-                                        id="email"
-                                        type="text"
-                                        name="email"
-                                        placeholder="m@MindInventory.com"
-                                        value={signupObject.email}
-                                        onChange={handleChange}
-                                        className={errors.email ? "border-destructive focus-visible:ring-destructive" : ""}
-                                    />
-                                    {errors.email && (
-                                        <p className="text-sm font-medium text-red-600 mt-1">{errors.email}</p>
-                                    )}
-                                </Field>
-
-                                <Field className="flex flex-col gap-1.5">
-                                    <FieldLabel>Account Role</FieldLabel>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button type="button" variant="outline" className="w-full justify-start font-normal">
-                                                Role: <span className="ml-1 font-semibold text-primary">{signupObject.role}</span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent className="w-48 bg-popover text-popover-foreground border shadow-md p-1 rounded-md z-50">
-                                            <DropdownMenuRadioGroup
-                                                value={signupObject.role}
-                                                onValueChange={handleRoleChange}
-                                            >
-                                                <DropdownMenuRadioItem value="Sender">
-                                                    Sender
-                                                </DropdownMenuRadioItem>
-                                                <DropdownMenuRadioItem value="Signer">
-                                                    Signer
-                                                </DropdownMenuRadioItem>
-                                            </DropdownMenuRadioGroup>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </Field>
-
-                                <Field>
-                                    <FieldLabel htmlFor="password">Password</FieldLabel>
-                                    <Input
-                                        id="password"
-                                        type="password"
-                                        name="password"
-                                        value={signupObject.password}
-                                        onChange={handleChange}
-                                        className={errors.password ? "border-destructive focus-visible:ring-destructive" : ""}
-                                    />
-                                    {errors.password && (
-                                        <p className="text-sm font-medium text-red-600 mt-1">{errors.password}</p>
-                                    )}
-                                </Field>
-
-                                <Field>
-                                    <FieldLabel htmlFor="confirm-password">
-                                        Confirm Password
-                                    </FieldLabel>
-                                    <Input
-                                        id="confirm-password"
-                                        type="password"
-                                        name="confirmPassword"
-                                        value={signupObject.confirmPassword}
-                                        onChange={handleChange}
-                                        className={errors.confirmPassword ? "border-destructive focus-visible:ring-destructive" : ""}
-                                    />
-                                    {errors.confirmPassword && (
-                                        <p className="text-sm font-medium text-red-600 mt-1">{errors.confirmPassword}</p>
-                                    )}
-                                </Field>
-
-                                <FieldGroup className="pt-2">
-                                    <Field>
-                                        <Button type="submit" variant="outline" className="w-full" disabled={loading}>
-                                            {loading ? "Creating Account..." : "Create Account"}
-                                        </Button>
-                                        <FieldDescription className="px-6 text-center mt-2" >
-                                            Already have an account? <Link to="/login" className="underline underline-offset-4 hover:text-primary">Sign in</Link>
-                                        </FieldDescription>
-                                    </Field>
-                                </FieldGroup>
-
-                            </FieldGroup>
-                        </form>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
-    )
-
+              </FieldGroup>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 }
