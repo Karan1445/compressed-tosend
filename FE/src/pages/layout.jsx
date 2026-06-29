@@ -5,7 +5,7 @@ import {
   SidebarGroupLabel, SidebarGroupContent, SidebarMenu,
   SidebarMenuItem, SidebarMenuButton,
 } from '../components/ui/sidebar';
-import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical } from 'lucide-react';
+import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -26,16 +26,26 @@ import { toast } from 'sonner';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout, resetPassword } from '../store/slices/authSlice';
 
-const navigationItems = [
-  { title: 'User List',    url: '/',            icon: Users },
-  { title: 'Add Question', url: '/question',     icon: FileQuestion },
-  { title: 'DOCX Viewer',  url: '/docx-viewer',  icon: FileText },
-];
+
 
 export default function Layout({ children }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useSelector((state) => state.auth);
+
+  // Build nav items based on permissions
+  const perms = user?.permissions || [];
+  const isSuperAdmin = user?.role === 'Super Admin';
+  const navigationItems = [
+    // User list: for anyone who can assign roles (or super admin)
+    ...(isSuperAdmin || perms.includes('assign_role') ? [{ title: 'User List',       url: '/',            icon: Users }]        : []),
+    // Questions: for anyone who can create roles (or super admin)
+    ...(isSuperAdmin || perms.includes('create_role') ? [{ title: 'Add Question',    url: '/question',    icon: FileQuestion }] : []),
+    ...(perms.includes('send')        ? [{ title: 'Sender Dashboard', url: '/sender',       icon: Send }]         : []),
+    ...(perms.includes('sign')        ? [{ title: 'DOCX Viewer',      url: '/docx-viewer',  icon: FileText }]     : []),
+    ...(perms.includes('create_role') ? [{ title: 'Create Role',       url: '/roles/create', icon: Shield }]      : []),
+    ...(perms.includes('assign_role') ? [{ title: 'Assign Role',       url: '/roles/assign', icon: UserPlus }]    : []),
+  ];
 
   const [resetForm, setResetForm] = useState({ email: '', oldPassword: '', newPassword: '' });
   const [resetLoading, setResetLoading] = useState(false);

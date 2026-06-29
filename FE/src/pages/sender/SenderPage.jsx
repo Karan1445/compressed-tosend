@@ -1,0 +1,112 @@
+import { useDispatch, useSelector } from 'react-redux';
+import { useEffect } from 'react';
+import { fetchUploadedDocx } from '../../store/slices/docxSlice';
+import { FileText, Upload, Clock } from 'lucide-react';
+
+export default function SenderPage() {
+  const dispatch = useDispatch();
+  const { documents, loading } = useSelector((state) => state.docx);
+  const { user } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    dispatch(fetchUploadedDocx());
+  }, [dispatch]);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'Unknown date';
+    return new Date(dateStr).toLocaleDateString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-gray-900">Sender Dashboard</h2>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage and track all documents you have sent for signing.
+          </p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white border rounded-lg p-5 shadow-sm flex items-center gap-4">
+          <div className="p-2 bg-blue-50 rounded-md">
+            <FileText className="h-5 w-5 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{documents?.length ?? 0}</p>
+            <p className="text-xs text-gray-500">Total Documents Sent</p>
+          </div>
+        </div>
+        <div className="bg-white border rounded-lg p-5 shadow-sm flex items-center gap-4">
+          <div className="p-2 bg-green-50 rounded-md">
+            <Upload className="h-5 w-5 text-green-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{documents?.length ?? 0}</p>
+            <p className="text-xs text-gray-500">Uploaded to Server</p>
+          </div>
+        </div>
+        <div className="bg-white border rounded-lg p-5 shadow-sm flex items-center gap-4">
+          <div className="p-2 bg-yellow-50 rounded-md">
+            <Clock className="h-5 w-5 text-yellow-600" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">0</p>
+            <p className="text-xs text-gray-500">Awaiting Signature</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Documents table */}
+      <div className="bg-white border rounded-md shadow-sm overflow-hidden">
+        <div className="border-b px-6 py-4">
+          <h3 className="font-semibold text-sm text-gray-900">Sent Documents</h3>
+        </div>
+        {loading ? (
+          <div className="px-6 py-12 text-center text-gray-400 text-sm">Loading documents...</div>
+        ) : !documents || documents.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <FileText className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">No documents uploaded yet.</p>
+            <p className="text-xs text-gray-400 mt-1">Use the DOCX Viewer to upload and map documents.</p>
+          </div>
+        ) : (
+          <table className="w-full text-sm text-left">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="px-6 py-3 font-medium text-gray-700">File Name</th>
+                <th className="px-6 py-3 font-medium text-gray-700">Uploaded On</th>
+                <th className="px-6 py-3 font-medium text-gray-700">Mapped Fields</th>
+                <th className="px-6 py-3 font-medium text-gray-700">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {documents.map((doc) => (
+                <tr key={doc._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 font-medium text-gray-900 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                    {doc.originalName || doc.filename}
+                  </td>
+                  <td className="px-6 py-4 text-gray-500">{formatDate(doc.createdAt)}</td>
+                  <td className="px-6 py-4 text-gray-500">
+                    {doc.mappings ? Object.keys(doc.mappings).length : 0} fields
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                      Uploaded
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}

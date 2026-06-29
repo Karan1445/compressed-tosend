@@ -37,12 +37,12 @@ export default function DocxPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
 
-  const filteredDocs = documents.filter(doc => 
+  const filteredDocs = documents.filter(doc =>
     doc.originalName.toLowerCase().includes(historySearch.toLowerCase())
   );
 
   useEffect(() => {
-    dispatch(fetchUploadedDocx()).unwrap().catch(() => {});
+    dispatch(fetchUploadedDocx()).unwrap().catch(() => { });
   }, [dispatch]);
 
   // ─── Panel state ─────────────────────────────────────────────────────────────
@@ -130,7 +130,7 @@ export default function DocxPage() {
     btn.style.fontWeight = '500';
     btn.style.padding = '0 4px';
     btn.style.justifyContent = 'space-between';
-    
+
     // Add text and remove icon
     btn.innerHTML = `
       <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${short}</span>
@@ -289,7 +289,7 @@ export default function DocxPage() {
           const precedingText = range.toString() + (textNode.nodeValue.split(part)[0] || '');
           const precedingParts = precedingText.split(/_+|\+/);
           const rawQuestion = precedingParts[precedingParts.length - 1].trim();
-          
+
           if (rawQuestion) {
             const normalizedRaw = normalizeString(rawQuestion);
             if (normalizedRaw.length > 0) {
@@ -297,7 +297,7 @@ export default function DocxPage() {
               if (matchedQ) {
                 autoMatches[fieldId] = matchedQ;
                 autoMatchCount++;
-                
+
                 const short = matchedQ.question.length > 22 ? matchedQ.question.substring(0, 22) + '…' : matchedQ.question;
                 btn.title = matchedQ.question;
                 btn.dataset.assigned = matchedQ._id;
@@ -392,7 +392,7 @@ export default function DocxPage() {
 
   const handleSaveMappings = async () => {
     if (!activeDoc) return;
-    
+
     // Transform fieldMappings (which has full question objects) into { fieldId: questionId }
     const mappingsToSave = {};
     Object.entries(fieldMappings).forEach(([fieldId, q]) => {
@@ -429,7 +429,7 @@ export default function DocxPage() {
         setHasDoc(true);
         // Mock a file object for re-upload if needed (not perfect but allows UI to continue)
         setSelectedFile(new File([arrayBuffer], doc.originalName, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
-        
+
         // Restore mappings if they exist
         if (doc.mappings && Object.keys(doc.mappings).length > 0) {
           const newMappings = { ...autoMatches }; // merge with auto matches
@@ -439,7 +439,7 @@ export default function DocxPage() {
             if (question) {
               newMappings[fieldId] = question;
               restoredCount++;
-              
+
               // Apply visual styling to the button
               const btn = fieldBtnsRef.current[fieldId];
               if (btn) {
@@ -530,16 +530,16 @@ export default function DocxPage() {
                 </Button>
                 <input type="file" accept=".docx,.pdf" onChange={handleFileChange} className="hidden" />
               </label>
-              
+
               {fileName && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium truncate max-w-[200px] border px-2 py-1 bg-slate-50 rounded">
                     {fileName}
                   </span>
-                  
+
                   {!activeDoc ? (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       className="flex items-center gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
                       onClick={handleUploadToServer}
                       disabled={uploading}
@@ -548,7 +548,7 @@ export default function DocxPage() {
                       Upload to Server
                     </Button>
                   ) : (
-                    <Button 
+                    <Button
                       className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm"
                       onClick={handleSaveMappings}
                       disabled={savingMappings}
@@ -560,13 +560,13 @@ export default function DocxPage() {
                 </div>
               )}
             </div>
-            
+
             <Button variant="secondary" className="flex items-center gap-2" onClick={() => setHistoryOpen(true)}>
               <History className="h-4 w-4" />
               Document History
             </Button>
           </div>
-          
+
           {loading && (
             <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -730,7 +730,7 @@ export default function DocxPage() {
               filteredDocs.map((doc) => {
                 const isActive = activeDoc?._id === doc._id;
                 return (
-                  <div 
+                  <div
                     key={doc._id}
                     onClick={() => handleLoadFromHistory(doc)}
                     className={[

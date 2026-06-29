@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Role = require('../models/Role');
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -24,7 +25,25 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET || 'fallback_secret_key', { expiresIn: '1h' });
 };
 
+const requirePermission = (permission) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.user || !req.user.role) {
+        return res.status(403).json({ error: 'Access denied: No role assigned' });
+      }
+      const role = await Role.findOne({ name: req.user.role }).lean();
+      if (!role || !role.permissions || !role.permissions.includes(permission)) {
+        return res.status(403).json({ error: `Access denied: Requires '${permission}' permission` });
+      }
+      next();
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to verify permissions' });
+    }
+  };
+};
+
 module.exports = {
   authenticateToken,
-  generateToken
+  generateToken,
+  requirePermission
 };

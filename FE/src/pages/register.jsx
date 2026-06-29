@@ -3,10 +3,6 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '../components/ui/field';
 import { Input } from '../components/ui/input';
-import {
-  DropdownMenu, DropdownMenuContent,
-  DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useDispatch, useSelector } from 'react-redux';
@@ -18,7 +14,7 @@ export function SignupForm() {
   const navigate = useNavigate();
   const { loading, error } = useSelector((state) => state.auth);
 
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'Sender' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', password: '', confirmPassword: '' });
 
   // Show backend error as toast
@@ -37,7 +33,7 @@ export function SignupForm() {
     setFieldErrors((prev) => ({ ...prev, [name]: '' }));
   }
 
-  function handleRoleChange(value) { setForm((prev) => ({ ...prev, role: value })); }
+
 
   function validateForm() {
     const errs = { name: '', email: '', password: '', confirmPassword: '' };
@@ -62,7 +58,6 @@ export function SignupForm() {
         name: form.name,
         email: form.email,
         password: form.password,
-        role: form.role,
       })).unwrap();
       toast.success(`Account created! Welcome aboard, ${result.user.name}! 🎉`);
       navigate('/', { replace: true });
@@ -131,23 +126,7 @@ export function SignupForm() {
                   )}
                 </Field>
 
-                <Field>
-                  <FieldLabel>Role</FieldLabel>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" className="w-full justify-between">
-                        {form.role}
-                        <span className="ml-2 opacity-50">▾</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-full bg-white">
-                      <DropdownMenuRadioGroup value={form.role} onValueChange={handleRoleChange}>
-                        <DropdownMenuRadioItem value="Sender" className="cursor-pointer">Sender</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="Signer" className="cursor-pointer">Signer</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </Field>
+
 
                 <Field className="pt-2">
                   <Button type="submit" className="w-full bg-black text-white hover:bg-neutral-800" disabled={loading}>

@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const { generateToken } = require('../middleware/auth');
+const { generateToken, authenticateToken } = require('../middleware/auth');
 const { authValidationSchema, authValidationSchemaEdit } = require('../validations/authValidation');
-const { sendRegistrationMail, sendForgetPassToUser, sendResetPasswordToUser } = require('./mailService')
+const { sendRegistrationMail, sendForgetPassToUser, sendResetPasswordToUser } = require('./mailService');
+const Role = require('../models/Role');
 const crypto = require('crypto');
 
 router.post('/register', async (req, res) => {
@@ -15,12 +16,15 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ errors: errorMessages });
     }
 
-    const { name, email, password, role } = value;
-    const newUser = new User({ name, email, password, role });
+    const { name, email, password } = value;
+    const newUser = new User({ name, email, password, role: 'Signer' });
     await newUser.save();
 
     const token = generateToken(newUser._id);
     const { password: _, ...userWithoutPassword } = newUser.toObject();
+    
+    const roleDoc = await Role.findOne({ name: newUser.role }).lean();
+    userWithoutPassword.permissions = roleDoc ? roleDoc.permissions : [];
 
     sendRegistrationMail(newUser.name, newUser.email);
 
@@ -53,6 +57,9 @@ router.post('/login', async (req, res) => {
     const token = generateToken(user._id);
     const { password: _, ...userWithoutPassword } = user;
 
+    const roleDoc = await Role.findOne({ name: user.role }).lean();
+    userWithoutPassword.permissions = roleDoc ? roleDoc.permissions : [];
+
     res.json({
       message: 'Login successful',
       token,
@@ -62,6 +69,21 @@ router.post('/login', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── GET current user (with fresh permissions) ─────────────────────────────────────
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).lean();
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const { password: _, ...userWithoutPassword } = user;
+    const roleDoc = await Role.findOne({ name: user.role }).lean();
+    userWithoutPassword.permissions = roleDoc ? roleDoc.permissions : [];
+    res.json({ user: userWithoutPassword });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 router.post('/forgot-password', async (req, res) => {
   try {

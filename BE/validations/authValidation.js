@@ -32,15 +32,6 @@ const authValidationSchemaEdit = Joi.object({
     .messages({
       'string.min': 'Password must be at least 6 characters long.',
       'any.required': 'Password is required.'
-    }),
-  role: Joi.string()
-    .min(2)
-    .valid('Sender', 'Signer')
-    .required()
-    .messages({
-      'string.min': 'Please enter a valid designation.',
-      'any.required': 'Role is required.',
-      'any.only': 'Role must be either Sender or Signer.'
     })
 });
 

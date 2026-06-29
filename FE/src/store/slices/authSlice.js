@@ -97,6 +97,24 @@ export const resetPassword = createAsyncThunk(
   }
 );
 
+export const refreshMe = createAsyncThunk(
+  'auth/refreshMe',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      if (!token) return rejectWithValue('No token');
+      const res = await fetch(`${API}/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) return rejectWithValue(data.error || 'Failed to refresh session');
+      return data; // { user }
+    } catch {
+      return rejectWithValue('Network error');
+    }
+  }
+);
+
 // ─── Slice ────────────────────────────────────────────────────────────────────
 const { token: initToken, user: initUser } = loadPersisted();
 
@@ -159,6 +177,13 @@ const authSlice = createSlice({
       .addCase(resetPassword.pending,   (state)             => { state.loading = true;  state.error = null; })
       .addCase(resetPassword.fulfilled, (state)             => { state.loading = false; })
       .addCase(resetPassword.rejected,  (state, { payload }) => { state.loading = false; state.error = payload; });
+
+    // ── Refresh Me (live role sync) ──────────────────────────────────────────
+    builder
+      .addCase(refreshMe.fulfilled, (state, { payload }) => {
+        state.user = payload.user;
+        persist(state.token, payload.user);
+      });
   },
 });
 
