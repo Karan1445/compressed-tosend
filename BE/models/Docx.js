@@ -24,7 +24,7 @@ const DocxSchema = new mongoose.Schema({
   },
   mappings: {
     type: Map,
-    of: String,
+    of: mongoose.Schema.Types.Mixed,
     default: {},
   },
   draggedFields: [{
@@ -33,7 +33,9 @@ const DocxSchema = new mongoose.Schema({
     x: Number,
     y: Number,
     width: Number,
-    height: Number
+    height: Number,
+    dependsOnId: String,
+    dependsOnValue: String
   }]
 });
 

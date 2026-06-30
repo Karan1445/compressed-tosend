@@ -44,7 +44,10 @@ router.post('/', async (req, res) => {
             userID: req.user._id,
             question: req.body.question,
             type: req.body.type,
-            required: req.body.required
+            required: req.body.required,
+            options: req.body.options || [],
+            dependsOnId: req.body.dependsOnId || null,
+            dependsOnValue: req.body.dependsOnValue || ''
         });
         const savedQuestion = await newQuestion.save();
         res.status(201).json(savedQuestion);
@@ -93,7 +96,10 @@ router.put('/:id', async (req, res) => {
             {
                 question: req.body.question,
                 type: req.body.type,
-                required: req.body.required
+                required: req.body.required,
+                options: req.body.options || [],
+                dependsOnId: req.body.dependsOnId || null,
+                dependsOnValue: req.body.dependsOnValue || ''
             },
             { new: true, runValidators: true }
         );

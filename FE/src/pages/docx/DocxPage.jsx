@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { renderAsync } from 'docx-preview';
 import { Rnd } from 'react-rnd';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchQuestions, deleteQuestion } from '../../store/slices/questionSlice';
+import { fetchQuestions, deleteQuestion, updateQuestion } from '../../store/slices/questionSlice';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -11,14 +11,106 @@ import {
   Sheet, SheetContent, SheetHeader,
   SheetTitle, SheetDescription,
 } from '../../components/ui/sheet';
-import { Upload, FileText, Loader2, Search, CheckCircle2, Link2, X, RotateCcw, Save, History, CloudUpload, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Upload, FileText, Loader2, Search, CheckCircle2, Link2, X, RotateCcw, Save, History, CloudUpload, Trash2, Lightbulb } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '../../components/ui/alert-dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { toast } from 'sonner';
 import { uploadDocx, fetchUploadedDocx, saveDocxMappings, deleteDocx } from '../../store/slices/docxSlice';
+
+function SidebarDependencyConfig({ q, questions, mappedQuestions, onSaveDependency, onClose }) {
+  const [localVal, setLocalVal] = useState(q?.dependsOnValue || '');
+  const [dependsOnId, setDependsOnId] = useState(q?.dependsOnId || '');
+
+  useEffect(() => { 
+    setLocalVal(q?.dependsOnValue || ''); 
+    setDependsOnId(q?.dependsOnId || '');
+  }, [q]);
+
+  const handleSave = () => {
+    if (!q) return;
+    onSaveDependency(q._id, dependsOnId === 'none' ? null : dependsOnId, localVal);
+    onClose();
+  };
+
+  if (!q) return null;
+
+  return (
+    <div className="flex flex-col h-full bg-white">
+      <div className="p-4 border-b bg-slate-50 flex items-start gap-3 shrink-0">
+        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 shrink-0 rounded-full hover:bg-slate-200">
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+        <div>
+          <h3 className="font-semibold text-slate-800 text-sm">Configure Dependency</h3>
+          <p className="text-[10px] text-slate-500 mt-1">Set visibility condition for this mapped question.</p>
+        </div>
+      </div>
+      <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+        <div className="p-3 bg-indigo-50 border border-indigo-100 rounded text-sm text-indigo-900 font-medium">
+          {q.question}
+        </div>
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-slate-700">Depends on (Mapped Questions)</label>
+          <Select 
+            value={dependsOnId || "none"} 
+            onValueChange={setDependsOnId}
+          >
+            <SelectTrigger className="w-full bg-white text-xs h-9">
+              <SelectValue placeholder="No dependency" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="none">No dependency (Always show)</SelectItem>
+              {mappedQuestions.filter(other => other._id !== q._id).map(other => (
+                <SelectItem key={other._id} value={other._id}>{other.question}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {dependsOnId && dependsOnId !== 'none' && (
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-slate-700">Required Value</label>
+            {(() => {
+                const parentQ = questions.find(x => x._id === dependsOnId);
+                if (parentQ?.type === 'checkbox') {
+                  return (
+                    <Select 
+                      value={localVal || ""} 
+                      onValueChange={setLocalVal}
+                    >
+                      <SelectTrigger className="w-full bg-white text-xs h-9">
+                        <SelectValue placeholder="Select Yes/No" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="true">Yes</SelectItem>
+                        <SelectItem value="false">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  );
+                }
+                return (
+                  <Input 
+                    className="text-xs h-9"
+                    placeholder="e.g. Yes" 
+                    value={localVal} 
+                    onChange={(e) => setLocalVal(e.target.value)}
+                  />
+                );
+            })()}
+          </div>
+        )}
+      </div>
+      <div className="p-4 border-t bg-slate-50 shrink-0">
+        <Button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white w-full">Save Settings</Button>
+      </div>
+    </div>
+  );
+}
 
 export default function DocxPage() {
   const dispatch = useDispatch();
@@ -37,6 +129,7 @@ export default function DocxPage() {
   const [hasDoc, setHasDoc] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [activeDoc, setActiveDoc] = useState(null);
+  const [dependencyConfigQuestion, setDependencyConfigQuestion] = useState(null);
 
   // ─── Redux: uploaded documents ────────────────────────────────────────────────
   const { documents, uploading, savingMappings, loading: docsLoading } = useSelector((state) => state.docx || { documents: [], uploading: false, savingMappings: false, loading: false });
@@ -69,15 +162,21 @@ export default function DocxPage() {
         if (activeDocRef.current) {
           const mappingsToSave = {};
           Object.entries(fieldMappingsRefForSave.current).forEach(([fieldId, q]) => {
-            mappingsToSave[fieldId] = q._id;
+            mappingsToSave[fieldId] = {
+              questionId: q._id,
+              dependsOnId: q.dependsOnId || null,
+              dependsOnValue: q.dependsOnValue || ''
+            };
           });
           const draggedFieldsToSave = draggedFieldsRef.current.map(df => ({
             id: df.id,
-            questionId: df.questionId,
+            questionId: df.questionId || (df.questionObj ? df.questionObj._id : null),
             x: df.x,
             y: df.y,
             width: df.width,
-            height: df.height
+            height: df.height,
+            dependsOnId: df.questionObj?.dependsOnId || null,
+            dependsOnValue: df.questionObj?.dependsOnValue || ''
           }));
           dispatch(saveDocxMappings({ 
             docxId: activeDocRef.current._id, 
@@ -122,6 +221,46 @@ export default function DocxPage() {
   const formValuesRef = useRef(formValues);
   useEffect(() => { formValuesRef.current = formValues; }, [formValues]);
 
+  // ─── Conditional Logic Helper ──────────────────────────────────────────────
+  const isDependencyMet = useCallback((q) => {
+    if (!q.dependsOnId) return true; // No dependency
+
+    // Find all fields on this document that are mapped to the parent question (both inline and dragged)
+    const dependentFieldIds = [
+      ...Object.keys(fieldMappings).filter(fid => fieldMappings[fid]?._id === q.dependsOnId),
+      ...draggedFieldsRef.current.filter(df => df.questionObj?._id === q.dependsOnId).map(df => df.id)
+    ];
+
+    if (dependentFieldIds.length === 0) return false; // Parent question not on document
+
+    // Check if any mapped field has the required value
+    return dependentFieldIds.some(fid => {
+      const val = formValuesRef.current[fid];
+      return val === q.dependsOnValue;
+    });
+  }, [fieldMappings]);
+
+  const handleSaveDependency = useCallback((qId, dependsOnId, dependsOnValue) => {
+    setFieldMappings(prev => {
+       const next = { ...prev };
+       for (const fid in next) {
+          if (next[fid]?._id === qId) {
+             next[fid] = { ...next[fid], dependsOnId, dependsOnValue };
+          }
+       }
+       return next;
+    });
+
+    setDraggedFields(prev => prev.map(df => {
+       if (df.questionObj?._id === qId) {
+          return { ...df, questionObj: { ...df.questionObj, dependsOnId, dependsOnValue } };
+       }
+       return df;
+    }));
+    
+    toast.success('Dependency saved locally. Press Ctrl+S to save document!');
+  }, []);
+
   // ─── Sync DOM buttons with interactionMode ─────────────────────────────────
   useEffect(() => {
     Object.entries(fieldBtnsRef.current).forEach(([fieldId, btn]) => {
@@ -139,12 +278,36 @@ export default function DocxPage() {
                 <input type="checkbox" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 14px; height: 14px; accent-color: #4f46e5;" />
               </div>
             `;
-            // Remove border/bg from btn itself since we added it to the div to center the checkbox properly
+            btn.style.padding = '0';
+            btn.style.border = 'none';
+            btn.style.background = 'transparent';
+          } else if (q.type === 'dropdown' || q.type === 'radio') {
+            const options = q.options || [];
+            let optionsHtml = `<option value="" disabled ${!currentVal ? 'selected' : ''}>${short}</option>`;
+            options.forEach(opt => {
+              optionsHtml += `<option value="${opt}" ${currentVal === opt ? 'selected' : ''}>${opt}</option>`;
+            });
+            btn.innerHTML = `
+              <select style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b; cursor: pointer;">
+                ${optionsHtml}
+              </select>
+            `;
+            btn.style.padding = '0';
+            btn.style.border = 'none';
+            btn.style.background = 'transparent';
+          } else if (q.type === 'date') {
+            btn.innerHTML = `<input type="date" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b; cursor: pointer;" />`;
+            btn.style.padding = '0';
+            btn.style.border = 'none';
+            btn.style.background = 'transparent';
+          } else if (q.type === 'textarea') {
+            btn.innerHTML = `<textarea placeholder="${short}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 4px; font-size: 11px; color: #1e1b4b; resize: none;">${currentVal}</textarea>`;
             btn.style.padding = '0';
             btn.style.border = 'none';
             btn.style.background = 'transparent';
           } else {
-            btn.innerHTML = `<input type="text" placeholder="${short}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b;" />`;
+            const typeAttr = q.type === 'number' ? 'number' : 'text';
+            btn.innerHTML = `<input type="${typeAttr}" placeholder="${short}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b;" />`;
             btn.style.padding = '0';
             btn.style.border = 'none';
             btn.style.background = 'transparent';
@@ -153,7 +316,7 @@ export default function DocxPage() {
           btn.title = q.question;
           btn.style.visibility = 'visible';
   
-          const input = btn.querySelector('input, select');
+          const input = btn.querySelector('input, select, textarea');
           if (input) {
             input.onclick = (e) => e.stopPropagation();
             input.onmousedown = (e) => e.stopPropagation();
@@ -161,7 +324,7 @@ export default function DocxPage() {
               const val = input.type === 'checkbox' ? e.target.checked.toString() : e.target.value;
               setFormValues(prev => ({ ...prev, [fieldId]: val }));
             };
-            if (input.tagName === 'INPUT' && input.type !== 'checkbox') {
+            if ((input.tagName === 'INPUT' && input.type !== 'checkbox' && input.type !== 'date') || input.tagName === 'TEXTAREA') {
               input.oninput = (e) => {
                 setFormValues(prev => ({ ...prev, [fieldId]: e.target.value }));
               };
@@ -181,7 +344,9 @@ export default function DocxPage() {
           btn.title = q.question;
           
           btn.innerHTML = `
-            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${short}</span>
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${q.dependsOnId ? '<span title="Has Dependency" style="margin-right:2px">🔗</span>' : ''}${short}
+            </span>
             <span class="remove-mapping-icon" style="margin-left: 4px; padding: 0 4px; cursor: pointer; color: #dc2626; border-radius: 50%; font-size: 10px; font-weight: bold;" title="Remove mapping">✕</span>
           `;
           const removeIcon = btn.querySelector('.remove-mapping-icon');
@@ -193,6 +358,11 @@ export default function DocxPage() {
               }
             };
           }
+          btn.ondblclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDependencyConfigQuestion(q);
+          };
         } else {
           // Restore unmapped styling
           btn.innerText = '+';
@@ -204,11 +374,25 @@ export default function DocxPage() {
           btn.style.fontWeight = '600';
           btn.style.padding = '0';
           btn.style.justifyContent = 'center';
+          btn.ondblclick = null;
           delete btn.dataset.assigned;
         }
       }
     });
   }, [interactionMode, fieldMappings]);
+
+  // ─── Dynamic Visibility Effect ──────────────────────────────────────────────
+  useEffect(() => {
+    if (interactionMode !== 'interact') return;
+    Object.entries(fieldBtnsRef.current).forEach(([fieldId, btn]) => {
+      if (!btn) return;
+      const q = fieldMappings[fieldId];
+      if (q) {
+        const visible = isDependencyMet(q);
+        btn.style.visibility = visible ? 'visible' : 'hidden';
+      }
+    });
+  }, [interactionMode, fieldMappings, formValues, isDependencyMet]);
 
   // ─── Filtered questions ───────────────────────────────────────────────────────
   const filteredQuestions = questions.filter((q) =>
@@ -609,7 +793,12 @@ export default function DocxPage() {
         if (doc.draggedFields && Array.isArray(doc.draggedFields)) {
           const restoredDraggedFields = doc.draggedFields.map(df => {
             const q = questions.find(q => q._id === df.questionId);
-            return { ...df, questionObj: q };
+            const questionObj = q ? {
+               ...q,
+               dependsOnId: df.dependsOnId || q.dependsOnId,
+               dependsOnValue: df.dependsOnValue || q.dependsOnValue
+            } : null;
+            return { ...df, questionObj };
           });
           setDraggedFields(restoredDraggedFields);
         }
@@ -618,10 +807,16 @@ export default function DocxPage() {
         if (doc.mappings && Object.keys(doc.mappings).length > 0) {
           const newMappings = { ...autoMatches }; // merge with auto matches
           let restoredCount = 0;
-          Object.entries(doc.mappings).forEach(([fieldId, qId]) => {
+          Object.entries(doc.mappings).forEach(([fieldId, mappingObj]) => {
+            const qId = typeof mappingObj === 'string' ? mappingObj : mappingObj.questionId;
             const question = questions.find(q => q._id === qId);
             if (question) {
-              newMappings[fieldId] = question;
+              const enhancedQ = typeof mappingObj === 'string' ? question : {
+                 ...question,
+                 dependsOnId: mappingObj.dependsOnId || question.dependsOnId,
+                 dependsOnValue: mappingObj.dependsOnValue || question.dependsOnValue
+              };
+              newMappings[fieldId] = enhancedQ;
               restoredCount++;
 
               // Apply visual styling to the button
@@ -835,7 +1030,13 @@ export default function DocxPage() {
             </div>
 
             {/* Draggable dropped elements */}
-            {hasDoc && draggedFields.map(field => (
+            {hasDoc && draggedFields.map(field => {
+              const q = field.questionObj;
+              const isVisible = interactionMode === 'edit' || (q && isDependencyMet(q));
+              
+              if (!isVisible) return null;
+
+              return (
               <Rnd
                 key={field.id}
                 default={{
@@ -858,6 +1059,11 @@ export default function DocxPage() {
                     ...position 
                   } : f));
                 }}
+                onDoubleClick={() => {
+                  if (interactionMode === 'edit' && q) {
+                    setDependencyConfigQuestion(q);
+                  }
+                }}
                 className={`absolute ${interactionMode === 'edit' ? 'bg-white/95 border-2 border-indigo-400 shadow-md flex items-center justify-center cursor-move group' : 'z-40'} rounded z-50`}
               >
                 {interactionMode === 'edit' ? (
@@ -869,7 +1075,12 @@ export default function DocxPage() {
                     >
                       <X className="h-3 w-3" />
                     </button>
-                    <p className="text-xs font-semibold text-indigo-900 truncate px-2 select-none pointer-events-none">
+                    {q?.dependsOnId && (
+                      <div className="absolute top-0.5 left-0.5 bg-indigo-100 text-indigo-600 rounded p-0.5 z-40" title="Has Dependency">
+                        <Link2 className="h-3 w-3" />
+                      </div>
+                    )}
+                    <p className="text-xs font-semibold text-indigo-900 truncate px-2 select-none pointer-events-none text-center">
                       {field.questionObj?.question || 'Unknown Question'}
                     </p>
                   </div>
@@ -882,9 +1093,34 @@ export default function DocxPage() {
                       className="cursor-pointer h-4 w-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-500"
                     />
                   </div>
+                ) : field.questionObj?.type === 'dropdown' || field.questionObj?.type === 'radio' ? (
+                  <select 
+                    value={formValues[field.id] || ''}
+                    onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                    className="w-full h-full border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 px-2 text-sm bg-white/90 shadow-sm cursor-pointer"
+                  >
+                    <option value="" disabled>{field.questionObj?.question}</option>
+                    {(field.questionObj?.options || []).map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : field.questionObj?.type === 'date' ? (
+                  <input 
+                    type="date"
+                    value={formValues[field.id] || ''}
+                    onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                    className="w-full h-full border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 px-2 text-sm bg-white/90 shadow-sm"
+                  />
+                ) : field.questionObj?.type === 'textarea' ? (
+                  <textarea 
+                    value={formValues[field.id] || ''}
+                    onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                    placeholder={field.questionObj?.question}
+                    className="w-full h-full border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-2 text-sm bg-white/90 shadow-sm resize-none"
+                  />
                 ) : (
                   <input 
-                    type="text"
+                    type={field.questionObj?.type === 'number' ? 'number' : 'text'}
                     value={formValues[field.id] || ''}
                     onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
                     placeholder={field.questionObj?.question}
@@ -892,7 +1128,7 @@ export default function DocxPage() {
                   />
                 )}
               </Rnd>
-            ))}
+            )})}
           </div>
         </CardContent>
       </Card>
@@ -900,44 +1136,78 @@ export default function DocxPage() {
 
       {/* ── RIGHT COLUMN: Fixed Draggable Questions Sidebar ── */}
       <div className="hidden lg:block w-80 shrink-0 sticky top-6">
-        <Card className="shadow-md flex flex-col h-[calc(100vh-8rem)]">
-          <CardHeader className="pb-3 border-b bg-white shrink-0">
-            <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
-              <CheckCircle2 className="h-4 w-4 text-indigo-600" /> Drag Questions
-            </CardTitle>
-            <p className="text-xs text-slate-500 mt-1">
-              Drag and drop these questions anywhere on your document to map them visually.
-            </p>
-          </CardHeader>
-          
-          <div className="p-3 bg-slate-50 border-b shrink-0">
-             <Input
-              placeholder="Search questions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-white border-slate-200 focus:bg-white text-sm h-9 w-full"
+        <Card className="shadow-md flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
+          {dependencyConfigQuestion ? (
+            <SidebarDependencyConfig 
+              q={questions.find(x => x._id === dependencyConfigQuestion._id) || dependencyConfigQuestion}
+              questions={questions}
+              mappedQuestions={(() => {
+                const mapped = [];
+                const seen = new Set();
+                Object.values(fieldMappings).forEach(q => {
+                  if (q && !seen.has(q._id)) {
+                    mapped.push(q);
+                    seen.add(q._id);
+                  }
+                });
+                draggedFields.forEach(df => {
+                  if (df.questionObj && !seen.has(df.questionObj._id)) {
+                    mapped.push(df.questionObj);
+                    seen.add(df.questionObj._id);
+                  }
+                });
+                return mapped;
+              })()}
+              onSaveDependency={handleSaveDependency}
+              onClose={() => setDependencyConfigQuestion(null)}
             />
-          </div>
-
-          <CardContent className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/50">
-            {filteredQuestions.length === 0 ? (
-              <div className="text-center text-slate-400 py-10 text-sm">No questions found.</div>
-            ) : (
-              filteredQuestions.map(q => (
-                <div 
-                  key={q._id} 
-                  draggable 
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/json', JSON.stringify(q));
-                    e.dataTransfer.effectAllowed = 'copy';
-                  }}
-                  className="bg-white border border-slate-200 rounded p-3 text-sm text-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:shadow-md transition-all select-none"
-                >
-                  {q.question}
+          ) : (
+            <>
+              <CardHeader className="pb-3 border-b bg-white shrink-0">
+                <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                  <CheckCircle2 className="h-4 w-4 text-indigo-600" /> Drag Questions
+                </CardTitle>
+                <p className="text-xs text-slate-500 mt-1">
+                  Drag and drop these questions anywhere on your document to map them visually.
+                </p>
+                <div className="mt-2 bg-indigo-50 border border-indigo-100 rounded px-2 py-2 flex items-start gap-2">
+                   <div className="mt-0.5"><Lightbulb className="h-3 w-3 text-indigo-600"/></div>
+                   <p className="text-[10px] text-indigo-800 leading-tight">
+                     <strong>Tip:</strong> Double-click any mapped question on your document to configure conditional dependencies!
+                   </p>
                 </div>
-              ))
-            )}
-          </CardContent>
+              </CardHeader>
+              
+              <div className="p-3 bg-slate-50 border-b shrink-0">
+                 <Input
+                  placeholder="Search questions..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-white border-slate-200 focus:bg-white text-sm h-9 w-full"
+                />
+              </div>
+
+              <CardContent className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/50">
+                {filteredQuestions.length === 0 ? (
+                  <div className="text-center text-slate-400 py-10 text-sm">No questions found.</div>
+                ) : (
+                  filteredQuestions.map(q => (
+                    <div 
+                      key={q._id} 
+                      draggable 
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/json', JSON.stringify(q));
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      className="bg-white border border-slate-200 rounded p-3 text-sm text-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:shadow-md transition-all select-none"
+                    >
+                      {q.question}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </>
+          )}
         </Card>
       </div>
       </div>

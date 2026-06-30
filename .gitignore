@@ -17,8 +17,7 @@ FE/.env.local
 FE/.env.development.local
 FE/.env.production.local
 
-BE/.env
-BE/.env.local
+
 
 # Logs
 *.log
@@ -62,4 +61,3 @@ FE/out/
 .pm2/
 
 # Misc
-.env

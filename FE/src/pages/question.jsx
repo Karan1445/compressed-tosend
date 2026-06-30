@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import {
   MoreHorizontal, Pencil, Plus, Trash, Loader2,
   Type, AlignLeft, CheckSquare, ChevronDown, Hash,
+  Calendar, CircleDot, X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '../components/ui/dialog';
@@ -18,6 +19,7 @@ import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { Checkbox } from '../components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from '../components/ui/alert-dialog';
 
@@ -68,6 +70,25 @@ const QUESTION_TYPES = [
     desc: 'Numeric value only',
     preview: <input readOnly type="number" placeholder="0" className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-400 cursor-default" />,
   },
+  {
+    value: 'radio',
+    label: 'Radio Buttons',
+    icon: CircleDot,
+    desc: 'Single choice from list',
+    preview: (
+      <div className="flex items-center gap-2">
+        <div className="h-3.5 w-3.5 rounded-full border-2 border-slate-300 bg-white" />
+        <span className="text-xs text-slate-400">Option 1</span>
+      </div>
+    ),
+  },
+  {
+    value: 'date',
+    label: 'Date Picker',
+    icon: Calendar,
+    desc: 'Select a date',
+    preview: <input readOnly type="date" className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-400 cursor-default" />,
+  },
 ];
 
 // ─── Visual type picker component ─────────────────────────────────────────────
@@ -98,21 +119,53 @@ function TypePicker({ value, onChange }) {
   );
 }
 
-// ─── Live preview pane ────────────────────────────────────────────────────────
-function TypePreview({ type }) {
-  if (!type) return null;
-  const def = QUESTION_TYPES.find((t) => t.value === type);
-  if (!def) return null;
+// ─── Extra Form Fields (Options & Dependencies) ───────────────────────────────
+function ExtraFormFields({ form, setForm, questions, editingItemId }) {
+  const needsOptions = form.type === 'dropdown' || form.type === 'radio';
+  const otherQuestions = questions.filter(q => q._id !== editingItemId);
+
   return (
-    <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Preview</p>
-      {def.preview}
+    <div className="space-y-4 pt-4 border-t mt-4">
+      {needsOptions && (
+        <div className="space-y-2">
+          <Label>Options</Label>
+          <div className="flex flex-col gap-2">
+            {form.options.map((opt, i) => (
+              <div key={i} className="flex gap-2">
+                <Input value={opt} onChange={(e) => {
+                  const newOpts = [...form.options];
+                  newOpts[i] = e.target.value;
+                  setForm(p => ({ ...p, options: newOpts }));
+                }} placeholder={`Option ${i + 1}`} />
+                <Button type="button" variant="ghost" size="icon" className="text-red-500 hover:bg-red-50 hover:text-red-600 shrink-0" onClick={() => {
+                  setForm(p => ({ ...p, options: p.options.filter((_, idx) => idx !== i) }));
+                }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <Button type="button" variant="outline" size="sm" onClick={() => setForm(p => ({ ...p, options: [...p.options, ''] }))}>
+              <Plus className="h-4 w-4 mr-1" /> Add Option
+            </Button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
+
+
 // ─── Empty form state ─────────────────────────────────────────────────────────
-const EMPTY_FORM = { question: '', type: '', required: false };
+const EMPTY_FORM = { 
+  question: '', 
+  type: '', 
+  required: false,
+  options: [],
+  dependsOnId: '',
+  dependsOnValue: ''
+};
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export function QuestionPage() {
@@ -136,6 +189,9 @@ export function QuestionPage() {
         question: editingItem.question,
         type:     editingItem.type,
         required: editingItem.required || false,
+        options:  editingItem.options || [],
+        dependsOnId: editingItem.dependsOnId || '',
+        dependsOnValue: editingItem.dependsOnValue || ''
       });
     }
   }, [editingItem]);
@@ -164,6 +220,9 @@ export function QuestionPage() {
         question: addForm.question.trim(),
         type:     addForm.type,
         required: addForm.required,
+        options:  addForm.options || [],
+        dependsOnId: addForm.dependsOnId || null,
+        dependsOnValue: addForm.dependsOnValue || ''
       })).unwrap();
       toast.success('Question created successfully ✓');
       setIsAddOpen(false);
@@ -184,6 +243,9 @@ export function QuestionPage() {
           question: editForm.question.trim(),
           type:     editForm.type,
           required: editForm.required,
+          options:  editForm.options || [],
+          dependsOnId: editForm.dependsOnId || null,
+          dependsOnValue: editForm.dependsOnValue || ''
         },
       })).unwrap();
       toast.success('Question updated ✓');
@@ -296,10 +358,21 @@ export function QuestionPage() {
                 {/* Type picker */}
                 <div className="space-y-2">
                   <Label>Question Type</Label>
-                  <TypePicker
-                    value={addForm.type}
-                    onChange={(t) => setAddForm((p) => ({ ...p, type: t }))}
-                  />
+                  <Select value={addForm.type} onValueChange={(t) => setAddForm((p) => ({ ...p, type: t }))}>
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Select type..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {QUESTION_TYPES.map(t => (
+                        <SelectItem key={t.value} value={t.value}>
+                          <div className="flex items-center gap-2">
+                            <t.icon className="h-4 w-4 text-slate-500" />
+                            {t.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {addForm.type && (
                     <p className="text-xs text-muted-foreground">
                       {QUESTION_TYPES.find((t) => t.value === addForm.type)?.desc}
@@ -307,8 +380,8 @@ export function QuestionPage() {
                   )}
                 </div>
 
-                {/* Live preview */}
-                <TypePreview type={addForm.type} />
+                {/* Extra fields */}
+                <ExtraFormFields form={addForm} setForm={setAddForm} questions={questions} editingItemId={null} />
 
                 {/* Required toggle */}
                 <div className="flex items-center gap-2 pt-1">
@@ -438,10 +511,21 @@ export function QuestionPage() {
 
               <div className="space-y-2">
                 <Label>Question Type</Label>
-                <TypePicker
-                  value={editForm.type}
-                  onChange={(t) => setEditForm((p) => ({ ...p, type: t }))}
-                />
+                <Select value={editForm.type} onValueChange={(t) => setEditForm((p) => ({ ...p, type: t }))}>
+                  <SelectTrigger className="w-full bg-white">
+                    <SelectValue placeholder="Select type..." />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {QUESTION_TYPES.map(t => (
+                      <SelectItem key={t.value} value={t.value}>
+                        <div className="flex items-center gap-2">
+                          <t.icon className="h-4 w-4 text-slate-500" />
+                          {t.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 {editForm.type && (
                   <p className="text-xs text-muted-foreground">
                     {QUESTION_TYPES.find((t) => t.value === editForm.type)?.desc}
@@ -449,7 +533,8 @@ export function QuestionPage() {
                 )}
               </div>
 
-              <TypePreview type={editForm.type} />
+              {/* Extra fields */}
+              <ExtraFormFields form={editForm} setForm={setEditForm} questions={questions} editingItemId={editingItem._id} />
 
               <div className="flex items-center gap-2 pt-1">
                 <Checkbox
