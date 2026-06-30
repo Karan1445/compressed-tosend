@@ -94,6 +94,12 @@ router.delete('/:roleId', requirePermission('create_role'), async (req, res) => 
     if (role.name === 'Super Admin' || role.name === 'Signer') {
       return res.status(403).json({ error: `Cannot delete the '${role.name}' role` });
     }
+
+    const usersWithRole = await User.findOne({ role: role.name });
+    if (usersWithRole) {
+      return res.status(400).json({ error: `Cannot delete role '${role.name}' because it is assigned to one or more users` });
+    }
+
     await Role.findByIdAndDelete(req.params.roleId);
     res.json({ message: 'Role deleted successfully' });
   } catch (error) {

@@ -4,6 +4,11 @@ import { fetchRoles, createRole, editRole, deleteRole } from '../../store/slices
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '../../components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Pencil, Trash2, Check, X, ShieldAlert } from 'lucide-react';
 
@@ -71,7 +76,6 @@ export default function RoleCreation() {
 
   // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async (role) => {
-    if (!window.confirm(`Delete role "${role.name}"? This cannot be undone.`)) return;
     try {
       await dispatch(deleteRole(role._id)).unwrap();
       toast.success(`Role "${role.name}" deleted.`);
@@ -188,13 +192,30 @@ export default function RoleCreation() {
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                             {!isProtected && (
-                              <button
-                                onClick={() => handleDelete(role)}
-                                className="p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600 transition"
-                                title="Delete role"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <button
+                                    className="p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-600 transition"
+                                    title="Delete role"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="bg-white">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete role "{role.name}"?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This cannot be undone. Are you sure you want to permanently delete this role?
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction className="bg-red-600 text-white hover:bg-red-700" onClick={() => handleDelete(role)}>
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             )}
                           </div>
                         </div>

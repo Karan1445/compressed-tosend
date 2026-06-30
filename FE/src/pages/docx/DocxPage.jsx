@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { renderAsync } from 'docx-preview';
+import { Rnd } from 'react-rnd';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchQuestions, deleteQuestion } from '../../store/slices/questionSlice';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -11,8 +12,13 @@ import {
   SheetTitle, SheetDescription,
 } from '../../components/ui/sheet';
 import { Upload, FileText, Loader2, Search, CheckCircle2, Link2, X, RotateCcw, Save, History, CloudUpload, Trash2 } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '../../components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { uploadDocx, fetchUploadedDocx, saveDocxMappings } from '../../store/slices/docxSlice';
+import { uploadDocx, fetchUploadedDocx, saveDocxMappings, deleteDocx } from '../../store/slices/docxSlice';
 
 export default function DocxPage() {
   const dispatch = useDispatch();
@@ -36,6 +42,58 @@ export default function DocxPage() {
   const { documents, uploading, savingMappings, loading: docsLoading } = useSelector((state) => state.docx || { documents: [], uploading: false, savingMappings: false, loading: false });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
+  
+  const [draggedFields, setDraggedFields] = useState([]);
+  const [fieldMappings, setFieldMappings] = useState({}); // { fieldId: question }
+
+  
+  const [interactionMode, setInteractionMode] = useState('edit'); // 'edit' or 'interact'
+  const [formValues, setFormValues] = useState({});
+
+  // ─── Keep refs in sync for global listeners ─────────────────────────────────
+  const activeDocRef = useRef(activeDoc);
+  useEffect(() => { activeDocRef.current = activeDoc; }, [activeDoc]);
+  
+  const fieldMappingsRefForSave = useRef(fieldMappings);
+  useEffect(() => { fieldMappingsRefForSave.current = fieldMappings; }, [fieldMappings]);
+  
+  const draggedFieldsRef = useRef(draggedFields);
+  useEffect(() => { draggedFieldsRef.current = draggedFields; }, [draggedFields]);
+
+  // ─── Ctrl+S Listener ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        // Call the save logic
+        if (activeDocRef.current) {
+          const mappingsToSave = {};
+          Object.entries(fieldMappingsRefForSave.current).forEach(([fieldId, q]) => {
+            mappingsToSave[fieldId] = q._id;
+          });
+          const draggedFieldsToSave = draggedFieldsRef.current.map(df => ({
+            id: df.id,
+            questionId: df.questionId,
+            x: df.x,
+            y: df.y,
+            width: df.width,
+            height: df.height
+          }));
+          dispatch(saveDocxMappings({ 
+            docxId: activeDocRef.current._id, 
+            mappings: mappingsToSave,
+            draggedFields: draggedFieldsToSave
+          })).unwrap().then(() => {
+             toast.success('Mappings saved successfully!');
+          }).catch(err => {
+             toast.error(err || 'Failed to save mappings');
+          });
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dispatch]);
 
   const filteredDocs = documents.filter(doc =>
     doc.originalName.toLowerCase().includes(historySearch.toLowerCase())
@@ -53,14 +111,63 @@ export default function DocxPage() {
   // ─── DOM btn registry — fieldId → btn element ────────────────────────────────
   const fieldBtnsRef = useRef({});
 
-  const [fieldMappings, setFieldMappings] = useState({});
-  // { fieldId: question }
-
   const [searchTerm, setSearchTerm] = useState('');
 
   // ─── Keep refs in sync so DOM callbacks always see latest state ───────────────
   const fieldMappingsRef = useRef({});
   useEffect(() => { fieldMappingsRef.current = fieldMappings; }, [fieldMappings]);
+
+  const handleRemoveMappingRef = useRef(null);
+  
+  const formValuesRef = useRef(formValues);
+  useEffect(() => { formValuesRef.current = formValues; }, [formValues]);
+
+  // ─── Sync DOM buttons with interactionMode ─────────────────────────────────
+  useEffect(() => {
+    Object.entries(fieldMappings).forEach(([fieldId, q]) => {
+      const btn = fieldBtnsRef.current[fieldId];
+      if (!btn) return;
+      
+      const short = q.question.length > 22 ? q.question.substring(0, 22) + '…' : q.question;
+
+      if (interactionMode === 'interact') {
+        const currentVal = formValuesRef.current[fieldId] || '';
+        btn.innerHTML = `<input type="text" placeholder="${short}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: none; background: transparent; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b;" />`;
+        btn.style.padding = '0';
+        btn.style.border = '1.5px solid #818cf8';
+        btn.style.background = '#ffffff';
+        btn.title = q.question;
+
+        const input = btn.querySelector('input');
+        if (input) {
+          input.onclick = (e) => e.stopPropagation();
+          input.oninput = (e) => {
+            setFormValues(prev => ({ ...prev, [fieldId]: e.target.value }));
+          };
+        }
+      } else {
+        btn.style.background = 'rgba(34, 197, 94, 0.15)';
+        btn.style.border = '1.5px solid #22c55e';
+        btn.style.color = '#15803d';
+        btn.style.padding = '0 4px';
+        btn.title = q.question;
+        
+        btn.innerHTML = `
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${short}</span>
+          <span class="remove-mapping-icon" style="margin-left: 4px; padding: 0 4px; cursor: pointer; color: #dc2626; border-radius: 50%; font-size: 10px; font-weight: bold;" title="Remove mapping">✕</span>
+        `;
+        const removeIcon = btn.querySelector('.remove-mapping-icon');
+        if (removeIcon) {
+          removeIcon.onclick = (e) => {
+            e.stopPropagation();
+            if (handleRemoveMappingRef.current) {
+              handleRemoveMappingRef.current(fieldId, btn);
+            }
+          };
+        }
+      }
+    });
+  }, [interactionMode, fieldMappings]);
 
   // ─── Filtered questions ───────────────────────────────────────────────────────
   const filteredQuestions = questions.filter((q) =>
@@ -97,22 +204,8 @@ export default function DocxPage() {
     if (!activeField) return;
     const { id, btn } = activeField;
 
-    // ── One-question-one-field: auto-unmap from any previous field ────────────
     setFieldMappings((prev) => {
-      const oldFieldId = Object.entries(prev).find(
-        ([fid, q]) => q._id === question._id && fid !== id
-      )?.[0];
-
-      if (oldFieldId) {
-        // Reset the old btn DOM element
-        const oldBtn = fieldBtnsRef.current[oldFieldId];
-        if (oldBtn) resetBtn(oldBtn);
-      }
-
       const next = { ...prev };
-      // Remove old mapping (if existed)
-      if (oldFieldId) delete next[oldFieldId];
-      // Set new mapping
       next[id] = question;
       return next;
     });
@@ -158,11 +251,21 @@ export default function DocxPage() {
       return next;
     });
 
+    // Also clear from formValues
+    setFormValues((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+
     resetBtn(btn);
     setPanelOpen(false);
     setActiveField(null);
     toast.success('Field mapping removed');
   };
+  
+  // Set the ref so useEffect can access it without closing over old state
+  useEffect(() => { handleRemoveMappingRef.current = handleRemoveMapping; });
 
   const handleDeleteQuestion = async (e, id) => {
     e.stopPropagation();
@@ -399,11 +502,41 @@ export default function DocxPage() {
       mappingsToSave[fieldId] = q._id;
     });
 
+    const draggedFieldsToSave = draggedFields.map(df => ({
+      id: df.id,
+      questionId: df.questionId,
+      x: df.x,
+      y: df.y,
+      width: df.width,
+      height: df.height
+    }));
+
     try {
-      await dispatch(saveDocxMappings({ docxId: activeDoc._id, mappings: mappingsToSave })).unwrap();
+      await dispatch(saveDocxMappings({ 
+        docxId: activeDoc._id, 
+        mappings: mappingsToSave,
+        draggedFields: draggedFieldsToSave
+      })).unwrap();
       toast.success('Mappings saved successfully!');
     } catch (err) {
       toast.error(err || 'Failed to save mappings');
+    }
+  };
+
+  const handleDeleteDoc = async (doc) => {
+    try {
+      await dispatch(deleteDocx(doc._id)).unwrap();
+      toast.success(`Document "${doc.originalName}" deleted`);
+      // If the deleted document is currently active, clear the viewer
+      if (activeDoc?._id === doc._id) {
+        setActiveDoc(null);
+        setHasDoc(false);
+        setFileName('');
+        setSelectedFile(null);
+        if (viewerRef.current) viewerRef.current.innerHTML = '';
+      }
+    } catch (err) {
+      toast.error(err || 'Failed to delete document');
     }
   };
 
@@ -414,6 +547,7 @@ export default function DocxPage() {
     setFileName(doc.originalName);
     setActiveDoc(doc);
     setFieldMappings({});
+    setDraggedFields([]);
     fieldBtnsRef.current = {};
 
     try {
@@ -429,6 +563,15 @@ export default function DocxPage() {
         setHasDoc(true);
         // Mock a file object for re-upload if needed (not perfect but allows UI to continue)
         setSelectedFile(new File([arrayBuffer], doc.originalName, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+
+        // Restore dragged fields
+        if (doc.draggedFields && Array.isArray(doc.draggedFields)) {
+          const restoredDraggedFields = doc.draggedFields.map(df => {
+            const q = questions.find(q => q._id === df.questionId);
+            return { ...df, questionObj: q };
+          });
+          setDraggedFields(restoredDraggedFields);
+        }
 
         // Restore mappings if they exist
         if (doc.mappings && Object.keys(doc.mappings).length > 0) {
@@ -491,7 +634,7 @@ export default function DocxPage() {
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 animate-in fade-in duration-300 relative">
-
+      
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -502,13 +645,37 @@ export default function DocxPage() {
             <span className="text-indigo-600 font-semibold">+</span> buttons.
           </p>
         </div>
-        {hasDoc && mappedCount > 0 && (
-          <Badge className="bg-green-100 text-green-700 border-green-200 flex items-center gap-1.5 px-3 py-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5" />
-            {mappedCount} field{mappedCount > 1 ? 's' : ''} mapped
-          </Badge>
+        {hasDoc && (
+          <div className="flex flex-col items-end gap-2">
+            {mappedCount > 0 && (
+              <Badge className="bg-green-100 text-green-700 border-green-200 flex items-center gap-1.5 px-3 py-1.5 shadow-sm">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {mappedCount} field{mappedCount > 1 ? 's' : ''} mapped
+              </Badge>
+            )}
+            <div className="flex bg-slate-100 rounded-md p-1 border shadow-sm mt-1">
+              <button 
+                onClick={() => setInteractionMode('edit')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all ${interactionMode === 'edit' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Edit Mode
+              </button>
+              <button 
+                onClick={() => setInteractionMode('interact')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all ${interactionMode === 'interact' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Interact Mode
+              </button>
+            </div>
+          </div>
         )}
       </div>
+
+      {/* ── MAIN COLUMNS ── */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+        
+        {/* ── LEFT COLUMN ── */}
+        <div className="flex-1 space-y-6 min-w-0 w-full">
 
       {/* Upload Card */}
       <Card className="shadow-md">
@@ -561,10 +728,12 @@ export default function DocxPage() {
               )}
             </div>
 
-            <Button variant="secondary" className="flex items-center gap-2" onClick={() => setHistoryOpen(true)}>
-              <History className="h-4 w-4" />
-              Document History
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="secondary" className="flex items-center gap-2" onClick={() => setHistoryOpen(true)}>
+                <History className="h-4 w-4" />
+                History
+              </Button>
+            </div>
           </div>
 
           {loading && (
@@ -579,22 +748,151 @@ export default function DocxPage() {
       {/* DOCX Render Area */}
       <Card className="shadow-md">
         <CardContent className="p-0">
-          <div
-            ref={viewerRef}
-            className="docx-viewer-container min-h-96 p-4 overflow-auto rounded-lg"
-            style={{ backgroundColor: '#f8fafc', minHeight: hasDoc ? 'auto' : '400px' }}
+          <div 
+            className="relative w-full h-[600px] overflow-auto bg-[#f8fafc] rounded-lg docx-scroll-wrapper"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const questionData = e.dataTransfer.getData('application/json');
+              if (!questionData) return;
+              try {
+                const question = JSON.parse(questionData);
+                const wrapper = e.currentTarget;
+                const rect = wrapper.getBoundingClientRect();
+                
+                // Calculate drop coordinates relative to the scrolling content
+                const x = e.clientX - rect.left + wrapper.scrollLeft;
+                const y = e.clientY - rect.top + wrapper.scrollTop;
+                
+                setDraggedFields(prev => [
+                  ...prev,
+                  {
+                    id: 'drag-' + Date.now(),
+                    questionId: question._id,
+                    questionObj: question,
+                    x: Math.max(0, x - 100), // center the 200px box slightly
+                    y: Math.max(0, y - 25),
+                    width: 200,
+                    height: 40
+                  }
+                ]);
+              } catch (err) {
+                console.error(err);
+              }
+            }}
           >
-            {!hasDoc && !loading && (
-              <div className="flex flex-col items-center justify-center h-96 text-muted-foreground gap-3">
-                <FileText className="h-12 w-12 opacity-20" />
-                <p className="text-sm">Upload a .docx file to preview it here</p>
-              </div>
-            )}
+            <div
+              ref={viewerRef}
+              className="docx-viewer-container p-4 min-h-full"
+            >
+              {!hasDoc && !loading && (
+                <div className="flex flex-col items-center justify-center h-96 text-muted-foreground gap-3">
+                  <FileText className="h-12 w-12 opacity-20" />
+                  <p className="text-sm">Upload a .docx file to preview it here</p>
+                </div>
+              )}
+            </div>
+
+            {/* Draggable dropped elements */}
+            {hasDoc && draggedFields.map(field => (
+              <Rnd
+                key={field.id}
+                default={{
+                  x: field.x,
+                  y: field.y,
+                  width: field.width,
+                  height: field.height
+                }}
+                bounds="parent"
+                disableDragging={interactionMode === 'interact'}
+                enableResizing={interactionMode === 'edit'}
+                onDragStop={(e, d) => {
+                  setDraggedFields(prev => prev.map(f => f.id === field.id ? { ...f, x: d.x, y: d.y } : f));
+                }}
+                onResizeStop={(e, direction, ref, delta, position) => {
+                  setDraggedFields(prev => prev.map(f => f.id === field.id ? { 
+                    ...f, 
+                    width: parseInt(ref.style.width, 10), 
+                    height: parseInt(ref.style.height, 10),
+                    ...position 
+                  } : f));
+                }}
+                className={`absolute ${interactionMode === 'edit' ? 'bg-white/95 border-2 border-indigo-400 shadow-md flex items-center justify-center cursor-move group' : 'z-40'} rounded z-50`}
+              >
+                {interactionMode === 'edit' ? (
+                  <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
+                    <button 
+                      onClick={() => setDraggedFields(prev => prev.filter(f => f.id !== field.id))}
+                      className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 bg-red-100 text-red-600 rounded p-0.5 transition-opacity z-50 hover:bg-red-200"
+                      title="Remove"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                    <p className="text-xs font-semibold text-indigo-900 truncate px-2 select-none pointer-events-none">
+                      {field.questionObj?.question || 'Unknown Question'}
+                    </p>
+                  </div>
+                ) : (
+                  <input 
+                    type="text"
+                    value={formValues[field.id] || ''}
+                    onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                    placeholder={field.questionObj?.question}
+                    className="w-full h-full border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 px-2 text-sm bg-white/90 shadow-sm"
+                  />
+                )}
+              </Rnd>
+            ))}
           </div>
         </CardContent>
       </Card>
+      </div>
 
-      {/* ── Question Mapping Panel (Sheet) ──────────────────────────────────── */}
+      {/* ── RIGHT COLUMN: Fixed Draggable Questions Sidebar ── */}
+      <div className="hidden lg:block w-80 shrink-0 sticky top-6">
+        <Card className="shadow-md flex flex-col h-[calc(100vh-8rem)]">
+          <CardHeader className="pb-3 border-b bg-white shrink-0">
+            <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+              <CheckCircle2 className="h-4 w-4 text-indigo-600" /> Drag Questions
+            </CardTitle>
+            <p className="text-xs text-slate-500 mt-1">
+              Drag and drop these questions anywhere on your document to map them visually.
+            </p>
+          </CardHeader>
+          
+          <div className="p-3 bg-slate-50 border-b shrink-0">
+             <Input
+              placeholder="Search questions..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-white border-slate-200 focus:bg-white text-sm h-9 w-full"
+            />
+          </div>
+
+          <CardContent className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/50">
+            {filteredQuestions.length === 0 ? (
+              <div className="text-center text-slate-400 py-10 text-sm">No questions found.</div>
+            ) : (
+              filteredQuestions.map(q => (
+                <div 
+                  key={q._id} 
+                  draggable 
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('application/json', JSON.stringify(q));
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  className="bg-white border border-slate-200 rounded p-3 text-sm text-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:shadow-md transition-all select-none"
+                >
+                  {q.question}
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      </div>
+
+      {/* ── Auto-Mapping Panel (Sheet) ──────────────────────────────────── */}
       <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
         <SheetContent
           side="right"
@@ -753,6 +1051,34 @@ export default function DocxPage() {
                         <span className="truncate">{doc.fileName.substring(0, 15)}...</span>
                       </div>
                     </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors shrink-0"
+                          title="Delete document"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="bg-white">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete document?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete "{doc.originalName}"? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteDoc(doc); }}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 );
               })

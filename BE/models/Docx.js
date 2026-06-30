@@ -26,7 +26,15 @@ const DocxSchema = new mongoose.Schema({
     type: Map,
     of: String,
     default: {},
-  }
+  },
+  draggedFields: [{
+    id: String,
+    questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
+    x: Number,
+    y: Number,
+    width: Number,
+    height: Number
+  }]
 });
 
 module.exports = mongoose.model('Docx', DocxSchema);

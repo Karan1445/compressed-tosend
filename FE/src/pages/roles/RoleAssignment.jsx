@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUsers } from '../../store/slices/usersSlice';
 import { fetchRoles, assignRole } from '../../store/slices/roleSlice';
-import { Button } from '../../components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function RoleAssignment() {
@@ -73,20 +74,31 @@ export default function RoleAssignment() {
                   ) : currentUser && String(user._id) === String(currentUser._id) ? (
                     <span className="text-xs text-gray-400 italic">Cannot change own role</span>
                   ) : (
-                    <>
-                      <select
-                        className="mr-3 border-gray-300 rounded-md text-sm shadow-sm focus:border-black focus:ring-black"
-                        value=""
-                        onChange={(e) => handleAssignRole(user._id, e.target.value)}
-                        disabled={assigningUserId === user._id || rolesLoading}
-                      >
-                        <option value="" disabled>Change role...</option>
-                        {assignableRoles.map(role => (
-                          <option key={role._id} value={role.name}>{role.name}</option>
-                        ))}
-                      </select>
-                      {assigningUserId === user._id && <span className="text-xs text-gray-500">Updating...</span>}
-                    </>
+                    <div className="relative inline-flex flex-col items-end w-40 ml-auto">
+                      {assigningUserId === user._id ? (
+                        <div className="flex h-9 w-full items-center justify-start rounded-md border border-input bg-muted/50 px-3 py-2 text-sm opacity-70 shadow-sm">
+                          <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin text-gray-500" />
+                          <span className="text-gray-500">Updating...</span>
+                        </div>
+                      ) : (
+                        <Select
+                          value=""
+                          onValueChange={(value) => handleAssignRole(user._id, value)}
+                          disabled={rolesLoading}
+                        >
+                          <SelectTrigger className="w-full h-9 bg-white">
+                            <SelectValue placeholder="Change role..." />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            {assignableRoles.map(role => (
+                              <SelectItem key={role._id} value={role.name} className="cursor-pointer">
+                                {role.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                   )}
                 </td>
               </tr>

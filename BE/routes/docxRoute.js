@@ -82,7 +82,7 @@ router.get('/list', async (req, res) => {
 // @access  Private
 router.put('/:id/mappings', async (req, res) => {
   try {
-    const { mappings } = req.body;
+    const { mappings, draggedFields } = req.body;
     
     // Find doc and check ownership
     const doc = await Docx.findById(req.params.id);
@@ -94,10 +94,43 @@ router.put('/:id/mappings', async (req, res) => {
       return res.status(401).json({ msg: 'User not authorized' });
     }
 
-    doc.mappings = mappings || {};
+    if (mappings) doc.mappings = mappings;
+    if (draggedFields) doc.draggedFields = draggedFields;
+    
     const updatedDoc = await doc.save();
     
     res.json(updatedDoc);
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Document not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   DELETE /docx/:id
+// @desc    Delete a document
+// @access  Private
+router.delete('/:id', async (req, res) => {
+  try {
+    const doc = await Docx.findById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ msg: 'Document not found' });
+    }
+
+    if (doc.uploadedBy.toString() !== req.user._id.toString() && req.user.role !== 'Super Admin') {
+      return res.status(401).json({ msg: 'User not authorized' });
+    }
+
+    // Delete file from filesystem
+    const filePath = path.join(__dirname, '../', doc.path);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    await Docx.findByIdAndDelete(req.params.id);
+    res.json({ msg: 'Document removed' });
   } catch (err) {
     console.error(err.message);
     if (err.kind === 'ObjectId') {

@@ -55,7 +55,7 @@ export const fetchUploadedDocx = createAsyncThunk(
 
 export const saveDocxMappings = createAsyncThunk(
   'docx/saveMappings',
-  async ({ docxId, mappings }, { getState, rejectWithValue }) => {
+  async ({ docxId, mappings, draggedFields }, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
       const response = await fetch(`http://localhost:8888/docx/${docxId}/mappings`, {
@@ -64,7 +64,7 @@ export const saveDocxMappings = createAsyncThunk(
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ mappings }),
+        body: JSON.stringify({ mappings, draggedFields }),
       });
 
       if (!response.ok) {
@@ -74,6 +74,29 @@ export const saveDocxMappings = createAsyncThunk(
       return await response.json();
     } catch (error) {
       return rejectWithValue(error.message || 'An error occurred saving mappings');
+    }
+  }
+);
+
+export const deleteDocx = createAsyncThunk(
+  'docx/delete',
+  async (docxId, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await fetch(`http://localhost:8888/docx/${docxId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete document');
+      }
+
+      return docxId; // Return the ID so we can remove it from state
+    } catch (error) {
+      return rejectWithValue(error.message || 'An error occurred deleting document');
     }
   }
 );
@@ -132,6 +155,18 @@ const docxSlice = createSlice({
       })
       .addCase(saveDocxMappings.rejected, (state, action) => {
         state.savingMappings = false;
+        state.error = action.payload;
+      })
+      // Delete Docx
+      .addCase(deleteDocx.pending, (state) => {
+        state.loading = true; // or create a separate deleting state if preferred
+      })
+      .addCase(deleteDocx.fulfilled, (state, action) => {
+        state.loading = false;
+        state.documents = state.documents.filter(d => d._id !== action.payload);
+      })
+      .addCase(deleteDocx.rejected, (state, action) => {
+        state.loading = false;
         state.error = action.payload;
       });
   }

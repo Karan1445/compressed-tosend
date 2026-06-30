@@ -12,6 +12,7 @@ import DocxPage from './pages/docx/DocxPage';
 import RoleCreation from './pages/roles/RoleCreation';
 import RoleAssignment from './pages/roles/RoleAssignment';
 import SenderPage from './pages/sender/SenderPage';
+import SignerPage from './pages/signer/SignerPage';
 import Unauthorized from './pages/Unauthorized';
 import { refreshMe } from './store/slices/authSlice';
 import './index.css';
@@ -24,10 +25,9 @@ function getHomePath(user) {
   // Super Admin always goes to user list
   if (isSuper) return '/';
   // Otherwise go to first permitted page
-  if (perms.includes('assign_role')) return '/';
-  if (perms.includes('create_role')) return '/question';
+  if (perms.includes('assign_role') || perms.includes('create_role')) return '/';
   if (perms.includes('send')) return '/sender';
-  if (perms.includes('sign')) return '/docx-viewer';
+  if (perms.includes('sign')) return '/signer';
   return '/unauthorized';
 }
 
@@ -41,7 +41,12 @@ function PermissionRoute({ permission, children }) {
   // Super Admin bypasses all permission checks
   if (user.role === 'Super Admin') return children;
   const perms = user.permissions || [];
-  if (!perms.includes(permission)) {
+  
+  const hasAccess = Array.isArray(permission) 
+    ? permission.some(p => perms.includes(p)) 
+    : perms.includes(permission);
+
+  if (!hasAccess) {
     // Redirect to their own home page silently instead of showing an error
     return <Navigate to={getHomePath(user)} replace />;
   }
@@ -85,15 +90,18 @@ function AppRoutes() {
       <Route path="/register" element={<PublicRoute><SignupForm /></PublicRoute>} />
       <Route path="/unauthorized" element={<Unauthorized />} />
 
-      {/* Super Admin only */}
-      <Route path="/"         element={<PermissionRoute permission="assign_role"><Layout><HomePage /></Layout></PermissionRoute>} />
-      <Route path="/question" element={<PermissionRoute permission="create_role"><Layout><QuestionPage /></Layout></PermissionRoute>} />
-
-      {/* Permission-gated */}
-      <Route path="/sender"      element={<PermissionRoute permission="send"><Layout><SenderPage /></Layout></PermissionRoute>} />
-      <Route path="/docx-viewer" element={<PermissionRoute permission="sign"><Layout><DocxPage /></Layout></PermissionRoute>} />
+      {/* Super Admin / Admin roles */}
+      <Route path="/"         element={<PermissionRoute permission={['assign_role', 'create_role']}><Layout><HomePage /></Layout></PermissionRoute>} />
       <Route path="/roles/create" element={<PermissionRoute permission="create_role"><Layout><RoleCreation /></Layout></PermissionRoute>} />
       <Route path="/roles/assign" element={<PermissionRoute permission="assign_role"><Layout><RoleAssignment /></Layout></PermissionRoute>} />
+
+      {/* Sender specific */}
+      <Route path="/question" element={<PermissionRoute permission="send"><Layout><QuestionPage /></Layout></PermissionRoute>} />
+      <Route path="/sender"      element={<PermissionRoute permission="send"><Layout><SenderPage /></Layout></PermissionRoute>} />
+      <Route path="/docx-viewer" element={<PermissionRoute permission="send"><Layout><DocxPage /></Layout></PermissionRoute>} />
+
+      {/* Signer specific */}
+      <Route path="/signer" element={<PermissionRoute permission="sign"><Layout><SignerPage /></Layout></PermissionRoute>} />
 
       {/* Catch-all — smart redirect */}
       <Route path="*" element={<SmartRedirect />} />

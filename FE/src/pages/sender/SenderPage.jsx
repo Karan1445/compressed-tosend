@@ -1,12 +1,17 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect } from 'react';
-import { fetchUploadedDocx } from '../../store/slices/docxSlice';
-import { FileText, Upload, Clock } from 'lucide-react';
+import { fetchUploadedDocx, deleteDocx } from '../../store/slices/docxSlice';
+import { FileText, Upload, Clock, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '../../components/ui/alert-dialog';
 
 export default function SenderPage() {
   const dispatch = useDispatch();
   const { documents, loading } = useSelector((state) => state.docx);
-  const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
     dispatch(fetchUploadedDocx());
@@ -17,6 +22,15 @@ export default function SenderPage() {
     return new Date(dateStr).toLocaleDateString('en-IN', {
       day: '2-digit', month: 'short', year: 'numeric',
     });
+  };
+
+  const handleDeleteDoc = async (doc) => {
+    try {
+      await dispatch(deleteDocx(doc._id)).unwrap();
+      toast.success(`Document "${doc.originalName}" deleted`);
+    } catch (err) {
+      toast.error(err || 'Failed to delete document');
+    }
   };
 
   return (
@@ -88,18 +102,49 @@ export default function SenderPage() {
             <tbody className="divide-y">
               {documents.map((doc) => (
                 <tr key={doc._id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium text-gray-900 flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-blue-500 shrink-0" />
-                    {doc.originalName || doc.filename}
+                  <td className="px-6 py-4 font-medium text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                      {doc.originalName || doc.fileName}
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-gray-500">{formatDate(doc.createdAt)}</td>
+                  <td className="px-6 py-4 text-gray-500">{formatDate(doc.uploadDate)}</td>
                   <td className="px-6 py-4 text-gray-500">
                     {doc.mappings ? Object.keys(doc.mappings).length : 0} fields
                   </td>
                   <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-                      Uploaded
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                        Uploaded
+                      </span>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <button
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            title="Delete document"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent className="bg-white">
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete document?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete "{doc.originalName}"? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 hover:bg-red-700 text-white"
+                              onClick={() => handleDeleteDoc(doc)}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </td>
                 </tr>
               ))}
