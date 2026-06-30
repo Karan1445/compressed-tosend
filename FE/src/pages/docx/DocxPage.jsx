@@ -124,46 +124,87 @@ export default function DocxPage() {
 
   // ─── Sync DOM buttons with interactionMode ─────────────────────────────────
   useEffect(() => {
-    Object.entries(fieldMappings).forEach(([fieldId, q]) => {
-      const btn = fieldBtnsRef.current[fieldId];
+    Object.entries(fieldBtnsRef.current).forEach(([fieldId, btn]) => {
       if (!btn) return;
-      
-      const short = q.question.length > 22 ? q.question.substring(0, 22) + '…' : q.question;
+      const q = fieldMappings[fieldId];
 
       if (interactionMode === 'interact') {
-        const currentVal = formValuesRef.current[fieldId] || '';
-        btn.innerHTML = `<input type="text" placeholder="${short}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: none; background: transparent; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b;" />`;
-        btn.style.padding = '0';
-        btn.style.border = '1.5px solid #818cf8';
-        btn.style.background = '#ffffff';
-        btn.title = q.question;
-
-        const input = btn.querySelector('input');
-        if (input) {
-          input.onclick = (e) => e.stopPropagation();
-          input.oninput = (e) => {
-            setFormValues(prev => ({ ...prev, [fieldId]: e.target.value }));
-          };
+        if (q) {
+          const short = q.question.length > 22 ? q.question.substring(0, 22) + '…' : q.question;
+          const currentVal = formValuesRef.current[fieldId] || '';
+          if (q.type === 'checkbox') {
+            const isChecked = currentVal === 'true' || currentVal === true;
+            btn.innerHTML = `
+              <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #ffffff; border: 1.5px solid #818cf8; box-sizing: border-box;" title="${short}">
+                <input type="checkbox" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 14px; height: 14px; accent-color: #4f46e5;" />
+              </div>
+            `;
+            // Remove border/bg from btn itself since we added it to the div to center the checkbox properly
+            btn.style.padding = '0';
+            btn.style.border = 'none';
+            btn.style.background = 'transparent';
+          } else {
+            btn.innerHTML = `<input type="text" placeholder="${short}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b;" />`;
+            btn.style.padding = '0';
+            btn.style.border = 'none';
+            btn.style.background = 'transparent';
+          }
+          
+          btn.title = q.question;
+          btn.style.visibility = 'visible';
+  
+          const input = btn.querySelector('input, select');
+          if (input) {
+            input.onclick = (e) => e.stopPropagation();
+            input.onmousedown = (e) => e.stopPropagation();
+            input.onchange = (e) => {
+              const val = input.type === 'checkbox' ? e.target.checked.toString() : e.target.value;
+              setFormValues(prev => ({ ...prev, [fieldId]: val }));
+            };
+            if (input.tagName === 'INPUT' && input.type !== 'checkbox') {
+              input.oninput = (e) => {
+                setFormValues(prev => ({ ...prev, [fieldId]: e.target.value }));
+              };
+            }
+          }
+        } else {
+          btn.style.visibility = 'hidden';
         }
       } else {
-        btn.style.background = 'rgba(34, 197, 94, 0.15)';
-        btn.style.border = '1.5px solid #22c55e';
-        btn.style.color = '#15803d';
-        btn.style.padding = '0 4px';
-        btn.title = q.question;
-        
-        btn.innerHTML = `
-          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${short}</span>
-          <span class="remove-mapping-icon" style="margin-left: 4px; padding: 0 4px; cursor: pointer; color: #dc2626; border-radius: 50%; font-size: 10px; font-weight: bold;" title="Remove mapping">✕</span>
-        `;
-        const removeIcon = btn.querySelector('.remove-mapping-icon');
-        if (removeIcon) {
-          removeIcon.onclick = (e) => {
-            e.stopPropagation();
-            if (handleRemoveMappingRef.current) {
-              handleRemoveMappingRef.current(fieldId, btn);
-            }
-          };
+        btn.style.visibility = 'visible';
+        if (q) {
+          const short = q.question.length > 22 ? q.question.substring(0, 22) + '…' : q.question;
+          btn.style.background = 'rgba(34, 197, 94, 0.15)';
+          btn.style.border = '1.5px solid #22c55e';
+          btn.style.color = '#15803d';
+          btn.style.padding = '0 4px';
+          btn.title = q.question;
+          
+          btn.innerHTML = `
+            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${short}</span>
+            <span class="remove-mapping-icon" style="margin-left: 4px; padding: 0 4px; cursor: pointer; color: #dc2626; border-radius: 50%; font-size: 10px; font-weight: bold;" title="Remove mapping">✕</span>
+          `;
+          const removeIcon = btn.querySelector('.remove-mapping-icon');
+          if (removeIcon) {
+            removeIcon.onclick = (e) => {
+              e.stopPropagation();
+              if (handleRemoveMappingRef.current) {
+                handleRemoveMappingRef.current(fieldId, btn);
+              }
+            };
+          }
+        } else {
+          // Restore unmapped styling
+          btn.innerText = '+';
+          btn.title = 'Click to assign a question';
+          btn.style.background = 'rgba(99, 102, 241, 0.12)';
+          btn.style.border = '1.5px dashed #6366f1';
+          btn.style.color = '#6366f1';
+          btn.style.fontSize = '13px';
+          btn.style.fontWeight = '600';
+          btn.style.padding = '0';
+          btn.style.justifyContent = 'center';
+          delete btn.dataset.assigned;
         }
       }
     });
@@ -831,6 +872,15 @@ export default function DocxPage() {
                     <p className="text-xs font-semibold text-indigo-900 truncate px-2 select-none pointer-events-none">
                       {field.questionObj?.question || 'Unknown Question'}
                     </p>
+                  </div>
+                ) : field.questionObj?.type === 'checkbox' ? (
+                  <div className="w-full h-full bg-white/90 shadow-sm border border-indigo-300 rounded flex items-center justify-center" title={field.questionObj?.question}>
+                    <input 
+                      type="checkbox"
+                      checked={formValues[field.id] === 'true' || formValues[field.id] === true}
+                      onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.checked.toString() }))}
+                      className="cursor-pointer h-4 w-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-500"
+                    />
                   </div>
                 ) : (
                   <input 
