@@ -214,7 +214,6 @@ const docxSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Fetch List
       .addCase(fetchUploadedDocx.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -227,7 +226,6 @@ const docxSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Fetch Assigned Docs
       .addCase(fetchAssignedDocx.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -240,40 +238,35 @@ const docxSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Submit Docx
       .addCase(submitDocx.pending, (state) => {
         state.submitting = true;
         state.error = null;
       })
       .addCase(submitDocx.fulfilled, (state, action) => {
         state.submitting = false;
-        // Remove submitted document from the assigned list
         state.assignedDocuments = state.assignedDocuments.filter(doc => doc._id !== action.payload);
       })
       .addCase(submitDocx.rejected, (state, action) => {
         state.submitting = false;
         state.error = action.payload;
       })
-      // Upload Docx
       .addCase(uploadDocx.pending, (state) => {
         state.uploading = true;
         state.error = null;
       })
       .addCase(uploadDocx.fulfilled, (state, action) => {
         state.uploading = false;
-        state.documents.unshift(action.payload); // Add new doc to the beginning
+        state.documents.unshift(action.payload);
       })
       .addCase(uploadDocx.rejected, (state, action) => {
         state.uploading = false;
         state.error = action.payload;
       })
-      // Save Mappings
       .addCase(saveDocxMappings.pending, (state) => {
         state.savingMappings = true;
       })
       .addCase(saveDocxMappings.fulfilled, (state, action) => {
         state.savingMappings = false;
-        // Update the document in the list with the new mappings
         const index = state.documents.findIndex(d => d._id === action.payload._id);
         if (index !== -1) {
           state.documents[index] = action.payload;
@@ -283,7 +276,6 @@ const docxSlice = createSlice({
         state.savingMappings = false;
         state.error = action.payload;
       })
-      // Delete Docx
       .addCase(deleteDocx.pending, (state) => {
         state.loading = true;
       })
@@ -295,14 +287,12 @@ const docxSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Assign Docx
       .addCase(assignDocx.fulfilled, (state, action) => {
         const index = state.documents.findIndex(d => d._id === action.payload._id);
         if (index !== -1) {
           state.documents[index] = action.payload;
         }
       })
-      // Fetch Submissions
       .addCase(fetchSubmissions.pending, (state) => {
         state.loadingSubmissions = true;
         state.error = null;

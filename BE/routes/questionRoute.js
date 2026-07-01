@@ -7,14 +7,11 @@ const verifyToken = (req, res, next) => {
     try {
         const authHeader = req.headers['authorization'];
 
-        console.log('Raw Auth Header:', authHeader);
-
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ message: 'Access Denied: No Token Provided' });
         }
 
         const token = authHeader.split(' ')[1];
-        console.log('Extracted Bearer Token:', token);
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         req.user = {
@@ -22,7 +19,6 @@ const verifyToken = (req, res, next) => {
         };
         next();
     } catch (error) {
-        console.error('JWT Verification Error:', error.message);
         return res.status(403).json({ message: 'Invalid or Expired Token' });
     }
 };
@@ -115,8 +111,7 @@ router.put('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
     try {
-
-        const deletedQuestion = await Question.findOneAndDelete({ _id: req.params.id, userID: req.user._id  });
+        const deletedQuestion = await Question.findOneAndDelete({ _id: req.params.id, userID: req.user._id });
         if (!deletedQuestion) {
             return res.status(404).json({ message: 'Question not found' });
         }

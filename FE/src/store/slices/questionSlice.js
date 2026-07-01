@@ -3,8 +3,6 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 const API = 'http://localhost:8888';
 const authHeaders = (token) => ({ 'Content-Type': 'application/json', Authorization: `Bearer ${token}` });
 
-// ─── Async Thunks (all use rejectWithValue → plain string errors) ─────────────
-
 export const fetchQuestions = createAsyncThunk(
   'questions/fetchAll',
   async (_, { getState, rejectWithValue }) => {
@@ -71,7 +69,7 @@ export const deleteQuestion = createAsyncThunk(
         const data = await res.json();
         return rejectWithValue(data.message || 'Failed to delete question');
       }
-      return id; // return the deleted _id string
+      return id;
     } catch {
       return rejectWithValue('Network error — could not delete question.');
     }
@@ -92,14 +90,12 @@ export const bulkDeleteQuestions = createAsyncThunk(
         const data = await res.json();
         return rejectWithValue(data.message || 'Bulk deletion failed');
       }
-      return ids; // return array of deleted ids
+      return ids;
     } catch {
       return rejectWithValue('Network error — could not bulk delete.');
     }
   }
 );
-
-// ─── Slice ────────────────────────────────────────────────────────────────────
 
 const questionSlice = createSlice({
   name: 'questions',
@@ -113,13 +109,11 @@ const questionSlice = createSlice({
     clearQuestionError(state) { state.error = null; },
   },
   extraReducers: (builder) => {
-    // Fetch
     builder
       .addCase(fetchQuestions.pending,   (state)             => { state.loading = true;  state.error = null; })
       .addCase(fetchQuestions.fulfilled, (state, { payload }) => { state.loading = false; state.questions = payload; })
       .addCase(fetchQuestions.rejected,  (state, { payload }) => { state.loading = false; state.error = payload; });
 
-    // Add
     builder
       .addCase(addQuestion.pending,   (state)             => { state.actionLoading = true; })
       .addCase(addQuestion.fulfilled, (state, { payload }) => {
@@ -128,7 +122,6 @@ const questionSlice = createSlice({
       })
       .addCase(addQuestion.rejected, (state) => { state.actionLoading = false; });
 
-    // Update
     builder
       .addCase(updateQuestion.pending,   (state)             => { state.actionLoading = true; })
       .addCase(updateQuestion.fulfilled, (state, { payload }) => {
@@ -138,7 +131,6 @@ const questionSlice = createSlice({
       })
       .addCase(updateQuestion.rejected, (state) => { state.actionLoading = false; });
 
-    // Delete single
     builder
       .addCase(deleteQuestion.pending,   (state)                 => { state.actionLoading = true; })
       .addCase(deleteQuestion.fulfilled, (state, { payload: id }) => {
@@ -147,7 +139,6 @@ const questionSlice = createSlice({
       })
       .addCase(deleteQuestion.rejected, (state) => { state.actionLoading = false; });
 
-    // Bulk delete
     builder
       .addCase(bulkDeleteQuestions.pending,   (state)                  => { state.actionLoading = true; })
       .addCase(bulkDeleteQuestions.fulfilled, (state, { payload: ids }) => {

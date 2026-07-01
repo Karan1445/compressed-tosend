@@ -20,28 +20,23 @@ import Unauthorized from './pages/Unauthorized';
 import { refreshMe } from './store/slices/authSlice';
 import './index.css';
 
-// ─── Helper: compute first landing page based on permissions ─────────────────
 function getHomePath(user) {
   if (!user) return '/login';
   const perms = user.permissions || [];
   const isSuper = user.role === 'Super Admin';
-  // Super Admin always goes to user list
   if (isSuper) return '/';
-  // Otherwise go to first permitted page
   if (perms.includes('assign_role') || perms.includes('create_role')) return '/';
   if (perms.includes('send')) return '/sender';
   if (perms.includes('sign')) return '/signer';
   return '/unauthorized';
 }
 
-// ─── Permission-based route guard ────────────────────────────────────────────
 function PermissionRoute({ permission, children }) {
   const { token, user } = useSelector((state) => state.auth);
   const location = useLocation();
   if (!token || !user) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
-  // Super Admin bypasses all permission checks
   if (user.role === 'Super Admin') return children;
   const perms = user.permissions || [];
   
@@ -50,13 +45,11 @@ function PermissionRoute({ permission, children }) {
     : perms.includes(permission);
 
   if (!hasAccess) {
-    // Redirect to their own home page silently instead of showing an error
     return <Navigate to={getHomePath(user)} replace />;
   }
   return children;
 }
 
-// ─── Public route guard (redirect logged-in users to their home) ─────────────
 function PublicRoute({ children }) {
   const { token, user } = useSelector((state) => state.auth);
   if (token && user) {
@@ -65,16 +58,13 @@ function PublicRoute({ children }) {
   return children;
 }
 
-// ─── Live role sync: polls /me every 30s while logged in ─────────────────────
 function RoleSyncProvider({ children }) {
   const dispatch = useDispatch();
   const { token } = useSelector((state) => state.auth);
 
   useEffect(() => {
     if (!token) return;
-    // Immediate refresh on mount / login
     dispatch(refreshMe());
-    // Then poll every 30 seconds
     const interval = setInterval(() => {
       dispatch(refreshMe());
     }, 30000);
@@ -84,32 +74,26 @@ function RoleSyncProvider({ children }) {
   return children;
 }
 
-// ─── App ────────────────────────────────────────────────────────────────────────────
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public */}
       <Route path="/login"    element={<PublicRoute><LoginForm /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><SignupForm /></PublicRoute>} />
       <Route path="/reset-password/:token" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
       <Route path="/unauthorized" element={<Unauthorized />} />
 
-      {/* Super Admin / Admin roles */}
       <Route path="/"         element={<PermissionRoute permission={['assign_role', 'create_role']}><Layout><HomePage /></Layout></PermissionRoute>} />
       <Route path="/roles/create" element={<PermissionRoute permission="create_role"><Layout><RoleCreation /></Layout></PermissionRoute>} />
       <Route path="/roles/assign" element={<PermissionRoute permission="assign_role"><Layout><RoleAssignment /></Layout></PermissionRoute>} />
 
-      {/* Sender specific */}
       <Route path="/question" element={<PermissionRoute permission="send"><Layout><QuestionPage /></Layout></PermissionRoute>} />
       <Route path="/sender"      element={<PermissionRoute permission="send"><Layout><SenderPage /></Layout></PermissionRoute>} />
       <Route path="/docx-viewer" element={<PermissionRoute permission="send"><Layout><DocxPage /></Layout></PermissionRoute>} />
       <Route path="/submissions" element={<PermissionRoute permission="send"><Layout><SubmissionsPage /></Layout></PermissionRoute>} />
 
-      {/* Signer specific */}
       <Route path="/signer" element={<PermissionRoute permission="sign"><Layout><SignerPage /></Layout></PermissionRoute>} />
       <Route path="/signer/fill/:docxId" element={<PermissionRoute permission="sign"><Layout><FillDocxPage /></Layout></PermissionRoute>} />
 
-      {/* Catch-all — smart redirect */}
       <Route path="*" element={<SmartRedirect />} />
     </Routes>
   );

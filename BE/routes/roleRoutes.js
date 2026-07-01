@@ -5,7 +5,6 @@ const User = require('../models/User');
 const { requirePermission } = require('../middleware/auth');
 const { sendRoleAssignmentMail } = require('./mailService');
 
-// ─── Get all roles ───────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
     const roles = await Role.find().lean();
@@ -15,8 +14,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ─── Create a new role ───────────────────────────────────────────────────────
-// Protected by 'create_role' permission
 router.post('/', requirePermission('create_role'), async (req, res) => {
   try {
     const { name, permissions } = req.body;
@@ -32,8 +29,6 @@ router.post('/', requirePermission('create_role'), async (req, res) => {
   }
 });
 
-// ─── Assign role to a user ───────────────────────────────────────────────────
-// Protected by 'assign_role' permission
 router.put('/assign/:userId', requirePermission('assign_role'), async (req, res) => {
   try {
     const { roleId } = req.body;
@@ -47,7 +42,6 @@ router.put('/assign/:userId', requirePermission('assign_role'), async (req, res)
     const user = await User.findById(userId).populate('role');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Cannot modify Super Admin role
     if (user.role && user.role.name === 'Super Admin') {
       return res.status(403).json({ error: 'Cannot modify the role of a Super Admin' });
     }
@@ -55,7 +49,6 @@ router.put('/assign/:userId', requirePermission('assign_role'), async (req, res)
     user.role = role._id;
     await user.save();
 
-    // Send email notification
     sendRoleAssignmentMail(user.name, user.email, role.name);
 
     res.json({ message: 'Role assigned successfully', user });
@@ -64,7 +57,6 @@ router.put('/assign/:userId', requirePermission('assign_role'), async (req, res)
   }
 });
 
-// ─── Edit a role ─────────────────────────────────────────────────────────────
 router.put('/:roleId', requirePermission('create_role'), async (req, res) => {
   try {
     const { name, permissions } = req.body;
@@ -82,7 +74,6 @@ router.put('/:roleId', requirePermission('create_role'), async (req, res) => {
   }
 });
 
-// ─── Delete a role ────────────────────────────────────────────────────────────
 router.delete('/:roleId', requirePermission('create_role'), async (req, res) => {
   try {
     const role = await Role.findById(req.params.roleId);

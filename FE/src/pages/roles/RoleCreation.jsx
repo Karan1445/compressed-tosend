@@ -20,11 +20,9 @@ export default function RoleCreation() {
   const { roles, loading } = useSelector((state) => state.roles);
   const { user: currentUser } = useSelector((state) => state.auth);
 
-  // ── Create form state ───────────────────────────────────────────────────────
   const [roleName, setRoleName] = useState('');
   const [selectedPermissions, setSelectedPermissions] = useState([]);
 
-  // ── Edit state ──────────────────────────────────────────────────────────────
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [editPerms, setEditPerms] = useState([]);
@@ -33,7 +31,6 @@ export default function RoleCreation() {
     dispatch(fetchRoles());
   }, [dispatch]);
 
-  // Hide Super Admin from the list
   const visibleRoles = roles.filter((r) => r.name !== 'Super Admin');
 
   const togglePermission = (perm, setter) => {
@@ -42,7 +39,6 @@ export default function RoleCreation() {
     );
   };
 
-  // ── Create ──────────────────────────────────────────────────────────────────
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!roleName.trim()) { toast.error('Role name is required'); return; }
@@ -57,14 +53,12 @@ export default function RoleCreation() {
     }
   };
 
-  // ── Start editing ────────────────────────────────────────────────────────────
   const startEdit = (role) => {
     setEditingId(role._id);
     setEditName(role.name);
     setEditPerms([...role.permissions]);
   };
 
-  // ── Save edit ────────────────────────────────────────────────────────────────
   const handleSaveEdit = async (roleId) => {
     if (!editName.trim()) { toast.error('Role name is required'); return; }
     if (editPerms.length === 0) { toast.error('Please select at least one permission'); return; }
@@ -77,7 +71,6 @@ export default function RoleCreation() {
     }
   };
 
-  // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async (role) => {
     try {
       await dispatch(deleteRole(role._id)).unwrap();
@@ -147,7 +140,6 @@ export default function RoleCreation() {
                 return (
                   <div key={role._id} className={`p-3 border rounded-md bg-gray-50 space-y-2 ${isEditing ? 'border-black' : ''}`}>
                     {isEditing ? (
-                      // ── Edit view ──
                       <>
                         <Input
                           value={editName}
@@ -178,7 +170,6 @@ export default function RoleCreation() {
                         </div>
                       </>
                     ) : (
-                      // ── Display view ──
                       <>
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-sm">{role.name}</span>

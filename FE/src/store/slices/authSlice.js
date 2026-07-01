@@ -2,7 +2,6 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 const API = 'http://localhost:8888';
 
-// ─── Persist helpers ──────────────────────────────────────────────────────────
 const persist = (token, user) => {
   localStorage.setItem('auth_token', token);
   localStorage.setItem('auth_user', JSON.stringify(user));
@@ -21,10 +20,6 @@ const loadPersisted = () => {
   }
 };
 
-// ─── Async Thunks ─────────────────────────────────────────────────────────────
-// IMPORTANT: always use rejectWithValue so .unwrap() throws a plain string,
-// not an Error object. This makes toast.error(err) display correctly.
-
 export const loginUser = createAsyncThunk(
   'auth/login',
   async ({ email, password }, { rejectWithValue }) => {
@@ -36,7 +31,7 @@ export const loginUser = createAsyncThunk(
       });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error || (data.errors ? data.errors.join(', ') : 'Login failed'));
-      return data; // { token, user, message }
+      return data;
     } catch {
       return rejectWithValue('Network error — check your connection.');
     }
@@ -126,14 +121,13 @@ export const refreshMe = createAsyncThunk(
       });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error || 'Failed to refresh session');
-      return data; // { user }
+      return data;
     } catch {
       return rejectWithValue('Network error');
     }
   }
 );
 
-// ─── Slice ────────────────────────────────────────────────────────────────────
 const { token: initToken, user: initUser } = loadPersisted();
 
 const authSlice = createSlice({
@@ -156,7 +150,6 @@ const authSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // ── Login ─────────────────────────────────────────────────────────────
     builder
       .addCase(loginUser.pending,   (state)           => { state.loading = true;  state.error = null; })
       .addCase(loginUser.fulfilled, (state, { payload }) => {
@@ -167,10 +160,9 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.rejected,  (state, { payload }) => {
         state.loading = false;
-        state.error   = payload; // plain string from rejectWithValue
+        state.error   = payload;
       });
 
-    // ── Register ──────────────────────────────────────────────────────────
     builder
       .addCase(registerUser.pending,   (state)             => { state.loading = true;  state.error = null; })
       .addCase(registerUser.fulfilled, (state, { payload }) => {
@@ -184,19 +176,16 @@ const authSlice = createSlice({
         state.error   = payload;
       });
 
-    // ── Forgot password ───────────────────────────────────────────────────
     builder
       .addCase(forgotPassword.pending,   (state)             => { state.loading = true;  state.error = null; })
       .addCase(forgotPassword.fulfilled, (state)             => { state.loading = false; })
       .addCase(forgotPassword.rejected,  (state, { payload }) => { state.loading = false; state.error = payload; });
 
-    // ── Reset password ────────────────────────────────────────────────────
     builder
       .addCase(resetPassword.pending,   (state)             => { state.loading = true;  state.error = null; })
       .addCase(resetPassword.fulfilled, (state)             => { state.loading = false; })
       .addCase(resetPassword.rejected,  (state, { payload }) => { state.loading = false; state.error = payload; });
 
-    // ── Refresh Me (live role sync) ──────────────────────────────────────────
     builder
       .addCase(refreshMe.fulfilled, (state, { payload }) => {
         state.user = payload.user;

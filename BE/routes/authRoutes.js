@@ -18,13 +18,13 @@ router.post('/register', async (req, res) => {
 
     const { name, email, password } = value;
     const defaultRole = await Role.findOne({ name: 'Signer' }).lean();
-    
+
     const newUser = new User({ name, email, password, role: defaultRole ? defaultRole._id : null });
     await newUser.save();
 
     const token = generateToken(newUser._id);
     const { password: _, ...userWithoutPassword } = newUser.toObject();
-    
+
     userWithoutPassword.role = defaultRole;
     userWithoutPassword.permissions = defaultRole ? defaultRole.permissions : [];
 
@@ -71,7 +71,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// ─── GET current user (with fresh permissions) ─────────────────────────────────────
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).populate('role').lean();
@@ -84,7 +83,6 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
-
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
@@ -95,12 +93,12 @@ router.post('/forgot-password', async (req, res) => {
 
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = resetToken;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour expiration
+    user.resetPasswordExpires = Date.now() + 3600000;
     await user.save();
 
     const resetLink = `http://localhost:3000/reset-password/${resetToken}`;
     sendForgetPassToUser(user.name, user.email, resetLink);
-    
+
     res.json({
       message: 'A password reset link has been sent to your email.'
     });
@@ -150,13 +148,12 @@ router.post('/reset-password', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-
     const isMatch = await bcrypt.compare(oldPassword, user.password);
     if (!isMatch) return res.status(400).json({ error: 'Incorrect old password' });
 
     user.password = newPassword;
     await user.save();
-    await sendResetPasswordToUser(user?.name,user?.email)
+    await sendResetPasswordToUser(user?.name, user?.email);
     res.json({ message: 'Password has been updated successfully. You can now log in using your new credentials.' });
 
   } catch (err) {

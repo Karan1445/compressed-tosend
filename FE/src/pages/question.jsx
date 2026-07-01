@@ -23,7 +23,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from '../components/ui/alert-dialog';
 
-// ─── Question type definitions ────────────────────────────────────────────────
 const QUESTION_TYPES = [
   {
     value: 'text',
@@ -91,7 +90,6 @@ const QUESTION_TYPES = [
   },
 ];
 
-// ─── Visual type picker component ─────────────────────────────────────────────
 function TypePicker({ value, onChange }) {
   return (
     <div className="grid grid-cols-5 gap-2">
@@ -119,7 +117,6 @@ function TypePicker({ value, onChange }) {
   );
 }
 
-// ─── Extra Form Fields (Options & Dependencies) ───────────────────────────────
 function ExtraFormFields({ form, setForm, questions, editingItemId }) {
   const needsOptions = form.type === 'dropdown' || form.type === 'radio';
   const otherQuestions = questions.filter(q => q._id !== editingItemId);
@@ -155,9 +152,6 @@ function ExtraFormFields({ form, setForm, questions, editingItemId }) {
   );
 }
 
-
-
-// ─── Empty form state ─────────────────────────────────────────────────────────
 const EMPTY_FORM = { 
   question: '', 
   type: '', 
@@ -165,7 +159,6 @@ const EMPTY_FORM = {
   options: []
 };
 
-// ─── Main page ────────────────────────────────────────────────────────────────
 export function QuestionPage() {
   const dispatch = useDispatch();
   const { questions, loading, actionLoading, error } = useSelector((state) => state.questions);
@@ -175,12 +168,9 @@ export function QuestionPage() {
   const [editingItem, setEditingItem] = useState(null);
   const [deletingItem,setDeletingItem]= useState(null);
 
-  // Controlled form state for Add
   const [addForm, setAddForm] = useState(EMPTY_FORM);
-  // Controlled form state for Edit
   const [editForm, setEditForm] = useState(EMPTY_FORM);
 
-  // Sync editForm when editingItem changes
   useEffect(() => {
     if (editingItem) {
       setEditForm({
@@ -192,19 +182,15 @@ export function QuestionPage() {
     }
   }, [editingItem]);
 
-  // Reset addForm when dialog closes
   useEffect(() => {
     if (!isAddOpen) setAddForm(EMPTY_FORM);
   }, [isAddOpen]);
 
-  // Load questions on mount
   useEffect(() => {
     dispatch(fetchQuestions())
       .unwrap()
       .catch((err) => toast.error(err || 'Failed to load questions.'));
   }, [dispatch]);
-
-  // ─── Handlers ──────────────────────────────────────────────────────────────
 
   const handleAddQuestion = async (e) => {
     e.preventDefault();

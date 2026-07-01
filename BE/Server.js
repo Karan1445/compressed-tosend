@@ -12,10 +12,8 @@ const Role = require('./models/Role');
 const { authenticateToken } = require('./middleware/auth');
 const path = require('path');
 
-// ─── Bootstrap Logic ─────────────────────────────────────────────────────────
 async function bootstrapRolesAndAdmin() {
   try {
-    // 1. Ensure Super Admin role exists
     const superAdminRoleName = 'Super Admin';
     let superAdminRole = await Role.findOne({ name: superAdminRoleName });
     if (!superAdminRole) {
@@ -26,7 +24,6 @@ async function bootstrapRolesAndAdmin() {
       console.log('✅ Super Admin role created.');
     }
 
-    // 2. Ensure Signer role exists (default for new users)
     const signerRoleName = 'Signer';
     let signerRole = await Role.findOne({ name: signerRoleName });
     if (!signerRole) {
@@ -37,7 +34,6 @@ async function bootstrapRolesAndAdmin() {
       console.log('✅ Signer role created.');
     }
 
-    // 3. Auto-assign Super Admin and handle migration safely via native driver
     const db = mongoose.connection.db;
     const usersCol = db.collection('users');
 
@@ -55,8 +51,7 @@ async function bootstrapRolesAndAdmin() {
       }
     }
 
-    // 4. Migration: convert string roles to ObjectIds natively
-    const usersWithStringRole = await usersCol.find({ role: { $type: 2 } }).toArray(); // 2 is BSON type String
+    const usersWithStringRole = await usersCol.find({ role: { $type: 2 } }).toArray();
     if (usersWithStringRole.length > 0) {
       console.log(`🔄 Found ${usersWithStringRole.length} users with string roles. Migrating...`);
       for (const u of usersWithStringRole) {
@@ -64,7 +59,6 @@ async function bootstrapRolesAndAdmin() {
         if (foundRole) {
           await usersCol.updateOne({ _id: u._id }, { $set: { role: foundRole._id } });
         } else {
-          // If the role doesn't exist, default to Signer
           await usersCol.updateOne({ _id: u._id }, { $set: { role: signerRole._id } });
         }
       }

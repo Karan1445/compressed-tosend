@@ -2,7 +2,6 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 const API = 'http://localhost:8888/roles';
 
-// Helper to get token
 const getAuthHeaders = (getState) => {
   const token = getState().auth.token;
   return {

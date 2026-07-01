@@ -17,7 +17,6 @@ export function SignupForm() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [fieldErrors, setFieldErrors] = useState({ name: '', email: '', password: '', confirmPassword: '' });
 
-  // Show backend error as toast
   useEffect(() => {
     if (error) {
       toast.error(error);
@@ -62,7 +61,6 @@ export function SignupForm() {
       toast.success(`Account created! Welcome aboard, ${result.user.name}! 🎉`);
       navigate('/', { replace: true });
     } catch (err) {
-      // handled by useEffect above
     }
   }
 

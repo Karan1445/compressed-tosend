@@ -25,7 +25,6 @@ export function LoginForm({ className }) {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Show backend error as toast
   useEffect(() => {
     if (error) {
       toast.error(error);
@@ -33,7 +32,6 @@ export function LoginForm({ className }) {
     }
   }, [error, dispatch]);
 
-  // Clear forgotEmail when dialog closes
   useEffect(() => { setForgotEmail(''); }, [isDialogOpen]);
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -63,7 +61,6 @@ export function LoginForm({ className }) {
       toast.success(`Welcome back, ${result.user.name}! 👋`);
       navigate('/', { replace: true });
     } catch (err) {
-      // error is already handled by useEffect above
     }
   }
 

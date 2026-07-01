@@ -36,17 +36,13 @@ export default function Layout({ children }) {
   const perms = user?.permissions || [];
   const isSuperAdmin = user?.role === 'Super Admin';
   const navigationItems = [
-    // User list: for anyone who can assign or create roles (or super admin)
     ...(isSuperAdmin || perms.includes('assign_role') || perms.includes('create_role') ? [{ title: 'User List',       url: '/',            icon: Users }]        : []),
-    // Sender pages: for anyone who can send (or super admin)
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Add Question',    url: '/question',    icon: FileQuestion }] : []),
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Sender Dashboard', url: '/sender',       icon: Send }]         : []),
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'DOCX Viewer',      url: '/docx-viewer',  icon: FileText }]     : []),
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Submissions',      url: '/submissions',  icon: List }]         : []),
-    // Role management: for specific roles
     ...(isSuperAdmin || perms.includes('create_role') ? [{ title: 'Create Role',       url: '/roles/create', icon: Shield }]      : []),
     ...(isSuperAdmin || perms.includes('assign_role') ? [{ title: 'Assign Role',       url: '/roles/assign', icon: UserPlus }]    : []),
-    // Signer pages: for anyone who can sign (or super admin)
     ...(isSuperAdmin || perms.includes('sign') ? [{ title: 'Sign Document', url: '/signer', icon: FileText }] : []),
   ];
 

@@ -14,7 +14,6 @@ export default function RoleAssignment() {
 
   const [assigningUserId, setAssigningUserId] = useState(null);
 
-  // Never show Super Admin in the assignable dropdown
   const assignableRoles = roles.filter((r) => r.name !== 'Super Admin');
 
   useEffect(() => {
@@ -28,7 +27,6 @@ export default function RoleAssignment() {
       setAssigningUserId(userId);
       await dispatch(assignRole({ userId, roleId })).unwrap();
       toast.success('Role assigned successfully! An email has been sent to the user.');
-      // Refresh users to show the new role
       dispatch(fetchUsers());
     } catch (err) {
       toast.error(err || 'Failed to assign role');
