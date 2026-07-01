@@ -36,6 +36,10 @@ const DocxSchema = new mongoose.Schema({
     height: Number,
     dependsOnId: String,
     dependsOnValue: String
+  }],
+  assignees: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }]
 });
 

@@ -224,7 +224,7 @@ export default function RoleCreation() {
                             <span className="text-xs text-gray-400">No permissions</span>
                           ) : (
                             role.permissions.map((perm) => (
-                              <span key={perm} className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] uppercase font-bold rounded">
+                              <span key={perm} className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 text-[10px] uppercase font-bold rounded">
                                 {perm.replace('_', ' ')}
                               </span>
                             ))

@@ -101,6 +101,31 @@ export const deleteDocx = createAsyncThunk(
   }
 );
 
+export const assignDocx = createAsyncThunk(
+  'docx/assign',
+  async ({ docxId, assigneeIds }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await fetch(`http://localhost:8888/docx/${docxId}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ assigneeIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to assign document');
+      }
+
+      return await response.json();
+    } catch (error) {
+      return rejectWithValue(error.message || 'An error occurred assigning document');
+    }
+  }
+);
+
 const initialState = {
   documents: [],
   loading: false,
@@ -159,17 +184,24 @@ const docxSlice = createSlice({
       })
       // Delete Docx
       .addCase(deleteDocx.pending, (state) => {
-        state.loading = true; // or create a separate deleting state if preferred
+        state.loading = true;
       })
       .addCase(deleteDocx.fulfilled, (state, action) => {
         state.loading = false;
-        state.documents = state.documents.filter(d => d._id !== action.payload);
+        state.documents = state.documents.filter(doc => doc._id !== action.payload);
       })
       .addCase(deleteDocx.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+      // Assign Docx
+      .addCase(assignDocx.fulfilled, (state, action) => {
+        const index = state.documents.findIndex(d => d._id === action.payload._id);
+        if (index !== -1) {
+          state.documents[index] = action.payload;
+        }
       });
-  }
+  },
 });
 
 export default docxSlice.reducer;

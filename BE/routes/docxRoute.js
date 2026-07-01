@@ -105,6 +105,33 @@ router.put('/:id/mappings', async (req, res) => {
     if (err.kind === 'ObjectId') {
       return res.status(404).json({ msg: 'Document not found' });
     }
+  }
+});
+
+// @route   POST /docx/:id/assign
+// @desc    Assign a document to users
+// @access  Private
+router.post('/:id/assign', async (req, res) => {
+  try {
+    const { assigneeIds } = req.body;
+    const doc = await Docx.findById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ msg: 'Document not found' });
+    }
+    
+    if (doc.uploadedBy.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ msg: 'User not authorized' });
+    }
+
+    doc.assignees = [...new Set([...(doc.assignees || []), ...assigneeIds])];
+    const updatedDoc = await doc.save();
+    
+    res.json(updatedDoc);
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Document not found' });
+    }
     res.status(500).send('Server Error');
   }
 });

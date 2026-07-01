@@ -64,7 +64,7 @@ export default function RoleAssignment() {
                 <td className="px-6 py-4 font-medium text-gray-900">{user.name}</td>
                 <td className="px-6 py-4 text-gray-500">{user.email}</td>
                 <td className="px-6 py-4">
-                  <span className="px-2.5 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
+                  <span className="px-2.5 py-1 bg-slate-100 text-slate-800 text-xs font-semibold rounded-full border border-slate-200">
                     {user.role || 'No Role'}
                   </span>
                 </td>

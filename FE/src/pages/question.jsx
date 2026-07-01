@@ -162,9 +162,7 @@ const EMPTY_FORM = {
   question: '', 
   type: '', 
   required: false,
-  options: [],
-  dependsOnId: '',
-  dependsOnValue: ''
+  options: []
 };
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -189,9 +187,7 @@ export function QuestionPage() {
         question: editingItem.question,
         type:     editingItem.type,
         required: editingItem.required || false,
-        options:  editingItem.options || [],
-        dependsOnId: editingItem.dependsOnId || '',
-        dependsOnValue: editingItem.dependsOnValue || ''
+        options:  editingItem.options || []
       });
     }
   }, [editingItem]);
@@ -214,15 +210,17 @@ export function QuestionPage() {
     e.preventDefault();
     if (!addForm.question.trim()) { toast.error('Question text is required!'); return; }
     if (!addForm.type)            { toast.error('Please select a question type!'); return; }
+    if (addForm.type === 'dropdown' || addForm.type === 'radio') {
+      if (!addForm.options || addForm.options.length === 0) { toast.error('Please add at least one option!'); return; }
+      if (addForm.options.some(opt => !opt.trim())) { toast.error('All options must be filled!'); return; }
+    }
 
     try {
       await dispatch(addQuestion({
         question: addForm.question.trim(),
         type:     addForm.type,
         required: addForm.required,
-        options:  addForm.options || [],
-        dependsOnId: addForm.dependsOnId || null,
-        dependsOnValue: addForm.dependsOnValue || ''
+        options:  addForm.options || []
       })).unwrap();
       toast.success('Question created successfully ✓');
       setIsAddOpen(false);
@@ -235,6 +233,10 @@ export function QuestionPage() {
     e.preventDefault();
     if (!editForm.question.trim()) { toast.error('Question text is required!'); return; }
     if (!editForm.type)            { toast.error('Please select a question type!'); return; }
+    if (editForm.type === 'dropdown' || editForm.type === 'radio') {
+      if (!editForm.options || editForm.options.length === 0) { toast.error('Please add at least one option!'); return; }
+      if (editForm.options.some(opt => !opt.trim())) { toast.error('All options must be filled!'); return; }
+    }
 
     try {
       await dispatch(updateQuestion({
@@ -243,9 +245,7 @@ export function QuestionPage() {
           question: editForm.question.trim(),
           type:     editForm.type,
           required: editForm.required,
-          options:  editForm.options || [],
-          dependsOnId: editForm.dependsOnId || null,
-          dependsOnValue: editForm.dependsOnValue || ''
+          options:  editForm.options || []
         },
       })).unwrap();
       toast.success('Question updated ✓');
@@ -336,7 +336,7 @@ export function QuestionPage() {
                 <Plus className="h-4 w-4" /> Add Question
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[520px] bg-white text-black">
+            <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto bg-white text-black">
               <DialogHeader>
                 <DialogTitle>Add New Question</DialogTitle>
                 <DialogDescription>Create a new question for your form.</DialogDescription>
@@ -491,7 +491,7 @@ export function QuestionPage() {
 
       {/* ── Edit Dialog ── */}
       <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
-        <DialogContent className="sm:max-w-[520px] bg-white text-black">
+        <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto bg-white text-black">
           <DialogHeader>
             <DialogTitle>Edit Question</DialogTitle>
             <DialogDescription>Modify this question's configuration.</DialogDescription>

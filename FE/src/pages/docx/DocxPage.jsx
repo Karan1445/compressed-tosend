@@ -12,7 +12,7 @@ import {
   SheetTitle, SheetDescription,
 } from '../../components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { Upload, FileText, Loader2, Search, CheckCircle2, Link2, X, RotateCcw, Save, History, CloudUpload, Trash2, Lightbulb } from 'lucide-react';
+import { Upload, FileText, Loader2, Search, CheckCircle2, Link2, X, RotateCcw, Save, History, CloudUpload, Trash2, Lightbulb, Hash, Type, AlignLeft, CheckSquare, Calendar, ChevronDown, CircleDot, Send } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -20,97 +20,21 @@ import {
 } from '../../components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { toast } from 'sonner';
-import { uploadDocx, fetchUploadedDocx, saveDocxMappings, deleteDocx } from '../../store/slices/docxSlice';
+import { uploadDocx, fetchUploadedDocx, saveDocxMappings, deleteDocx, assignDocx } from '../../store/slices/docxSlice';
 
-function SidebarDependencyConfig({ q, questions, mappedQuestions, onSaveDependency, onClose }) {
-  const [localVal, setLocalVal] = useState(q?.dependsOnValue || '');
-  const [dependsOnId, setDependsOnId] = useState(q?.dependsOnId || '');
-
-  useEffect(() => { 
-    setLocalVal(q?.dependsOnValue || ''); 
-    setDependsOnId(q?.dependsOnId || '');
-  }, [q]);
-
-  const handleSave = () => {
-    if (!q) return;
-    onSaveDependency(q._id, dependsOnId === 'none' ? null : dependsOnId, localVal);
-    onClose();
-  };
-
-  if (!q) return null;
-
-  return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="p-4 border-b bg-slate-50 flex items-start gap-3 shrink-0">
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 shrink-0 rounded-full hover:bg-slate-200">
-          <RotateCcw className="h-4 w-4" />
-        </Button>
-        <div>
-          <h3 className="font-semibold text-slate-800 text-sm">Configure Dependency</h3>
-          <p className="text-[10px] text-slate-500 mt-1">Set visibility condition for this mapped question.</p>
-        </div>
-      </div>
-      <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-        <div className="p-3 bg-indigo-50 border border-indigo-100 rounded text-sm text-indigo-900 font-medium">
-          {q.question}
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-slate-700">Depends on (Mapped Questions)</label>
-          <Select 
-            value={dependsOnId || "none"} 
-            onValueChange={setDependsOnId}
-          >
-            <SelectTrigger className="w-full bg-white text-xs h-9">
-              <SelectValue placeholder="No dependency" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="none">No dependency (Always show)</SelectItem>
-              {mappedQuestions.filter(other => other._id !== q._id).map(other => (
-                <SelectItem key={other._id} value={other._id}>{other.question}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {dependsOnId && dependsOnId !== 'none' && (
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-700">Required Value</label>
-            {(() => {
-                const parentQ = questions.find(x => x._id === dependsOnId);
-                if (parentQ?.type === 'checkbox') {
-                  return (
-                    <Select 
-                      value={localVal || ""} 
-                      onValueChange={setLocalVal}
-                    >
-                      <SelectTrigger className="w-full bg-white text-xs h-9">
-                        <SelectValue placeholder="Select Yes/No" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white">
-                        <SelectItem value="true">Yes</SelectItem>
-                        <SelectItem value="false">No</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  );
-                }
-                return (
-                  <Input 
-                    className="text-xs h-9"
-                    placeholder="e.g. Yes" 
-                    value={localVal} 
-                    onChange={(e) => setLocalVal(e.target.value)}
-                  />
-                );
-            })()}
-          </div>
-        )}
-      </div>
-      <div className="p-4 border-t bg-slate-50 shrink-0">
-        <Button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700 text-white w-full">Save Settings</Button>
-      </div>
-    </div>
-  );
-}
+// Helper to get icon for question type
+const getQuestionIcon = (type, className = "h-4 w-4") => {
+  switch (type) {
+    case 'number': return <Hash className={className} />;
+    case 'text': return <Type className={className} />;
+    case 'textarea': return <AlignLeft className={className} />;
+    case 'checkbox': return <CheckSquare className={className} />;
+    case 'date': return <Calendar className={className} />;
+    case 'dropdown': return <ChevronDown className={className} />;
+    case 'radio': return <CircleDot className={className} />;
+    default: return <Type className={className} />;
+  }
+};
 
 export default function DocxPage() {
   const dispatch = useDispatch();
@@ -118,6 +42,7 @@ export default function DocxPage() {
 
   // ─── Redux: questions ────────────────────────────────────────────────────────
   const { questions, loading: qLoading } = useSelector((state) => state.questions);
+  const { token, user: currentUser } = useSelector(state => state.auth);
 
   useEffect(() => {
     dispatch(fetchQuestions()).unwrap().catch(() => { });
@@ -129,27 +54,58 @@ export default function DocxPage() {
   const [hasDoc, setHasDoc] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [activeDoc, setActiveDoc] = useState(null);
-  const [dependencyConfigQuestion, setDependencyConfigQuestion] = useState(null);
 
   // ─── Redux: uploaded documents ────────────────────────────────────────────────
   const { documents, uploading, savingMappings, loading: docsLoading } = useSelector((state) => state.docx || { documents: [], uploading: false, savingMappings: false, loading: false });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
-  
+
   const [draggedFields, setDraggedFields] = useState([]);
   const [fieldMappings, setFieldMappings] = useState({}); // { fieldId: question }
 
-  
+
   const [interactionMode, setInteractionMode] = useState('edit'); // 'edit' or 'interact'
   const [formValues, setFormValues] = useState({});
+
+  // ─── Send Modal State ─────────────────────────────────────────────────────────
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [selectedAssignees, setSelectedAssignees] = useState([]);
+  const [fetchingUsers, setFetchingUsers] = useState(false);
+
+  useEffect(() => {
+    if (isSendModalOpen) {
+      setFetchingUsers(true);
+      fetch('http://localhost:8888/', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => setUsers(data.filter(u => u._id !== currentUser._id)))
+        .catch(err => toast.error('Failed to load users'))
+        .finally(() => setFetchingUsers(false));
+    }
+  }, [isSendModalOpen, token, currentUser]);
+
+  const handleSendDocx = async () => {
+    if (selectedAssignees.length === 0) return toast.error("Select at least one user to assign.");
+    if (!activeDoc) return toast.error("Please upload the document to the server before sending.");
+    try {
+      await dispatch(assignDocx({ docxId: activeDoc._id, assigneeIds: selectedAssignees })).unwrap();
+      toast.success("Document sent successfully!");
+      setIsSendModalOpen(false);
+      setSelectedAssignees([]);
+    } catch (err) {
+      toast.error(err);
+    }
+  };
 
   // ─── Keep refs in sync for global listeners ─────────────────────────────────
   const activeDocRef = useRef(activeDoc);
   useEffect(() => { activeDocRef.current = activeDoc; }, [activeDoc]);
-  
+
   const fieldMappingsRefForSave = useRef(fieldMappings);
   useEffect(() => { fieldMappingsRefForSave.current = fieldMappings; }, [fieldMappings]);
-  
+
   const draggedFieldsRef = useRef(draggedFields);
   useEffect(() => { draggedFieldsRef.current = draggedFields; }, [draggedFields]);
 
@@ -162,11 +118,7 @@ export default function DocxPage() {
         if (activeDocRef.current) {
           const mappingsToSave = {};
           Object.entries(fieldMappingsRefForSave.current).forEach(([fieldId, q]) => {
-            mappingsToSave[fieldId] = {
-              questionId: q._id,
-              dependsOnId: q.dependsOnId || null,
-              dependsOnValue: q.dependsOnValue || ''
-            };
+            mappingsToSave[fieldId] = q._id;
           });
           const draggedFieldsToSave = draggedFieldsRef.current.map(df => ({
             id: df.id,
@@ -174,18 +126,16 @@ export default function DocxPage() {
             x: df.x,
             y: df.y,
             width: df.width,
-            height: df.height,
-            dependsOnId: df.questionObj?.dependsOnId || null,
-            dependsOnValue: df.questionObj?.dependsOnValue || ''
+            height: df.height
           }));
-          dispatch(saveDocxMappings({ 
-            docxId: activeDocRef.current._id, 
+          dispatch(saveDocxMappings({
+            docxId: activeDocRef.current._id,
             mappings: mappingsToSave,
             draggedFields: draggedFieldsToSave
           })).unwrap().then(() => {
-             toast.success('Mappings saved successfully!');
+            toast.success('Mappings saved successfully!');
           }).catch(err => {
-             toast.error(err || 'Failed to save mappings');
+            toast.error(err || 'Failed to save mappings');
           });
         }
       }
@@ -217,49 +167,9 @@ export default function DocxPage() {
   useEffect(() => { fieldMappingsRef.current = fieldMappings; }, [fieldMappings]);
 
   const handleRemoveMappingRef = useRef(null);
-  
+
   const formValuesRef = useRef(formValues);
   useEffect(() => { formValuesRef.current = formValues; }, [formValues]);
-
-  // ─── Conditional Logic Helper ──────────────────────────────────────────────
-  const isDependencyMet = useCallback((q) => {
-    if (!q.dependsOnId) return true; // No dependency
-
-    // Find all fields on this document that are mapped to the parent question (both inline and dragged)
-    const dependentFieldIds = [
-      ...Object.keys(fieldMappings).filter(fid => fieldMappings[fid]?._id === q.dependsOnId),
-      ...draggedFieldsRef.current.filter(df => df.questionObj?._id === q.dependsOnId).map(df => df.id)
-    ];
-
-    if (dependentFieldIds.length === 0) return false; // Parent question not on document
-
-    // Check if any mapped field has the required value
-    return dependentFieldIds.some(fid => {
-      const val = formValuesRef.current[fid];
-      return val === q.dependsOnValue;
-    });
-  }, [fieldMappings]);
-
-  const handleSaveDependency = useCallback((qId, dependsOnId, dependsOnValue) => {
-    setFieldMappings(prev => {
-       const next = { ...prev };
-       for (const fid in next) {
-          if (next[fid]?._id === qId) {
-             next[fid] = { ...next[fid], dependsOnId, dependsOnValue };
-          }
-       }
-       return next;
-    });
-
-    setDraggedFields(prev => prev.map(df => {
-       if (df.questionObj?._id === qId) {
-          return { ...df, questionObj: { ...df.questionObj, dependsOnId, dependsOnValue } };
-       }
-       return df;
-    }));
-    
-    toast.success('Dependency saved locally. Press Ctrl+S to save document!');
-  }, []);
 
   // ─── Sync DOM buttons with interactionMode ─────────────────────────────────
   useEffect(() => {
@@ -307,15 +217,15 @@ export default function DocxPage() {
             btn.style.background = 'transparent';
           } else {
             const typeAttr = q.type === 'number' ? 'number' : 'text';
-            btn.innerHTML = `<input type="${typeAttr}" placeholder="${short}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b;" />`;
+            btn.innerHTML = `<input type="${typeAttr}" placeholder="${short}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #0f172a; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #0f172a;" />`;
             btn.style.padding = '0';
             btn.style.border = 'none';
             btn.style.background = 'transparent';
           }
-          
+
           btn.title = q.question;
           btn.style.visibility = 'visible';
-  
+
           const input = btn.querySelector('input, select, textarea');
           if (input) {
             input.onclick = (e) => e.stopPropagation();
@@ -337,17 +247,17 @@ export default function DocxPage() {
         btn.style.visibility = 'visible';
         if (q) {
           const short = q.question.length > 22 ? q.question.substring(0, 22) + '…' : q.question;
-          btn.style.background = 'rgba(34, 197, 94, 0.15)';
-          btn.style.border = '1.5px solid #22c55e';
-          btn.style.color = '#15803d';
+          btn.style.background = '#0f172a';
+          btn.style.border = '1px solid #0f172a';
+          btn.style.color = '#ffffff';
           btn.style.padding = '0 4px';
           btn.title = q.question;
-          
+
           btn.innerHTML = `
             <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
               ${q.dependsOnId ? '<span title="Has Dependency" style="margin-right:2px">🔗</span>' : ''}${short}
             </span>
-            <span class="remove-mapping-icon" style="margin-left: 4px; padding: 0 4px; cursor: pointer; color: #dc2626; border-radius: 50%; font-size: 10px; font-weight: bold;" title="Remove mapping">✕</span>
+            <span class="remove-mapping-icon" style="margin-left: 4px; padding: 0 4px; cursor: pointer; color: #ef4444; border-radius: 50%; font-size: 10px; font-weight: bold;" title="Remove mapping">✕</span>
           `;
           const removeIcon = btn.querySelector('.remove-mapping-icon');
           if (removeIcon) {
@@ -358,23 +268,17 @@ export default function DocxPage() {
               }
             };
           }
-          btn.ondblclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setDependencyConfigQuestion(q);
-          };
         } else {
           // Restore unmapped styling
           btn.innerText = '+';
           btn.title = 'Click to assign a question';
-          btn.style.background = 'rgba(99, 102, 241, 0.12)';
-          btn.style.border = '1.5px dashed #6366f1';
-          btn.style.color = '#6366f1';
+          btn.style.background = 'rgba(0, 0, 0, 0.05)';
+          btn.style.border = '1px dashed #64748b';
+          btn.style.color = '#64748b';
           btn.style.fontSize = '13px';
           btn.style.fontWeight = '600';
           btn.style.padding = '0';
           btn.style.justifyContent = 'center';
-          btn.ondblclick = null;
           delete btn.dataset.assigned;
         }
       }
@@ -388,11 +292,10 @@ export default function DocxPage() {
       if (!btn) return;
       const q = fieldMappings[fieldId];
       if (q) {
-        const visible = isDependencyMet(q);
-        btn.style.visibility = visible ? 'visible' : 'hidden';
+        btn.style.visibility = 'visible';
       }
     });
-  }, [interactionMode, fieldMappings, formValues, isDependencyMet]);
+  }, [interactionMode, fieldMappings, formValues]);
 
   // ─── Filtered questions ───────────────────────────────────────────────────────
   const filteredQuestions = questions.filter((q) =>
@@ -414,9 +317,9 @@ export default function DocxPage() {
   const resetBtn = (btn) => {
     btn.innerText = '+';
     btn.title = 'Click to assign a question';
-    btn.style.background = 'rgba(99, 102, 241, 0.12)';
-    btn.style.border = '1.5px dashed #6366f1';
-    btn.style.color = '#6366f1';
+    btn.style.background = 'rgba(0, 0, 0, 0.05)';
+    btn.style.border = '1px dashed #64748b';
+    btn.style.color = '#64748b';
     btn.style.fontSize = '13px';
     btn.style.fontWeight = '600';
     btn.style.padding = '0';
@@ -441,9 +344,9 @@ export default function DocxPage() {
 
     btn.title = question.question;
     btn.dataset.assigned = question._id;
-    btn.style.background = 'rgba(34, 197, 94, 0.15)';
-    btn.style.border = '1.5px solid #22c55e';
-    btn.style.color = '#15803d';
+    btn.style.background = '#0f172a';
+    btn.style.border = '1px solid #0f172a';
+    btn.style.color = '#ffffff';
     btn.style.fontSize = '11px';
     btn.style.fontWeight = '500';
     btn.style.padding = '0 4px';
@@ -488,7 +391,7 @@ export default function DocxPage() {
     setActiveField(null);
     toast.success('Field mapping removed');
   };
-  
+
   // Set the ref so useEffect can access it without closing over old state
   useEffect(() => { handleRemoveMappingRef.current = handleRemoveMapping; });
 
@@ -584,9 +487,9 @@ export default function DocxPage() {
           btn.style.width = '100%';
           btn.style.height = '100%';
           btn.style.zIndex = '10';
-          btn.style.background = 'rgba(99, 102, 241, 0.12)';
-          btn.style.border = '1.5px dashed #6366f1';
-          btn.style.color = '#6366f1';
+          btn.style.background = 'rgba(0, 0, 0, 0.05)';
+          btn.style.border = '1px dashed #64748b';
+          btn.style.color = '#64748b';
           btn.style.cursor = 'pointer';
           btn.style.borderRadius = '4px';
           btn.style.fontSize = '13px';
@@ -599,14 +502,14 @@ export default function DocxPage() {
 
           btn.onmouseenter = () => {
             if (!btn.dataset.assigned) {
-              btn.style.background = 'rgba(99, 102, 241, 0.25)';
-              btn.style.borderColor = '#4f46e5';
+              btn.style.background = 'rgba(0, 0, 0, 0.1)';
+              btn.style.borderColor = '#0f172a';
             }
           };
           btn.onmouseleave = () => {
             if (!btn.dataset.assigned) {
-              btn.style.background = 'rgba(99, 102, 241, 0.12)';
-              btn.style.borderColor = '#6366f1';
+              btn.style.background = 'rgba(0, 0, 0, 0.05)';
+              btn.style.borderColor = '#64748b';
             }
           };
 
@@ -737,8 +640,8 @@ export default function DocxPage() {
     }));
 
     try {
-      await dispatch(saveDocxMappings({ 
-        docxId: activeDoc._id, 
+      await dispatch(saveDocxMappings({
+        docxId: activeDoc._id,
         mappings: mappingsToSave,
         draggedFields: draggedFieldsToSave
       })).unwrap();
@@ -794,9 +697,9 @@ export default function DocxPage() {
           const restoredDraggedFields = doc.draggedFields.map(df => {
             const q = questions.find(q => q._id === df.questionId);
             const questionObj = q ? {
-               ...q,
-               dependsOnId: df.dependsOnId || q.dependsOnId,
-               dependsOnValue: df.dependsOnValue || q.dependsOnValue
+              ...q,
+              dependsOnId: df.dependsOnId || q.dependsOnId,
+              dependsOnValue: df.dependsOnValue || q.dependsOnValue
             } : null;
             return { ...df, questionObj };
           });
@@ -812,9 +715,9 @@ export default function DocxPage() {
             const question = questions.find(q => q._id === qId);
             if (question) {
               const enhancedQ = typeof mappingObj === 'string' ? question : {
-                 ...question,
-                 dependsOnId: mappingObj.dependsOnId || question.dependsOnId,
-                 dependsOnValue: mappingObj.dependsOnValue || question.dependsOnValue
+                ...question,
+                dependsOnId: mappingObj.dependsOnId || question.dependsOnId,
+                dependsOnValue: mappingObj.dependsOnValue || question.dependsOnValue
               };
               newMappings[fieldId] = enhancedQ;
               restoredCount++;
@@ -870,7 +773,7 @@ export default function DocxPage() {
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 animate-in fade-in duration-300 relative">
-      
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -884,24 +787,29 @@ export default function DocxPage() {
         {hasDoc && (
           <div className="flex flex-col items-end gap-2">
             {mappedCount > 0 && (
-              <Badge className="bg-green-100 text-green-700 border-green-200 flex items-center gap-1.5 px-3 py-1.5 shadow-sm">
+              <Badge className="bg-slate-100 text-slate-700 border-slate-200 flex items-center gap-1.5 px-3 py-1.5 shadow-sm">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {mappedCount} field{mappedCount > 1 ? 's' : ''} mapped
               </Badge>
             )}
-            <div className="flex bg-slate-100 rounded-md p-1 border shadow-sm mt-1">
-              <button 
-                onClick={() => setInteractionMode('edit')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all ${interactionMode === 'edit' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Edit Mode
-              </button>
-              <button 
-                onClick={() => setInteractionMode('interact')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all ${interactionMode === 'interact' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Interact Mode
-              </button>
+            <div className="flex gap-2 items-center mt-1">
+              <Button variant="outline" className="border-slate-300 text-slate-800 bg-white hover:bg-slate-50 h-8 text-xs font-semibold px-3" onClick={() => setIsSendModalOpen(true)}>
+                <Send className="h-3.5 w-3.5 mr-1.5" /> Send Docx
+              </Button>
+              <div className="flex bg-slate-100 rounded-md p-1 border shadow-sm">
+                <button
+                  onClick={() => setInteractionMode('edit')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all ${interactionMode === 'edit' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Edit Mode
+                </button>
+                <button
+                  onClick={() => setInteractionMode('interact')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-sm transition-all ${interactionMode === 'interact' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  Interact Mode
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -909,277 +817,237 @@ export default function DocxPage() {
 
       {/* ── MAIN COLUMNS ── */}
       <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
-        
+
         {/* ── LEFT COLUMN ── */}
         <div className="flex-1 space-y-6 min-w-0 w-full">
 
-      {/* Upload Card */}
-      <Card className="shadow-md">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Document Upload
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-3 cursor-pointer w-fit">
-                <Button asChild className="bg-black text-white hover:bg-neutral-800 flex items-center gap-2">
-                  <span>
-                    <Upload className="h-4 w-4" />
-                    {fileName ? 'Change File' : 'Select Local File'}
-                  </span>
-                </Button>
-                <input type="file" accept=".docx,.pdf" onChange={handleFileChange} className="hidden" />
-              </label>
-
-              {fileName && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium truncate max-w-[200px] border px-2 py-1 bg-slate-50 rounded">
-                    {fileName}
-                  </span>
-
-                  {!activeDoc ? (
-                    <Button
-                      variant="outline"
-                      className="flex items-center gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                      onClick={handleUploadToServer}
-                      disabled={uploading}
-                    >
-                      {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
-                      Upload to Server
+          {/* Upload Card */}
+          <Card className="shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Document Upload
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-3 cursor-pointer w-fit">
+                    <Button asChild className="bg-black text-white hover:bg-neutral-800 flex items-center gap-2">
+                      <span>
+                        <Upload className="h-4 w-4" />
+                        {fileName ? 'Change File' : 'Select Local File'}
+                      </span>
                     </Button>
-                  ) : (
-                    <Button
-                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm"
-                      onClick={handleSaveMappings}
-                      disabled={savingMappings}
-                    >
-                      {savingMappings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                      Save Mappings
-                    </Button>
+                    <input type="file" accept=".docx,.pdf" onChange={handleFileChange} className="hidden" />
+                  </label>
+
+                  {fileName && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate max-w-[200px] border px-2 py-1 bg-slate-50 rounded">
+                        {fileName}
+                      </span>
+
+                      {!activeDoc ? (
+                        <Button
+                          variant="outline"
+                          className="flex items-center gap-2 text-slate-700 border-slate-300 hover:bg-slate-100"
+                          onClick={handleUploadToServer}
+                          disabled={uploading}
+                        >
+                          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+                          Upload to Server
+                        </Button>
+                      ) : (
+                        <Button
+                          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white shadow-sm"
+                          onClick={handleSaveMappings}
+                          disabled={savingMappings}
+                        >
+                          {savingMappings ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                          Save Mappings
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" className="flex items-center gap-2" onClick={() => setHistoryOpen(true)}>
-                <History className="h-4 w-4" />
-                History
-              </Button>
-            </div>
-          </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" className="flex items-center gap-2" onClick={() => setHistoryOpen(true)}>
+                    <History className="h-4 w-4" />
+                    History
+                  </Button>
+                </div>
+              </div>
 
-          {loading && (
-            <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Processing document...
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* DOCX Render Area */}
-      <Card className="shadow-md">
-        <CardContent className="p-0">
-          <div 
-            className="relative w-full h-[600px] overflow-auto bg-[#f8fafc] rounded-lg docx-scroll-wrapper"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              const questionData = e.dataTransfer.getData('application/json');
-              if (!questionData) return;
-              try {
-                const question = JSON.parse(questionData);
-                const wrapper = e.currentTarget;
-                const rect = wrapper.getBoundingClientRect();
-                
-                // Calculate drop coordinates relative to the scrolling content
-                const x = e.clientX - rect.left + wrapper.scrollLeft;
-                const y = e.clientY - rect.top + wrapper.scrollTop;
-                
-                setDraggedFields(prev => [
-                  ...prev,
-                  {
-                    id: 'drag-' + Date.now(),
-                    questionId: question._id,
-                    questionObj: question,
-                    x: Math.max(0, x - 100), // center the 200px box slightly
-                    y: Math.max(0, y - 25),
-                    width: 200,
-                    height: 40
-                  }
-                ]);
-              } catch (err) {
-                console.error(err);
-              }
-            }}
-          >
-            <div
-              ref={viewerRef}
-              className="docx-viewer-container p-4 min-h-full"
-            >
-              {!hasDoc && !loading && (
-                <div className="flex flex-col items-center justify-center h-96 text-muted-foreground gap-3">
-                  <FileText className="h-12 w-12 opacity-20" />
-                  <p className="text-sm">Upload a .docx file to preview it here</p>
+              {loading && (
+                <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Processing document...
                 </div>
               )}
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Draggable dropped elements */}
-            {hasDoc && draggedFields.map(field => {
-              const q = field.questionObj;
-              const isVisible = interactionMode === 'edit' || (q && isDependencyMet(q));
-              
-              if (!isVisible) return null;
+          {/* DOCX Render Area */}
+          <Card className="shadow-md">
+            <CardContent className="p-0">
+              <div
+                className="relative w-full h-[600px] overflow-auto bg-[#f8fafc] rounded-lg docx-scroll-wrapper"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const questionData = e.dataTransfer.getData('application/json');
+                  if (!questionData) return;
+                  try {
+                    const question = JSON.parse(questionData);
+                    const wrapper = e.currentTarget;
+                    const rect = wrapper.getBoundingClientRect();
 
-              return (
-              <Rnd
-                key={field.id}
-                default={{
-                  x: field.x,
-                  y: field.y,
-                  width: field.width,
-                  height: field.height
-                }}
-                bounds="parent"
-                disableDragging={interactionMode === 'interact'}
-                enableResizing={interactionMode === 'edit'}
-                onDragStop={(e, d) => {
-                  setDraggedFields(prev => prev.map(f => f.id === field.id ? { ...f, x: d.x, y: d.y } : f));
-                }}
-                onResizeStop={(e, direction, ref, delta, position) => {
-                  setDraggedFields(prev => prev.map(f => f.id === field.id ? { 
-                    ...f, 
-                    width: parseInt(ref.style.width, 10), 
-                    height: parseInt(ref.style.height, 10),
-                    ...position 
-                  } : f));
-                }}
-                onDoubleClick={() => {
-                  if (interactionMode === 'edit' && q) {
-                    setDependencyConfigQuestion(q);
+                    // Calculate drop coordinates relative to the scrolling content
+                    const x = e.clientX - rect.left + wrapper.scrollLeft;
+                    const y = e.clientY - rect.top + wrapper.scrollTop;
+
+                    setDraggedFields(prev => [
+                      ...prev,
+                      {
+                        id: 'drag-' + Date.now(),
+                        questionId: question._id,
+                        questionObj: question,
+                        x: Math.max(0, x - 100), // center the 200px box slightly
+                        y: Math.max(0, y - 25),
+                        width: 200,
+                        height: 40
+                      }
+                    ]);
+                  } catch (err) {
+                    console.error(err);
                   }
                 }}
-                className={`absolute ${interactionMode === 'edit' ? 'bg-white/95 border-2 border-indigo-400 shadow-md flex items-center justify-center cursor-move group' : 'z-40'} rounded z-50`}
               >
-                {interactionMode === 'edit' ? (
-                  <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
-                    <button 
-                      onClick={() => setDraggedFields(prev => prev.filter(f => f.id !== field.id))}
-                      className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 bg-red-100 text-red-600 rounded p-0.5 transition-opacity z-50 hover:bg-red-200"
-                      title="Remove"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                    {q?.dependsOnId && (
-                      <div className="absolute top-0.5 left-0.5 bg-indigo-100 text-indigo-600 rounded p-0.5 z-40" title="Has Dependency">
-                        <Link2 className="h-3 w-3" />
-                      </div>
-                    )}
-                    <p className="text-xs font-semibold text-indigo-900 truncate px-2 select-none pointer-events-none text-center">
-                      {field.questionObj?.question || 'Unknown Question'}
-                    </p>
-                  </div>
-                ) : field.questionObj?.type === 'checkbox' ? (
-                  <div className="w-full h-full bg-white/90 shadow-sm border border-indigo-300 rounded flex items-center justify-center" title={field.questionObj?.question}>
-                    <input 
-                      type="checkbox"
-                      checked={formValues[field.id] === 'true' || formValues[field.id] === true}
-                      onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.checked.toString() }))}
-                      className="cursor-pointer h-4 w-4 text-indigo-600 rounded border-indigo-300 focus:ring-indigo-500"
-                    />
-                  </div>
-                ) : field.questionObj?.type === 'dropdown' || field.questionObj?.type === 'radio' ? (
-                  <select 
-                    value={formValues[field.id] || ''}
-                    onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                    className="w-full h-full border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 px-2 text-sm bg-white/90 shadow-sm cursor-pointer"
-                  >
-                    <option value="" disabled>{field.questionObj?.question}</option>
-                    {(field.questionObj?.options || []).map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                ) : field.questionObj?.type === 'date' ? (
-                  <input 
-                    type="date"
-                    value={formValues[field.id] || ''}
-                    onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                    className="w-full h-full border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 px-2 text-sm bg-white/90 shadow-sm"
-                  />
-                ) : field.questionObj?.type === 'textarea' ? (
-                  <textarea 
-                    value={formValues[field.id] || ''}
-                    onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                    placeholder={field.questionObj?.question}
-                    className="w-full h-full border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-2 text-sm bg-white/90 shadow-sm resize-none"
-                  />
-                ) : (
-                  <input 
-                    type={field.questionObj?.type === 'number' ? 'number' : 'text'}
-                    value={formValues[field.id] || ''}
-                    onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
-                    placeholder={field.questionObj?.question}
-                    className="w-full h-full border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 px-2 text-sm bg-white/90 shadow-sm"
-                  />
-                )}
-              </Rnd>
-            )})}
-          </div>
-        </CardContent>
-      </Card>
-      </div>
+                <div
+                  ref={viewerRef}
+                  className="docx-viewer-container p-4 min-h-full"
+                >
+                  {!hasDoc && !loading && (
+                    <div className="flex flex-col items-center justify-center h-96 text-muted-foreground gap-3">
+                      <FileText className="h-12 w-12 opacity-20" />
+                      <p className="text-sm">Upload a .docx file to preview it here</p>
+                    </div>
+                  )}
+                </div>
 
-      {/* ── RIGHT COLUMN: Fixed Draggable Questions Sidebar ── */}
-      <div className="hidden lg:block w-80 shrink-0 sticky top-6">
-        <Card className="shadow-md flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
-          {dependencyConfigQuestion ? (
-            <SidebarDependencyConfig 
-              q={questions.find(x => x._id === dependencyConfigQuestion._id) || dependencyConfigQuestion}
-              questions={questions}
-              mappedQuestions={(() => {
-                const mapped = [];
-                const seen = new Set();
-                Object.values(fieldMappings).forEach(q => {
-                  if (q && !seen.has(q._id)) {
-                    mapped.push(q);
-                    seen.add(q._id);
-                  }
-                });
-                draggedFields.forEach(df => {
-                  if (df.questionObj && !seen.has(df.questionObj._id)) {
-                    mapped.push(df.questionObj);
-                    seen.add(df.questionObj._id);
-                  }
-                });
-                return mapped;
-              })()}
-              onSaveDependency={handleSaveDependency}
-              onClose={() => setDependencyConfigQuestion(null)}
-            />
-          ) : (
-            <>
+                {/* Draggable dropped elements */}
+                {hasDoc && draggedFields.map(field => {
+                  const q = field.questionObj;
+                  const isVisible = true;
+
+                  if (!isVisible) return null;
+
+                  return (
+                    <Rnd
+                      key={field.id}
+                      default={{
+                        x: field.x,
+                        y: field.y,
+                        width: field.width,
+                        height: field.height
+                      }}
+                      bounds="parent"
+                      disableDragging={interactionMode === 'interact'}
+                      enableResizing={interactionMode === 'edit'}
+                      onDragStop={(e, d) => {
+                        setDraggedFields(prev => prev.map(f => f.id === field.id ? { ...f, x: d.x, y: d.y } : f));
+                      }}
+                      onResizeStop={(e, direction, ref, delta, position) => {
+                        setDraggedFields(prev => prev.map(f => f.id === field.id ? {
+                          ...f,
+                          width: parseInt(ref.style.width, 10),
+                          height: parseInt(ref.style.height, 10),
+                          ...position
+                        } : f));
+                      }}
+                      className={`absolute ${interactionMode === 'edit' ? 'bg-white/95 border-2 border-slate-400 shadow-md flex items-center justify-center cursor-move group' : 'z-40'} rounded z-50`}
+                    >
+                      {interactionMode === 'edit' ? (
+                        <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
+                          <button
+                            onClick={() => setDraggedFields(prev => prev.filter(f => f.id !== field.id))}
+                            className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 bg-red-100 text-red-600 rounded p-0.5 transition-opacity z-50 hover:bg-red-200"
+                            title="Remove"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                          <p className="text-xs font-semibold text-slate-900 truncate px-2 select-none pointer-events-none text-center">
+                            {field.questionObj?.question || 'Unknown Question'}
+                          </p>
+                        </div>
+                      ) : field.questionObj?.type === 'checkbox' ? (
+                        <div className="w-full h-full bg-white/90 shadow-sm border border-slate-300 rounded flex items-center justify-center" title={field.questionObj?.question}>
+                          <input
+                            type="checkbox"
+                            checked={formValues[field.id] === 'true' || formValues[field.id] === true}
+                            onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.checked.toString() }))}
+                            className="cursor-pointer h-4 w-4 text-slate-800 rounded border-slate-300 focus:ring-slate-800"
+                          />
+                        </div>
+                      ) : field.questionObj?.type === 'dropdown' || field.questionObj?.type === 'radio' ? (
+                        <select
+                          value={formValues[field.id] || ''}
+                          onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                          className="w-full h-full border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 focus:border-slate-800 px-2 text-sm bg-white/90 shadow-sm cursor-pointer"
+                        >
+                          <option value="" disabled>{field.questionObj?.question}</option>
+                          {(field.questionObj?.options || []).map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : field.questionObj?.type === 'date' ? (
+                        <input
+                          type="date"
+                          value={formValues[field.id] || ''}
+                          onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                          className="w-full h-full border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 focus:border-slate-800 px-2 text-sm bg-white/90 shadow-sm"
+                        />
+                      ) : field.questionObj?.type === 'textarea' ? (
+                        <textarea
+                          value={formValues[field.id] || ''}
+                          onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                          placeholder={field.questionObj?.question}
+                          className="w-full h-full border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 focus:border-slate-800 p-2 text-sm bg-white/90 shadow-sm resize-none"
+                        />
+                      ) : (
+                        <input
+                          type={field.questionObj?.type === 'number' ? 'number' : 'text'}
+                          value={formValues[field.id] || ''}
+                          onChange={(e) => setFormValues(prev => ({ ...prev, [field.id]: e.target.value }))}
+                          placeholder={field.questionObj?.question}
+                          className="w-full h-full border border-slate-300 rounded focus:ring-2 focus:ring-slate-800 focus:border-slate-800 px-2 text-sm bg-white/90 shadow-sm"
+                        />
+                      )}
+                    </Rnd>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ── RIGHT COLUMN: Fixed Draggable Questions Sidebar ── */}
+        {hasDoc && (
+          <div className="hidden lg:block w-80 shrink-0 sticky top-6">
+            <Card className="shadow-md flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
               <CardHeader className="pb-3 border-b bg-white shrink-0">
                 <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
-                  <CheckCircle2 className="h-4 w-4 text-indigo-600" /> Drag Questions
+                  <CheckCircle2 className="h-4 w-4 text-slate-800" /> Drag Questions
                 </CardTitle>
                 <p className="text-xs text-slate-500 mt-1">
                   Drag and drop these questions anywhere on your document to map them visually.
                 </p>
-                <div className="mt-2 bg-indigo-50 border border-indigo-100 rounded px-2 py-2 flex items-start gap-2">
-                   <div className="mt-0.5"><Lightbulb className="h-3 w-3 text-indigo-600"/></div>
-                   <p className="text-[10px] text-indigo-800 leading-tight">
-                     <strong>Tip:</strong> Double-click any mapped question on your document to configure conditional dependencies!
-                   </p>
-                </div>
               </CardHeader>
-              
+
               <div className="p-3 bg-slate-50 border-b shrink-0">
-                 <Input
+                <Input
                   placeholder="Search questions..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -1192,24 +1060,26 @@ export default function DocxPage() {
                   <div className="text-center text-slate-400 py-10 text-sm">No questions found.</div>
                 ) : (
                   filteredQuestions.map(q => (
-                    <div 
-                      key={q._id} 
-                      draggable 
+                    <div
+                      key={q._id}
+                      draggable
                       onDragStart={(e) => {
                         e.dataTransfer.setData('application/json', JSON.stringify(q));
                         e.dataTransfer.effectAllowed = 'copy';
                       }}
-                      className="bg-white border border-slate-200 rounded p-3 text-sm text-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:shadow-md transition-all select-none"
+                      className="bg-white border border-slate-200 rounded p-3 text-sm text-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:border-slate-400 hover:shadow-md transition-all select-none flex items-center gap-2"
                     >
-                      {q.question}
+                      <div className="text-slate-400 shrink-0">
+                        {getQuestionIcon(q.type)}
+                      </div>
+                      <span className="truncate">{q.question}</span>
                     </div>
                   ))
                 )}
               </CardContent>
-            </>
-          )}
-        </Card>
-      </div>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* ── Auto-Mapping Panel (Sheet) ──────────────────────────────────── */}
