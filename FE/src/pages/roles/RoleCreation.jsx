@@ -18,6 +18,7 @@ const PROTECTED_ROLES = ['Super Admin', 'Signer'];
 export default function RoleCreation() {
   const dispatch = useDispatch();
   const { roles, loading } = useSelector((state) => state.roles);
+  const { user: currentUser } = useSelector((state) => state.auth);
 
   // ── Create form state ───────────────────────────────────────────────────────
   const [roleName, setRoleName] = useState('');
@@ -45,6 +46,7 @@ export default function RoleCreation() {
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!roleName.trim()) { toast.error('Role name is required'); return; }
+    if (selectedPermissions.length === 0) { toast.error('Please select at least one permission'); return; }
     try {
       await dispatch(createRole({ name: roleName.trim(), permissions: selectedPermissions })).unwrap();
       toast.success('Role created successfully!');
@@ -65,6 +67,7 @@ export default function RoleCreation() {
   // ── Save edit ────────────────────────────────────────────────────────────────
   const handleSaveEdit = async (roleId) => {
     if (!editName.trim()) { toast.error('Role name is required'); return; }
+    if (editPerms.length === 0) { toast.error('Please select at least one permission'); return; }
     try {
       await dispatch(editRole({ roleId, name: editName.trim(), permissions: editPerms })).unwrap();
       toast.success('Role updated!');
@@ -137,6 +140,7 @@ export default function RoleCreation() {
           ) : (
             <div className="space-y-3 overflow-y-auto max-h-[480px]">
               {visibleRoles.map((role) => {
+                const isOwnRole = currentUser && (currentUser.role?._id === role._id || currentUser.role === role._id);
                 const isProtected = PROTECTED_ROLES.includes(role.name);
                 const isEditing = editingId === role._id;
 
@@ -180,18 +184,25 @@ export default function RoleCreation() {
                           <span className="font-medium text-sm">{role.name}</span>
                           <div className="flex gap-1">
                             {isProtected ? (
-                              <span title="System role — name is protected" className="text-gray-300">
+                              <span title="System role — name is protected" className="text-slate-400">
                                 <ShieldAlert className="h-3.5 w-3.5" />
                               </span>
                             ) : null}
-                            <button
-                              onClick={() => startEdit(role)}
-                              className="p-1 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition"
-                              title="Edit role"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            {!isProtected && (
+                            {isOwnRole ? (
+                              <span title="Cannot modify your own role" className="text-slate-400">
+                                <ShieldAlert className="h-3.5 w-3.5" />
+                              </span>
+                            ) : null}
+                            {!isOwnRole && (
+                              <button
+                                onClick={() => startEdit(role)}
+                                className="p-1 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition"
+                                title="Edit role"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {(!isProtected && !isOwnRole) && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <button

@@ -45,12 +45,12 @@ export const createRole = createAsyncThunk(
 
 export const assignRole = createAsyncThunk(
   'roles/assignRole',
-  async ({ userId, roleName }, { getState, rejectWithValue }) => {
+  async ({ userId, roleId }, { getState, rejectWithValue }) => {
     try {
       const res = await fetch(`${API}/assign/${userId}`, {
         method: 'PUT',
         headers: getAuthHeaders(getState),
-        body: JSON.stringify({ roleName }),
+        body: JSON.stringify({ roleId }),
       });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error || 'Failed to assign role');

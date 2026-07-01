@@ -22,11 +22,11 @@ export default function RoleAssignment() {
     dispatch(fetchRoles());
   }, [dispatch]);
 
-  const handleAssignRole = async (userId, roleName) => {
-    if (!roleName) return;
+  const handleAssignRole = async (userId, roleId) => {
+    if (!roleId) return;
     try {
       setAssigningUserId(userId);
-      await dispatch(assignRole({ userId, roleName })).unwrap();
+      await dispatch(assignRole({ userId, roleId })).unwrap();
       toast.success('Role assigned successfully! An email has been sent to the user.');
       // Refresh users to show the new role
       dispatch(fetchUsers());
@@ -65,11 +65,11 @@ export default function RoleAssignment() {
                 <td className="px-6 py-4 text-gray-500">{user.email}</td>
                 <td className="px-6 py-4">
                   <span className="px-2.5 py-1 bg-slate-100 text-slate-800 text-xs font-semibold rounded-full border border-slate-200">
-                    {user.role || 'No Role'}
+                    {user.role?.name || 'No Role'}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  {user.role === 'Super Admin' ? (
+                  {user.role?.name === 'Super Admin' ? (
                     <span className="text-xs text-gray-400 italic">Cannot be modified</span>
                   ) : currentUser && String(user._id) === String(currentUser._id) ? (
                     <span className="text-xs text-gray-400 italic">Cannot change own role</span>
@@ -91,7 +91,7 @@ export default function RoleAssignment() {
                           </SelectTrigger>
                           <SelectContent className="bg-white">
                             {assignableRoles.map(role => (
-                              <SelectItem key={role._id} value={role.name} className="cursor-pointer">
+                              <SelectItem key={role._id} value={role._id} className="cursor-pointer">
                                 {role.name}
                               </SelectItem>
                             ))}

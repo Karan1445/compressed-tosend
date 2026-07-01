@@ -37,15 +37,38 @@ async function bootstrapRolesAndAdmin() {
       console.log('✅ Signer role created.');
     }
 
-    // 3. Auto-assign Super Admin to the first registered user if no Super Admin exists
-    const adminExists = await User.findOne({ role: superAdminRoleName });
+    // 3. Auto-assign Super Admin and handle migration safely via native driver
+    const db = mongoose.connection.db;
+    const usersCol = db.collection('users');
+
+    const adminExists = await usersCol.findOne({ role: superAdminRole._id });
     if (!adminExists) {
-      const firstUser = await User.findOne().sort({ _id: 1 });
-      if (firstUser) {
-        firstUser.role = superAdminRoleName;
-        await firstUser.save();
-        console.log(`👑 Assigned Super Admin role to the first user: ${firstUser.email}`);
+      const oldAdmin = await usersCol.findOne({ role: "Super Admin" });
+      if (oldAdmin) {
+        await usersCol.updateOne({ _id: oldAdmin._id }, { $set: { role: superAdminRole._id } });
+      } else {
+        const firstUser = await usersCol.findOne({}, { sort: { _id: 1 } });
+        if (firstUser) {
+          await usersCol.updateOne({ _id: firstUser._id }, { $set: { role: superAdminRole._id } });
+          console.log(`👑 Assigned Super Admin role to the first user.`);
+        }
       }
+    }
+
+    // 4. Migration: convert string roles to ObjectIds natively
+    const usersWithStringRole = await usersCol.find({ role: { $type: 2 } }).toArray(); // 2 is BSON type String
+    if (usersWithStringRole.length > 0) {
+      console.log(`🔄 Found ${usersWithStringRole.length} users with string roles. Migrating...`);
+      for (const u of usersWithStringRole) {
+        const foundRole = await Role.findOne({ name: u.role });
+        if (foundRole) {
+          await usersCol.updateOne({ _id: u._id }, { $set: { role: foundRole._id } });
+        } else {
+          // If the role doesn't exist, default to Signer
+          await usersCol.updateOne({ _id: u._id }, { $set: { role: signerRole._id } });
+        }
+      }
+      console.log('✅ Migration complete.');
     }
   } catch (error) {
     console.error('Error bootstrapping roles:', error);
@@ -70,7 +93,7 @@ app.use('/roles', authenticateToken, roleRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get("/", authenticateToken, async (req, res) => {
   try {
-    const data = await User.find().lean();
+    const data = await User.find().populate('role').lean();
     res.json(data);
   } catch (err) {
     res.status(500).send("No data");

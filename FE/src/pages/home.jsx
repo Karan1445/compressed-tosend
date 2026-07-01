@@ -26,7 +26,10 @@ export default function UserDirectory() {
       user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const signerCount = users.filter((u) => u.role?.toLowerCase() === 'signer').length;
+  const signerCount = users.filter((u) => {
+    const roleName = u.role?.name || (typeof u.role === 'string' ? u.role : '');
+    return roleName.toLowerCase() === 'signer';
+  }).length;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -121,8 +124,8 @@ export default function UserDirectory() {
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">{user._id}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className="font-normal bg-blue-50 text-blue-700 hover:bg-blue-50">
-                          {user.role || 'N/A'}
+                        <Badge variant="secondary" className="font-normal bg-neutral-100 text-neutral-800 hover:bg-neutral-200">
+                          {user.role?.name || user.role || 'N/A'}
                         </Badge>
                       </TableCell>
                     </TableRow>

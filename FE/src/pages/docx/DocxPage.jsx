@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { renderAsync } from 'docx-preview';
 import { Rnd } from 'react-rnd';
 import { useDispatch, useSelector } from 'react-redux';
@@ -38,6 +39,8 @@ const getQuestionIcon = (type, className = "h-4 w-4") => {
 
 export default function DocxPage() {
   const dispatch = useDispatch();
+  const location = useLocation();
+  const navigate = useNavigate();
   const viewerRef = useRef(null);
 
   // ─── Redux: questions ────────────────────────────────────────────────────────
@@ -768,6 +771,15 @@ export default function DocxPage() {
     }
   };
 
+  // ─── Auto-load doc from navigation state ──────────────────────────────────────
+  useEffect(() => {
+    if (location.state?.docToLoad && questions.length > 0) {
+      handleLoadFromHistory(location.state.docToLoad);
+      // Clear state so it doesn't auto-load again on refresh
+      navigate('/docx-viewer', { replace: true, state: {} });
+    }
+  }, [location.state?.docToLoad, questions.length, navigate]);
+
   const mappedCount = Object.keys(fieldMappings).length;
 
   // ─── Render ───────────────────────────────────────────────────────────────────
@@ -860,7 +872,7 @@ export default function DocxPage() {
                         </Button>
                       ) : (
                         <Button
-                          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white shadow-sm"
+                          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm"
                           onClick={handleSaveMappings}
                           disabled={savingMappings}
                         >
@@ -893,7 +905,7 @@ export default function DocxPage() {
           <Card className="shadow-md">
             <CardContent className="p-0">
               <div
-                className="relative w-full h-[600px] overflow-auto bg-[#f8fafc] rounded-lg docx-scroll-wrapper"
+                className="relative w-full min-h-[600px] bg-[#f8fafc] rounded-lg docx-scroll-wrapper"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -1146,7 +1158,10 @@ export default function DocxPage() {
                         onClick={() => handleAssignQuestion(q)}
                         className="flex-1 px-4 py-3 flex items-start justify-between gap-2 transition-colors cursor-pointer active:bg-slate-100"
                       >
-                        <div className="flex-1 min-w-0 text-left">
+                        <div className="flex-1 min-w-0 text-left flex items-start gap-2">
+                          <div className="text-slate-400 shrink-0 mt-0.5">
+                            {getQuestionIcon(q.type)}
+                          </div>
                           <p className="text-sm text-slate-800 font-medium leading-relaxed">
                             {q.question}
                           </p>

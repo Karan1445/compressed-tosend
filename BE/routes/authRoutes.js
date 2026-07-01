@@ -17,14 +17,16 @@ router.post('/register', async (req, res) => {
     }
 
     const { name, email, password } = value;
-    const newUser = new User({ name, email, password, role: 'Signer' });
+    const defaultRole = await Role.findOne({ name: 'Signer' }).lean();
+    
+    const newUser = new User({ name, email, password, role: defaultRole ? defaultRole._id : null });
     await newUser.save();
 
     const token = generateToken(newUser._id);
     const { password: _, ...userWithoutPassword } = newUser.toObject();
     
-    const roleDoc = await Role.findOne({ name: newUser.role }).lean();
-    userWithoutPassword.permissions = roleDoc ? roleDoc.permissions : [];
+    userWithoutPassword.role = defaultRole;
+    userWithoutPassword.permissions = defaultRole ? defaultRole.permissions : [];
 
     sendRegistrationMail(newUser.name, newUser.email);
 
@@ -48,7 +50,7 @@ router.post('/login', async (req, res) => {
     }
 
     const { email, password } = value;
-    const user = await User.findOne({ email }).lean();
+    const user = await User.findOne({ email }).populate('role').lean();
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -57,8 +59,7 @@ router.post('/login', async (req, res) => {
     const token = generateToken(user._id);
     const { password: _, ...userWithoutPassword } = user;
 
-    const roleDoc = await Role.findOne({ name: user.role }).lean();
-    userWithoutPassword.permissions = roleDoc ? roleDoc.permissions : [];
+    userWithoutPassword.permissions = user.role ? user.role.permissions : [];
 
     res.json({
       message: 'Login successful',
@@ -73,11 +74,10 @@ router.post('/login', async (req, res) => {
 // ─── GET current user (with fresh permissions) ─────────────────────────────────────
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).lean();
+    const user = await User.findById(req.user._id).populate('role').lean();
     if (!user) return res.status(404).json({ error: 'User not found' });
     const { password: _, ...userWithoutPassword } = user;
-    const roleDoc = await Role.findOne({ name: user.role }).lean();
-    userWithoutPassword.permissions = roleDoc ? roleDoc.permissions : [];
+    userWithoutPassword.permissions = user.role ? user.role.permissions : [];
     res.json({ user: userWithoutPassword });
   } catch (err) {
     res.status(500).json({ error: err.message });

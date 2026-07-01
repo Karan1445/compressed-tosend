@@ -31,7 +31,7 @@ const requirePermission = (permission) => {
       if (!req.user || !req.user.role) {
         return res.status(403).json({ error: 'Access denied: No role assigned' });
       }
-      const role = await Role.findOne({ name: req.user.role }).lean();
+      const role = await Role.findById(req.user.role).lean();
       if (!role || !role.permissions || !role.permissions.includes(permission)) {
         return res.status(403).json({ error: `Access denied: Requires '${permission}' permission` });
       }

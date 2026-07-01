@@ -36,27 +36,23 @@ router.post('/', requirePermission('create_role'), async (req, res) => {
 // Protected by 'assign_role' permission
 router.put('/assign/:userId', requirePermission('assign_role'), async (req, res) => {
   try {
-    const { roleName } = req.body;
+    const { roleId } = req.body;
     const { userId } = req.params;
 
-    if (!roleName) return res.status(400).json({ error: 'roleName is required' });
+    if (!roleId) return res.status(400).json({ error: 'roleId is required' });
 
-    const role = await Role.findOne({ name: roleName });
+    const role = await Role.findById(roleId);
     if (!role) return res.status(404).json({ error: 'Role not found' });
 
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).populate('role');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     // Cannot modify Super Admin role
-    if (user.role === 'Super Admin') {
+    if (user.role && user.role.name === 'Super Admin') {
       return res.status(403).json({ error: 'Cannot modify the role of a Super Admin' });
     }
-    // Cannot modify own role
-    if (String(user._id) === String(req.user._id)) {
-      return res.status(403).json({ error: 'You cannot modify your own role' });
-    }
 
-    user.role = role.name;
+    user.role = role._id;
     await user.save();
 
     // Send email notification
@@ -95,7 +91,7 @@ router.delete('/:roleId', requirePermission('create_role'), async (req, res) => 
       return res.status(403).json({ error: `Cannot delete the '${role.name}' role` });
     }
 
-    const usersWithRole = await User.findOne({ role: role.name });
+    const usersWithRole = await User.findOne({ role: role._id });
     if (usersWithRole) {
       return res.status(400).json({ error: `Cannot delete role '${role.name}' because it is assigned to one or more users` });
     }

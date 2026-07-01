@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fetchUploadedDocx, deleteDocx } from '../../store/slices/docxSlice';
 import { FileText, Upload, Clock, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,6 +12,7 @@ import {
 
 export default function SenderPage() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { documents, loading } = useSelector((state) => state.docx);
 
   useEffect(() => {
@@ -45,37 +47,6 @@ export default function SenderPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border rounded-lg p-5 shadow-sm flex items-center gap-4">
-          <div className="p-2 bg-blue-50 rounded-md">
-            <FileText className="h-5 w-5 text-blue-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{documents?.length ?? 0}</p>
-            <p className="text-xs text-gray-500">Total Documents Sent</p>
-          </div>
-        </div>
-        <div className="bg-white border rounded-lg p-5 shadow-sm flex items-center gap-4">
-          <div className="p-2 bg-green-50 rounded-md">
-            <Upload className="h-5 w-5 text-green-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">{documents?.length ?? 0}</p>
-            <p className="text-xs text-gray-500">Uploaded to Server</p>
-          </div>
-        </div>
-        <div className="bg-white border rounded-lg p-5 shadow-sm flex items-center gap-4">
-          <div className="p-2 bg-yellow-50 rounded-md">
-            <Clock className="h-5 w-5 text-yellow-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-gray-900">0</p>
-            <p className="text-xs text-gray-500">Awaiting Signature</p>
-          </div>
-        </div>
-      </div>
-
       {/* Documents table */}
       <div className="bg-white border rounded-md shadow-sm overflow-hidden">
         <div className="border-b px-6 py-4">
@@ -101,7 +72,11 @@ export default function SenderPage() {
             </thead>
             <tbody className="divide-y">
               {documents.map((doc) => (
-                <tr key={doc._id} className="hover:bg-gray-50">
+                <tr 
+                  key={doc._id} 
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate('/docx-viewer', { state: { docToLoad: doc } })}
+                >
                   <td className="px-6 py-4 font-medium text-gray-900">
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-blue-500 shrink-0" />
@@ -120,6 +95,7 @@ export default function SenderPage() {
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <button
+                            onClick={(e) => e.stopPropagation()}
                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                             title="Delete document"
                           >
@@ -134,10 +110,13 @@ export default function SenderPage() {
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               className="bg-red-600 hover:bg-red-700 text-white"
-                              onClick={() => handleDeleteDoc(doc)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteDoc(doc);
+                              }}
                             >
                               Delete
                             </AlertDialogAction>
