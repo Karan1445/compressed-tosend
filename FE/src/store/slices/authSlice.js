@@ -97,6 +97,24 @@ export const resetPassword = createAsyncThunk(
   }
 );
 
+export const resetPasswordWithToken = createAsyncThunk(
+  'auth/resetPasswordWithToken',
+  async ({ token, newPassword }, { rejectWithValue }) => {
+    try {
+      const res = await fetch(`${API}/reset-password/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) return rejectWithValue(data.error || data.message || 'Failed to reset password');
+      return data;
+    } catch {
+      return rejectWithValue('Network error — check your connection.');
+    }
+  }
+);
+
 export const refreshMe = createAsyncThunk(
   'auth/refreshMe',
   async (_, { getState, rejectWithValue }) => {

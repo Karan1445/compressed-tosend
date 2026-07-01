@@ -56,7 +56,7 @@ const sendRegistrationMail = (userName, userEmail) => {
     })
 }
 
-const sendForgetPassToUser = (userName, userEmail, NewGeneratedPassword) => {
+const sendForgetPassToUser = (userName, userEmail, resetLink) => {
     const mailFillerObject = {
         from: process.env.EMAIL_USER,
         to: userEmail,
@@ -78,8 +78,13 @@ const sendForgetPassToUser = (userName, userEmail, NewGeneratedPassword) => {
         
         <tr>
             <td style="padding: 40px 30px; color: #333333; font-size: 16px; line-height: 1.6;">
-                <p style="margin: 0 0 20px 0;">Hello ${userName}! We found out that you might forgoten your password don't worry we are here to send you new password, you can use this password to login!!! and for security suggestion we say that change this password ASAP.....</p>
-                <p style="margin: 0 0 30px 0; font-weight:900">NEW PASS:- <span style="color: #1900ff;">${NewGeneratedPassword}</span></p>
+                <p style="margin: 0 0 20px 0;">Hello ${userName}! We received a request to reset your password. Click the button below to securely create a new password.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${resetLink}" style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>
+                </div>
+                <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">If the button doesn't work, copy and paste this link into your browser:</p>
+                <p style="margin: 0; font-size: 12px; color: #4F46E5; word-break: break-all;">${resetLink}</p>
+                <p style="margin: 20px 0 0 0; font-size: 14px; color: #666;">This link will expire in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
             </td>
         </tr>
 

@@ -5,7 +5,9 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, index: true },
   password: { type: String, required: true },
-  role: { type: mongoose.Schema.Types.ObjectId, ref: 'Role' }
+  role: { type: mongoose.Schema.Types.ObjectId, ref: 'Role' },
+  resetPasswordToken: { type: String },
+  resetPasswordExpires: { type: Date }
 });
 
 userSchema.pre('save', async function () {

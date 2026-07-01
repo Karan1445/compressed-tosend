@@ -15,6 +15,7 @@ import SenderPage from './pages/sender/SenderPage';
 import SignerPage from './pages/signer/SignerPage';
 import FillDocxPage from './pages/signer/FillDocxPage';
 import SubmissionsPage from './pages/sender/SubmissionsPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import Unauthorized from './pages/Unauthorized';
 import { refreshMe } from './store/slices/authSlice';
 import './index.css';
@@ -90,6 +91,7 @@ function AppRoutes() {
       {/* Public */}
       <Route path="/login"    element={<PublicRoute><LoginForm /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><SignupForm /></PublicRoute>} />
+      <Route path="/reset-password/:token" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
       <Route path="/unauthorized" element={<Unauthorized />} />
 
       {/* Super Admin / Admin roles */}

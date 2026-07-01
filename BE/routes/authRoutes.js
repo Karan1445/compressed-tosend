@@ -93,15 +93,47 @@ router.post('/forgot-password', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ error: 'No account found with this email' });
 
-    const temporaryPassword = crypto.randomBytes(5).toString('hex');
-
-    user.password = temporaryPassword;
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour expiration
     await user.save();
-    sendForgetPassToUser(user?.name, user?.email, temporaryPassword)
+
+    const resetLink = `http://localhost:3000/reset-password/${resetToken}`;
+    sendForgetPassToUser(user.name, user.email, resetLink);
+    
     res.json({
-      message: 'A temporary password has been successfully configured for your account.'
+      message: 'A password reset link has been sent to your email.'
     });
 
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/reset-password/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({ error: 'New password is required' });
+    }
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Password reset token is invalid or has expired' });
+    }
+
+    user.password = newPassword;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({ message: 'Your password has been successfully reset! You can now log in.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
