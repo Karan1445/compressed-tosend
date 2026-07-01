@@ -31,7 +31,7 @@ router.use(verifyToken);
 
 router.get('/', async (req, res) => {
     try {
-        const questions = await Question.find({ userID: req.user._id }).lean();
+        const questions = await Question.find({}).lean();
         res.json(questions);
     } catch (error) {
         res.status(500).json({ message: error.message });

@@ -4,6 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const Docx = require('../models/Docx');
+const DocxSubmission = require('../models/DocxSubmission');
+const { requirePermission } = require('../middleware/auth');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../uploads');
@@ -123,10 +125,93 @@ router.post('/:id/assign', async (req, res) => {
       return res.status(401).json({ msg: 'User not authorized' });
     }
 
-    doc.assignees = [...new Set([...(doc.assignees || []), ...assigneeIds])];
+    const currentAssignees = doc.assignees ? doc.assignees.map(id => id.toString()) : [];
+    doc.assignees = [...new Set([...currentAssignees, ...assigneeIds])];
     const updatedDoc = await doc.save();
     
     res.json(updatedDoc);
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Document not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   GET /docx/assigned
+// @desc    Get all documents assigned to the logged in signer
+// @access  Private (Requires 'sign' permission)
+router.get('/assigned', requirePermission('sign'), async (req, res) => {
+  try {
+    const docs = await Docx.find({ assignees: { $in: [req.user._id] } }).sort({ uploadDate: -1 });
+    res.json(docs);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST /docx/:id/submit
+// @desc    Submit filled document answers
+// @access  Private (Requires 'sign' permission)
+router.post('/:id/submit', requirePermission('sign'), async (req, res) => {
+  try {
+    const { answers } = req.body;
+    const doc = await Docx.findById(req.params.id);
+    if (!doc) {
+      return res.status(404).json({ msg: 'Document not found' });
+    }
+
+    // Verify the user is actually assigned to this document
+    const isAssigned = doc.assignees && doc.assignees.some(id => id.toString() === req.user._id.toString());
+    if (!isAssigned && req.user.role !== 'Super Admin') {
+      return res.status(403).json({ msg: 'You are not assigned to this document' });
+    }
+
+    const submission = new DocxSubmission({
+      docxId: doc._id,
+      signerId: req.user._id,
+      answers: answers
+    });
+    
+    await submission.save();
+
+    // Remove ONE instance of the user from assignees list so it disappears from their pending dashboard one by one
+    const idx = doc.assignees.findIndex(id => id.toString() === req.user._id.toString());
+    if (idx !== -1) {
+      doc.assignees.splice(idx, 1);
+      doc.markModified('assignees');
+      await doc.save();
+    }
+
+    res.json({ msg: 'Document submitted successfully', submission });
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Document not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   GET /docx/:id/submissions
+// @desc    Get all submissions for a document
+// @access  Private (Owner or Super Admin)
+router.get('/:id/submissions', async (req, res) => {
+  try {
+    const doc = await Docx.findById(req.params.id);
+    if (!doc) return res.status(404).json({ msg: 'Document not found' });
+    
+    if (doc.uploadedBy.toString() !== req.user._id.toString() && req.user.role !== 'Super Admin') {
+      return res.status(401).json({ msg: 'User not authorized' });
+    }
+
+    const submissions = await DocxSubmission.find({ docxId: req.params.id })
+      .populate('signerId', 'name email')
+      .sort({ submittedAt: -1 });
+
+    res.json(submissions);
   } catch (err) {
     console.error(err.message);
     if (err.kind === 'ObjectId') {

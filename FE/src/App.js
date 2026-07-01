@@ -13,6 +13,8 @@ import RoleCreation from './pages/roles/RoleCreation';
 import RoleAssignment from './pages/roles/RoleAssignment';
 import SenderPage from './pages/sender/SenderPage';
 import SignerPage from './pages/signer/SignerPage';
+import FillDocxPage from './pages/signer/FillDocxPage';
+import SubmissionsPage from './pages/sender/SubmissionsPage';
 import Unauthorized from './pages/Unauthorized';
 import { refreshMe } from './store/slices/authSlice';
 import './index.css';
@@ -99,9 +101,11 @@ function AppRoutes() {
       <Route path="/question" element={<PermissionRoute permission="send"><Layout><QuestionPage /></Layout></PermissionRoute>} />
       <Route path="/sender"      element={<PermissionRoute permission="send"><Layout><SenderPage /></Layout></PermissionRoute>} />
       <Route path="/docx-viewer" element={<PermissionRoute permission="send"><Layout><DocxPage /></Layout></PermissionRoute>} />
+      <Route path="/submissions" element={<PermissionRoute permission="send"><Layout><SubmissionsPage /></Layout></PermissionRoute>} />
 
       {/* Signer specific */}
       <Route path="/signer" element={<PermissionRoute permission="sign"><Layout><SignerPage /></Layout></PermissionRoute>} />
+      <Route path="/signer/fill/:docxId" element={<PermissionRoute permission="sign"><Layout><FillDocxPage /></Layout></PermissionRoute>} />
 
       {/* Catch-all — smart redirect */}
       <Route path="*" element={<SmartRedirect />} />

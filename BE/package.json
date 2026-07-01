@@ -7,9 +7,11 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
+    "start": "nodemon Server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@xmldom/xmldom": "^0.9.10",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "crypto": "^1.0.1",
@@ -19,7 +21,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.6.3",
     "multer": "^2.2.0",
-    "nodemailer": "^8.0.10"
+    "nodemailer": "^8.0.10",
+    "pizzip": "^3.2.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

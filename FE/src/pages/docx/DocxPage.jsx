@@ -21,7 +21,7 @@ import {
 } from '../../components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
 import { toast } from 'sonner';
-import { uploadDocx, fetchUploadedDocx, saveDocxMappings, deleteDocx, assignDocx } from '../../store/slices/docxSlice';
+import { uploadDocx, fetchUploadedDocx, saveDocxMappings, deleteDocx, assignDocx, fetchSubmissions } from '../../store/slices/docxSlice';
 
 // Helper to get icon for question type
 const getQuestionIcon = (type, className = "h-4 w-4") => {
@@ -59,7 +59,7 @@ export default function DocxPage() {
   const [activeDoc, setActiveDoc] = useState(null);
 
   // ─── Redux: uploaded documents ────────────────────────────────────────────────
-  const { documents, uploading, savingMappings, loading: docsLoading } = useSelector((state) => state.docx || { documents: [], uploading: false, savingMappings: false, loading: false });
+  const { documents, uploading, savingMappings, loading: docsLoading, submissions, loadingSubmissions } = useSelector((state) => state.docx || { documents: [], uploading: false, savingMappings: false, loading: false, submissions: [], loadingSubmissions: false });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
 
@@ -73,6 +73,8 @@ export default function DocxPage() {
   // ─── Send Modal State ─────────────────────────────────────────────────────────
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
   const [users, setUsers] = useState([]);
+  const [isSubmissionsModalOpen, setIsSubmissionsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssignees, setSelectedAssignees] = useState([]);
   const [fetchingUsers, setFetchingUsers] = useState(false);
 
@@ -83,7 +85,7 @@ export default function DocxPage() {
         headers: { 'Authorization': `Bearer ${token}` }
       })
         .then(res => res.json())
-        .then(data => setUsers(data.filter(u => u._id !== currentUser._id)))
+        .then(data => setUsers(data.filter(u => u._id !== currentUser._id && u.role?.permissions?.includes('sign'))))
         .catch(err => toast.error('Failed to load users'))
         .finally(() => setFetchingUsers(false));
     }
@@ -162,8 +164,6 @@ export default function DocxPage() {
 
   // ─── DOM btn registry — fieldId → btn element ────────────────────────────────
   const fieldBtnsRef = useRef({});
-
-  const [searchTerm, setSearchTerm] = useState('');
 
   // ─── Keep refs in sync so DOM callbacks always see latest state ───────────────
   const fieldMappingsRef = useRef({});
@@ -808,6 +808,12 @@ export default function DocxPage() {
               <Button variant="outline" className="border-slate-300 text-slate-800 bg-white hover:bg-slate-50 h-8 text-xs font-semibold px-3" onClick={() => setIsSendModalOpen(true)}>
                 <Send className="h-3.5 w-3.5 mr-1.5" /> Send Docx
               </Button>
+              <Button variant="outline" className="border-slate-300 text-slate-800 bg-white hover:bg-slate-50 h-8 text-xs font-semibold px-3" onClick={() => {
+                dispatch(fetchSubmissions(activeDoc._id));
+                setIsSubmissionsModalOpen(true);
+              }}>
+                <FileText className="h-3.5 w-3.5 mr-1.5" /> View Submissions
+              </Button>
               <div className="flex bg-slate-100 rounded-md p-1 border shadow-sm">
                 <button
                   onClick={() => setInteractionMode('edit')}
@@ -1292,6 +1298,148 @@ export default function DocxPage() {
         </SheetContent>
       </Sheet>
 
+      {/* Send Document Modal */}
+      <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle>Send Document</DialogTitle>
+            <DialogDescription>
+              Select the signers you want to assign this document to.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3 max-h-60 overflow-y-auto">
+            {fetchingUsers ? (
+              <div className="flex justify-center"><Loader2 className="h-5 w-5 animate-spin text-slate-500" /></div>
+            ) : users.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center">No signers available.</p>
+            ) : (
+              users.map(u => (
+                <label key={u._id} className="flex items-center space-x-3 cursor-pointer p-2 hover:bg-slate-50 rounded">
+                  <input
+                    type="checkbox"
+                    checked={selectedAssignees.includes(u._id)}
+                    onChange={(e) => {
+                      if (e.target.checked) setSelectedAssignees(prev => [...prev, u._id]);
+                      else setSelectedAssignees(prev => prev.filter(id => id !== u._id));
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  <span className="text-sm font-medium text-slate-700">{u.name || 'Unknown User'} <span className="text-slate-400 font-normal">({u.email})</span></span>
+                </label>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSendModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleSendDocx} className="bg-blue-600 hover:bg-blue-700 text-white" disabled={fetchingUsers || selectedAssignees.length === 0}>
+              Send Document
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Submissions Modal ─────────────────────────────────────────────────── */}
+      <Dialog open={isSubmissionsModalOpen} onOpenChange={setIsSubmissionsModalOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle>Document Submissions</DialogTitle>
+            <DialogDescription>
+              View the answers submitted by assigned users.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-auto bg-slate-50 p-6">
+            {loadingSubmissions ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              </div>
+            ) : submissions?.length > 0 ? (
+              (() => {
+                // Compute unique mapped questions
+                const qIds = new Set();
+                if (activeDoc?.mappings) {
+                  Object.values(activeDoc.mappings).forEach(m => qIds.add(typeof m === 'string' ? m : m.questionId));
+                }
+                if (activeDoc?.draggedFields) {
+                  activeDoc.draggedFields.forEach(df => qIds.add(df.questionId));
+                }
+                const uniqueQuestions = Array.from(qIds)
+                  .map(id => questions.find(q => q._id === id))
+                  .filter(Boolean);
+
+                const getAnswerForQuestion = (sub, qId) => {
+                  if (activeDoc?.mappings) {
+                    for (const [fId, m] of Object.entries(activeDoc.mappings)) {
+                      const mappedQId = typeof m === 'string' ? m : m.questionId;
+                      if (mappedQId === qId && sub.answers[fId] !== undefined) {
+                        return sub.answers[fId];
+                      }
+                    }
+                  }
+                  if (activeDoc?.draggedFields) {
+                    for (const df of activeDoc.draggedFields) {
+                      if (df.questionId === qId && sub.answers[df.id] !== undefined) {
+                        return sub.answers[df.id];
+                      }
+                    }
+                  }
+                  return '-';
+                };
+
+                return (
+                  <div className="bg-white border rounded-md shadow-sm overflow-hidden flex flex-col h-full">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left whitespace-nowrap">
+                        <thead className="bg-slate-100 text-slate-600 font-semibold border-b">
+                          <tr>
+                            <th className="px-4 py-3 sticky left-0 bg-slate-100 border-r z-10 w-48">Signer Name</th>
+                            <th className="px-4 py-3 sticky left-48 bg-slate-100 border-r z-10 w-64">Signer Email</th>
+                            <th className="px-4 py-3 border-r">Date</th>
+                            {uniqueQuestions.map((q, i) => (
+                              <th key={i} className="px-4 py-3 border-r max-w-xs truncate" title={q.question}>
+                                {q.question}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {submissions.map((sub) => (
+                            <tr key={sub._id} className="hover:bg-slate-50">
+                              <td className="px-4 py-3 sticky left-0 bg-white border-r z-10 font-medium">
+                                {sub.signerId?.name || 'Unknown'}
+                              </td>
+                              <td className="px-4 py-3 sticky left-48 bg-white border-r z-10 text-slate-500">
+                                {sub.signerId?.email || 'Unknown'}
+                              </td>
+                              <td className="px-4 py-3 border-r text-slate-500">
+                                {new Date(sub.submittedAt).toLocaleDateString()}
+                              </td>
+                              {uniqueQuestions.map((q, i) => (
+                                <td key={i} className="px-4 py-3 border-r max-w-xs truncate" title={String(getAnswerForQuestion(sub, q._id))}>
+                                  {getAnswerForQuestion(sub, q._id)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="text-center py-12 text-slate-500">
+                No submissions found for this document.
+              </div>
+            )}
+          </div>
+          <DialogFooter className="px-6 py-4 border-t bg-slate-50">
+            <Button variant="outline" onClick={() => setIsSubmissionsModalOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

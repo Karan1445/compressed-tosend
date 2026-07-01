@@ -5,7 +5,7 @@ import {
   SidebarGroupLabel, SidebarGroupContent, SidebarMenu,
   SidebarMenuItem, SidebarMenuButton,
 } from '../components/ui/sidebar';
-import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send } from 'lucide-react';
+import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send, List } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -42,6 +42,7 @@ export default function Layout({ children }) {
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Add Question',    url: '/question',    icon: FileQuestion }] : []),
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Sender Dashboard', url: '/sender',       icon: Send }]         : []),
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'DOCX Viewer',      url: '/docx-viewer',  icon: FileText }]     : []),
+    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Submissions',      url: '/submissions',  icon: List }]         : []),
     // Role management: for specific roles
     ...(isSuperAdmin || perms.includes('create_role') ? [{ title: 'Create Role',       url: '/roles/create', icon: Shield }]      : []),
     ...(isSuperAdmin || perms.includes('assign_role') ? [{ title: 'Assign Role',       url: '/roles/assign', icon: UserPlus }]    : []),

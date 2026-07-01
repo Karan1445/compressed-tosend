@@ -100,6 +100,16 @@ app.get("/", authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/debug/docx', async (req, res) => {
+  try {
+    const Docx = require('./models/Docx');
+    const docs = await Docx.find().lean();
+    res.json(docs.map(d => ({ _id: d._id, originalName: d.originalName, assignees: d.assignees })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("Mongo Booted UP!");

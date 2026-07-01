@@ -126,11 +126,85 @@ export const assignDocx = createAsyncThunk(
   }
 );
 
+export const fetchAssignedDocx = createAsyncThunk(
+  'docx/fetchAssigned',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await fetch('http://localhost:8888/docx/assigned', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch assigned documents');
+      }
+
+      return await response.json();
+    } catch (error) {
+      return rejectWithValue(error.message || 'An error occurred fetching assigned documents');
+    }
+  }
+);
+
+export const submitDocx = createAsyncThunk(
+  'docx/submit',
+  async ({ docxId, answers }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await fetch(`http://localhost:8888/docx/${docxId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ answers }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.msg || 'Failed to submit document');
+      }
+
+      return docxId; // return docxId to remove it from the assigned state
+    } catch (error) {
+      return rejectWithValue(error.message || 'An error occurred submitting document');
+    }
+  }
+);
+
+export const fetchSubmissions = createAsyncThunk(
+  'docx/fetchSubmissions',
+  async (docxId, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await fetch(`http://localhost:8888/docx/${docxId}/submissions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch submissions');
+      }
+
+      return await response.json();
+    } catch (error) {
+      return rejectWithValue(error.message || 'An error occurred fetching submissions');
+    }
+  }
+);
+
 const initialState = {
   documents: [],
+  assignedDocuments: [],
   loading: false,
   uploading: false,
   savingMappings: false,
+  submitting: false,
+  submissions: [],
+  loadingSubmissions: false,
   error: null,
 };
 
@@ -151,6 +225,33 @@ const docxSlice = createSlice({
       })
       .addCase(fetchUploadedDocx.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload;
+      })
+      // Fetch Assigned Docs
+      .addCase(fetchAssignedDocx.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchAssignedDocx.fulfilled, (state, action) => {
+        state.loading = false;
+        state.assignedDocuments = action.payload;
+      })
+      .addCase(fetchAssignedDocx.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Submit Docx
+      .addCase(submitDocx.pending, (state) => {
+        state.submitting = true;
+        state.error = null;
+      })
+      .addCase(submitDocx.fulfilled, (state, action) => {
+        state.submitting = false;
+        // Remove submitted document from the assigned list
+        state.assignedDocuments = state.assignedDocuments.filter(doc => doc._id !== action.payload);
+      })
+      .addCase(submitDocx.rejected, (state, action) => {
+        state.submitting = false;
         state.error = action.payload;
       })
       // Upload Docx
@@ -200,6 +301,19 @@ const docxSlice = createSlice({
         if (index !== -1) {
           state.documents[index] = action.payload;
         }
+      })
+      // Fetch Submissions
+      .addCase(fetchSubmissions.pending, (state) => {
+        state.loadingSubmissions = true;
+        state.error = null;
+      })
+      .addCase(fetchSubmissions.fulfilled, (state, action) => {
+        state.loadingSubmissions = false;
+        state.submissions = action.payload;
+      })
+      .addCase(fetchSubmissions.rejected, (state, action) => {
+        state.loadingSubmissions = false;
+        state.error = action.payload;
       });
   },
 });
