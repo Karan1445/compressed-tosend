@@ -71,7 +71,7 @@ router.get('/list', async (req, res) => {
 
 router.put('/:id/mappings', async (req, res) => {
   try {
-    const { mappings, draggedFields } = req.body;
+    const { mappings, draggedFields, layout } = req.body;
 
     const doc = await Docx.findById(req.params.id);
     if (!doc) {
@@ -84,6 +84,7 @@ router.put('/:id/mappings', async (req, res) => {
 
     if (mappings) doc.mappings = mappings;
     if (draggedFields) doc.draggedFields = draggedFields;
+    if (layout) doc.layout = layout;
 
     const updatedDoc = await doc.save();
 
@@ -118,7 +119,8 @@ router.post('/:id/assign', async (req, res) => {
         signerId: assigneeId,
         status: 'pending',
         mappings: doc.mappings,
-        draggedFields: doc.draggedFields
+        draggedFields: doc.draggedFields,
+        layout: doc.layout
       });
       await submission.save();
     }

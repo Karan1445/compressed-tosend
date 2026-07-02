@@ -18,11 +18,115 @@ export default function FillDocxPage() {
   const [submission, setSubmission] = useState(location.state?.doc || null);
   const [loading, setLoading] = useState(true);
   const [formValues, setFormValues] = useState({});
+  const [saving, setSaving] = useState(false);
   const { submitting } = useSelector(state => state.docx);
   const { questions } = useSelector(state => state.questions);
 
   const formValuesRef = useRef(formValues);
   useEffect(() => { formValuesRef.current = formValues; }, [formValues]);
+
+  const shouldRender = (fieldId, qObj) => {
+    const layout = submission?.layout || [];
+    if (!layout.length && (!qObj || !qObj.dependsOnId)) return true;
+
+    const evaluateCondition = (cond) => {
+      let depQId = null;
+      let depQObj = null;
+
+      const depMapping = submission?.mappings?.[cond.dependsOn];
+      if (depMapping) {
+        depQObj = typeof depMapping === 'string' ? questions.find(q => q._id === depMapping) : depMapping.type ? depMapping : questions.find(q => q._id === depMapping.questionId);
+        depQId = depQObj?._id;
+      } else {
+        const dragged = submission?.draggedFields?.find(df => df.id === cond.dependsOn);
+        if (dragged) {
+          depQObj = dragged.questionObj || questions.find(q => q._id === dragged.questionId);
+          depQId = depQObj?._id;
+        }
+      }
+
+      if (!depQId) return true;
+
+      const dependentFieldIds = [];
+      if (submission?.mappings) {
+        Object.entries(submission.mappings).forEach(([fId, q]) => {
+           const id = typeof q === 'string' ? q : (q._id || q.questionId);
+           if (id === depQId) dependentFieldIds.push(fId);
+        });
+      }
+      if (submission?.draggedFields) {
+        submission.draggedFields.forEach(df => {
+           const id = df.questionId || df.questionObj?._id;
+           if (id === depQId) dependentFieldIds.push(df.id);
+        });
+      }
+
+      if (dependentFieldIds.length === 0) return false;
+
+      return dependentFieldIds.some(fId => {
+        let val = formValuesRef.current[fId];
+        if (depQObj && depQObj.type === 'checkbox') {
+           val = val || 'false';
+        } else {
+           val = val || '';
+        }
+
+        if (cond.operator === 'equals') {
+          if (Array.isArray(cond.value)) return cond.value.includes(String(val));
+          return String(val) === String(cond.value);
+        }
+        if (cond.operator === 'not_equals') {
+          if (Array.isArray(cond.value)) return !cond.value.includes(String(val));
+          return String(val) !== String(cond.value);
+        }
+        return true;
+      });
+    };
+
+    // Check groups
+    for (const group of layout.filter(l => l.type === 'group')) {
+      if (group.children?.some(c => c.fieldKey === fieldId)) {
+        if (group.conditions?.length > 0) {
+          const visible = group.conditions.every(evaluateCondition);
+          if (!visible) return false;
+        }
+      }
+    }
+
+    // Check single rules
+    const singleRule = layout.find(l => l.type === 'single_question' && l.fieldKey === fieldId);
+    if (singleRule && singleRule.conditions?.length > 0) {
+      const visible = singleRule.conditions.every(evaluateCondition);
+      if (!visible) return false;
+    }
+
+    // Legacy legacy rule
+    if (qObj && qObj.dependsOnId) {
+      const depFieldKey = Object.keys(submission?.mappings || {}).find(k => {
+        const m = submission.mappings[k];
+        return (typeof m === 'string' ? m : m.questionId) === qObj.dependsOnId;
+      });
+      if (depFieldKey) {
+        let val = formValuesRef.current[depFieldKey];
+        const depMapping = submission?.mappings?.[depFieldKey];
+        let depQObj = null;
+        if (depMapping) {
+           depQObj = typeof depMapping === 'string' ? questions.find(q => q._id === depMapping) : depMapping.type ? depMapping : questions.find(q => q._id === depMapping.questionId);
+        } else {
+           const dragged = submission?.draggedFields?.find(df => df.id === depFieldKey);
+           if (dragged) depQObj = dragged.questionObj || questions.find(q => q._id === dragged.questionId);
+        }
+        if (depQObj && depQObj.type === 'checkbox') {
+           val = val || 'false';
+        } else {
+           val = val || '';
+        }
+        if (String(val) !== String(qObj.dependsOnValue)) return false;
+      }
+    }
+
+    return true;
+  };
 
   const [questionsLoaded, setQuestionsLoaded] = useState(false);
 
@@ -121,7 +225,7 @@ export default function FillDocxPage() {
       const parent = textNode.parentNode;
       if (!parent) return;
 
-      const block = parent.closest('p, div, section, article, li, tr') || parent;
+      const block = parent.closest('tr') || parent.closest('li') || parent.closest('p, div, section, article') || parent;
       const range = document.createRange();
       range.setStart(block, 0);
       range.setEndBefore(parent);
@@ -271,12 +375,12 @@ export default function FillDocxPage() {
         questionObj = questions.find(q => q._id === mapping.questionId);
       }
 
-      if (questionObj && questionObj.required) {
+      if (questionObj && questionObj.required && shouldRender(fieldId, questionObj)) {
         if (!formValues[fieldId] || formValues[fieldId].trim() === '') {
           isValid = false;
           missingQuestions.push(questionObj.question);
 
-          const input = viewerRef.current?.querySelector(`input[data-field-id="${fieldId}"]`);
+          const input = viewerRef.current?.querySelector(`input[data-field-id="${fieldId}"], select[data-field-id="${fieldId}"], textarea[data-field-id="${fieldId}"]`);
           if (input) {
             input.style.backgroundColor = '#fef2f2';
             input.style.borderColor = '#ef4444';
@@ -292,11 +396,10 @@ export default function FillDocxPage() {
       } else {
         questionObj = questions.find(q => q._id === df.questionId);
       }
-      if (questionObj && questionObj.required) {
+      if (questionObj && questionObj.required && shouldRender(df.id, questionObj)) {
         if (!formValues[df.id] || formValues[df.id].trim() === '') {
           isValid = false;
           missingQuestions.push(questionObj.question);
-
         }
       }
     });
@@ -314,6 +417,67 @@ export default function FillDocxPage() {
       toast.error(err);
     }
   };
+
+  useEffect(() => {
+    if (!viewerRef.current) return;
+    
+    const wrappers = viewerRef.current.querySelectorAll('.docx-injected-input-wrapper');
+    const blocksToHide = new Set();
+    const blocksToShow = new Set();
+
+    wrappers.forEach(btn => {
+      const input = btn.querySelector('input, select, textarea');
+      if (input) {
+        const fieldId = input.getAttribute('data-field-id');
+        if (fieldId) {
+          const mapping = submission?.mappings?.[fieldId];
+          let qObj = null;
+          if (mapping) {
+            if (typeof mapping === 'string') {
+              qObj = questions.find(q => q._id === mapping);
+            } else if (mapping.type) {
+              qObj = mapping;
+            } else {
+              qObj = questions.find(q => q._id === mapping.questionId);
+            }
+          }
+          
+          const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section');
+          if (shouldRender(fieldId, qObj)) {
+            if (input && input.tagName !== 'DIV') {
+              if (input.type === 'checkbox') {
+                const expected = (formValuesRef.current[fieldId] === 'true' || formValuesRef.current[fieldId] === true);
+                if (input.checked !== expected) input.checked = expected;
+              } else {
+                const expected = formValuesRef.current[fieldId] || '';
+                if (input.value !== expected) input.value = expected;
+              }
+            }
+            btn.style.display = 'flex';
+            if (btn.parentElement?.tagName === 'SPAN') {
+              btn.parentElement.style.display = 'inline-grid';
+            }
+            if (block) blocksToShow.add(block);
+          } else {
+            btn.style.display = 'none';
+            if (btn.parentElement?.tagName === 'SPAN') {
+              btn.parentElement.style.display = 'none';
+            }
+            if (block) blocksToHide.add(block);
+          }
+        }
+      }
+    });
+
+    for (const block of blocksToHide) {
+      if (!blocksToShow.has(block)) {
+        block.style.display = 'none';
+      }
+    }
+    for (const block of blocksToShow) {
+      block.style.display = '';
+    }
+  }, [formValues, submission, questions]);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -359,6 +523,8 @@ export default function FillDocxPage() {
               
               const currentVal = formValues[df.id] || '';
               const short = questionObj.question;
+
+              if (!shouldRender(df.id, questionObj)) return null;
 
               return (
                 <div

@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { renderAsync } from 'docx-preview';
 import { Rnd } from 'react-rnd';
@@ -20,99 +20,384 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '../../components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../../components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { uploadDocx, fetchUploadedDocx, saveDocxMappings, deleteDocx, assignDocx, fetchSubmissions } from '../../store/slices/docxSlice';
 
 
-function SidebarDependencyConfig({ q, questions, mappedQuestions, onSaveDependency, onClose }) {
-  const [localVal, setLocalVal] = useState(q?.dependsOnValue || '');
-  const [dependsOnId, setDependsOnId] = useState(q?.dependsOnId || '');
+function DependencyValueInput({ cond, updateCondition, index, mappedQuestions }) {
+  const depField = mappedQuestions.find(mq => mq.fieldKey === cond.dependsOn);
+  const qObj = depField?.questionObj;
 
-  useEffect(() => {
-    setLocalVal(q?.dependsOnValue || '');
-    setDependsOnId(q?.dependsOnId || '');
-  }, [q]);
+  if (!qObj) {
+    return <Input value={cond.value} onChange={e => updateCondition(index, 'value', e.target.value)} className="h-8 mt-1 text-xs" />;
+  }
 
-  const handleSave = () => {
-    if (!q) return;
-    onSaveDependency(q._id, dependsOnId === 'none' ? null : dependsOnId, localVal);
-    onClose();
+  if (qObj.type === 'checkbox') {
+    return (
+      <Select value={String(cond.value)} onValueChange={v => updateCondition(index, 'value', v)}>
+        <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue placeholder="Select" /></SelectTrigger>
+        <SelectContent className="bg-white">
+          <SelectItem value="true">Yes</SelectItem>
+          <SelectItem value="false">No</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  if (qObj.type === 'dropdown' || qObj.type === 'radio') {
+    const options = qObj.options || [];
+    const selectedValues = Array.isArray(cond.value) ? cond.value : (cond.value ? [cond.value] : []);
+    const handleToggle = (opt) => {
+      if (selectedValues.includes(opt)) {
+        updateCondition(index, 'value', selectedValues.filter(v => v !== opt));
+      } else {
+        updateCondition(index, 'value', [...selectedValues, opt]);
+      }
+    };
+    
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="w-full h-8 mt-1 text-xs justify-start px-2 font-normal truncate bg-white hover:bg-slate-50">
+            {selectedValues.length > 0 ? selectedValues.join(', ') : 'Select options...'}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56 bg-white z-[100]">
+          {options.map(opt => (
+            <DropdownMenuCheckboxItem
+              key={opt}
+              checked={selectedValues.includes(opt)}
+              onCheckedChange={() => handleToggle(opt)}
+            >
+              {opt}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  return <Input value={cond.value} onChange={e => updateCondition(index, 'value', e.target.value)} className="h-8 mt-1 text-xs" />;
+}
+
+// --- NEW DEPENDENCY UI COMPONENTS ---
+function GroupsSidebar({ layout, setLayout, onOpenGroupModal }) {
+  const groups = layout.filter(item => item.type === 'group');
+
+  const addGroup = () => {
+    const newGroup = {
+      id: 'group_' + Date.now(),
+      type: 'group',
+      label: 'New Group ' + (groups.length + 1),
+      conditions: [],
+      children: [],
+      isNew: true
+    };
+    onOpenGroupModal(newGroup);
   };
-
-  if (!q) return null;
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <div className="p-4 border-b bg-slate-50 flex items-start gap-3 shrink-0">
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 shrink-0 rounded-full hover:bg-slate-200">
-          <RotateCcw className="h-4 w-4" />
-        </Button>
+      <div className="p-4 border-b bg-white shrink-0 flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-slate-800 text-sm">Configure Dependency</h3>
-          <p className="text-[10px] text-slate-500 mt-1">Set visibility condition for this mapped question.</p>
+          <h3 className="font-semibold text-slate-800 text-sm">Group Configuration</h3>
+          <p className="text-[10px] text-slate-500 mt-1">Manage dynamic question groups</p>
         </div>
+        <Button onClick={addGroup} size="sm" className="bg-slate-900 hover:bg-black text-xs text-white">
+          + Create Group
+        </Button>
       </div>
-      <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-        <div className="p-3 bg-gray-50 border border-gray-100 rounded text-sm text-gray-900 font-medium">
-          {q.question}
-        </div>
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-slate-700">Depends on (Mapped Questions)</label>
-          <Select
-            value={dependsOnId || "none"}
-            onValueChange={setDependsOnId}
-          >
-            <SelectTrigger className="w-full bg-white text-xs h-9">
-              <SelectValue placeholder="No dependency" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              <SelectItem value="none">No dependency (Always show)</SelectItem>
-              {mappedQuestions.filter(other => other._id !== q._id).map(other => (
-                <SelectItem key={other._id} value={other._id}>{other.question}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {dependsOnId && dependsOnId !== 'none' && (
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-slate-700">Required Value</label>
-            {(() => {
-              const parentQ = questions.find(x => x._id === dependsOnId);
-              if (parentQ?.type === 'checkbox') {
-                return (
-                  <Select
-                    value={localVal || ""}
-                    onValueChange={setLocalVal}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
+        {groups.length === 0 ? (
+          <div className="text-center text-slate-400 py-10 text-sm">No groups created yet.</div>
+        ) : (
+          groups.map(g => (
+            <div 
+              key={g.id} 
+              onClick={() => onOpenGroupModal(g)}
+              className="bg-white border border-slate-200 rounded p-3 cursor-pointer hover:border-slate-400 hover:shadow-md transition-all flex justify-between items-center group"
+            >
+              <div>
+                <div className="text-sm font-semibold text-slate-900">{g.label}</div>
+                <div className="text-xs text-slate-500 mt-0.5">{g.children?.length || 0} fields • {g.conditions?.length || 0} conditions</div>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity" 
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <SelectTrigger className="w-full bg-white text-xs h-9">
-                      <SelectValue placeholder="Select Yes/No" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      <SelectItem value="true">Yes</SelectItem>
-                      <SelectItem value="false">No</SelectItem>
-                    </SelectContent>
-                  </Select>
-                );
-              }
-              return (
-                <Input
-                  className="text-xs h-9"
-                  placeholder="e.g. Yes"
-                  value={localVal}
-                  onChange={(e) => setLocalVal(e.target.value)}
-                />
-              );
-            })()}
-          </div>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="bg-white" onClick={(e) => e.stopPropagation()}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the group and remove all its visibility rules.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLayout(prev => prev.filter(l => l.id !== g.id));
+                      }} 
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          ))
         )}
-      </div>
-      <div className="p-4 border-t bg-slate-50 shrink-0">
-        <Button onClick={handleSave} className="bg-gray-600 hover:bg-gray-700 text-white w-full">Save Settings</Button>
       </div>
     </div>
   );
 }
+
+function GroupConfigModal({ group, layout, setLayout, mappedQuestions, onClose }) {
+  const [activeTab, setActiveTab] = useState('questions');
+  const [localGroup, setLocalGroup] = useState(group);
+
+  const availableFields = mappedQuestions.filter(mq => {
+    // Check if this field is already in another group
+    const inAnotherGroup = layout.some(l => l.type === 'group' && l.id !== group.id && l.children?.some(c => c.fieldKey === mq.fieldKey));
+    return !inAnotherGroup;
+  });
+
+  const handleToggleField = (fieldKey) => {
+    setLocalGroup(prev => {
+      const children = prev.children || [];
+      if (children.some(c => c.fieldKey === fieldKey)) {
+        return { ...prev, children: children.filter(c => c.fieldKey !== fieldKey) };
+      } else {
+        return { ...prev, children: [...children, { id: 'item_' + Date.now(), type: 'single_question', fieldKey }] };
+      }
+    });
+  };
+
+  const addCondition = () => {
+    setLocalGroup(prev => ({
+      ...prev,
+      conditions: [...(prev.conditions || []), { dependsOn: '', operator: 'equals', value: '' }]
+    }));
+  };
+
+  const updateCondition = (index, key, value) => {
+    setLocalGroup(prev => {
+      const newConds = [...prev.conditions];
+      newConds[index] = { ...newConds[index], [key]: value };
+      return { ...prev, conditions: newConds };
+    });
+  };
+
+  const removeCondition = (index) => {
+    setLocalGroup(prev => ({
+      ...prev,
+      conditions: prev.conditions.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSave = () => {
+    if (!localGroup.children || localGroup.children.length === 0) {
+      toast.error('Please add at least one question to the group.');
+      return;
+    }
+    setLayout(prev => {
+      if (localGroup.isNew) {
+        const { isNew, ...groupToSave } = localGroup;
+        return [...prev, groupToSave];
+      }
+      return prev.map(l => l.id === localGroup.id ? localGroup : l);
+    });
+    onClose();
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[800px] h-[700px] flex flex-col p-0 overflow-hidden bg-white [&>button]:right-4 [&>button]:top-4 [&>button]:h-8 [&>button]:w-8 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full hover:[&>button]:bg-slate-100 [&>button]:text-slate-500 transition-colors">
+        <DialogHeader className="p-6 pb-2 shrink-0 border-b">
+          <DialogTitle className="flex items-center gap-3">
+            <Input 
+              value={localGroup.label} 
+              onChange={e => setLocalGroup(prev => ({...prev, label: e.target.value}))} 
+              className="text-lg font-bold border-0 border-b border-transparent hover:border-slate-200 focus-visible:border-slate-900 focus-visible:ring-0 rounded-none px-1 h-9 bg-transparent transition-colors shadow-none w-full"
+            />
+          </DialogTitle>
+          <div className="flex gap-4 mt-4 border-b">
+            <button 
+              className={`pb-2 text-sm font-medium ${activeTab === 'questions' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-500'}`}
+              onClick={() => setActiveTab('questions')}
+            >
+              Add Questions
+            </button>
+            <button 
+              className={`pb-2 text-sm font-medium ${activeTab === 'dependencies' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-500'}`}
+              onClick={() => setActiveTab('dependencies')}
+            >
+              Add Dependencies
+            </button>
+          </div>
+        </DialogHeader>
+        
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+          {activeTab === 'questions' ? (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-500 mb-4">Select questions to include in this group. Questions can only belong to one group.</p>
+              {availableFields.map(mq => {
+                const isSelected = localGroup.children?.some(c => c.fieldKey === mq.fieldKey);
+                return (
+                  <div 
+                    key={mq.fieldKey} 
+                    onClick={() => handleToggleField(mq.fieldKey)}
+                    className="flex items-center gap-3 bg-white p-3 border rounded shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={isSelected}
+                      readOnly
+                      className="h-4 w-4 text-slate-900 rounded border-gray-300 focus:ring-slate-900 pointer-events-none"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-slate-900 truncate">{mq.questionObj?.question}</div>
+                      <div className="text-xs text-slate-500">Field ID: {mq.fieldKey}</div>
+                    </div>
+                  </div>
+                )
+              })}
+              {availableFields.length === 0 && <div className="text-sm text-slate-500">No available mapped questions to add.</div>}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-500 mb-2">Set visibility rules for this entire group.</p>
+              {(localGroup.conditions || []).map((cond, index) => (
+                <div key={index} className="flex items-end gap-2 bg-white p-3 border rounded shadow-sm">
+                  <div className="flex-1">
+                    <label className="text-xs font-medium text-slate-700">Depends On</label>
+                    <Select value={cond.dependsOn} onValueChange={v => updateCondition(index, 'dependsOn', v)}>
+                      <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue placeholder="Select field" /></SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {mappedQuestions.filter(mq => !localGroup.children?.some(c => c.fieldKey === mq.fieldKey)).map(mq => (
+                          <SelectItem key={mq.fieldKey} value={mq.fieldKey}>{mq.questionObj?.question?.substring(0,20) || mq.fieldKey}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs font-medium text-slate-700">Operator</label>
+                    <Select value={cond.operator} onValueChange={v => updateCondition(index, 'operator', v)}>
+                      <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="equals">Equals</SelectItem>
+                        <SelectItem value="not_equals">Does Not Equal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs font-medium text-slate-700">Value</label>
+                    <DependencyValueInput cond={cond} updateCondition={updateCondition} index={index} mappedQuestions={mappedQuestions} />
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => removeCondition(index)} className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
+                </div>
+              ))}
+              <Button variant="outline" onClick={addCondition} className="w-full text-xs border-dashed border-2">+ Add Condition</Button>
+            </div>
+          )}
+        </div>
+        <DialogFooter className="p-4 border-t bg-white shrink-0 sm:justify-end">
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} className="text-xs">Cancel</Button>
+            <Button onClick={handleSave} className="text-xs bg-slate-900 hover:bg-black text-white">Save Group</Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SingleDependencyModal({ fieldKey, questionObj, layout, setLayout, mappedQuestions, onClose }) {
+  // Find or create layout entry
+  const existingIndex = layout.findIndex(l => l.type === 'single_question' && l.fieldKey === fieldKey);
+  const [conditions, setConditions] = useState(existingIndex >= 0 ? (layout[existingIndex].conditions || []) : []);
+
+  const addCondition = () => setConditions([...conditions, { dependsOn: '', operator: 'equals', value: '' }]);
+  const updateCondition = (index, key, value) => {
+    const newConds = [...conditions];
+    newConds[index] = { ...newConds[index], [key]: value };
+    setConditions(newConds);
+  };
+  const removeCondition = (index) => setConditions(conditions.filter((_, i) => i !== index));
+
+  const handleSave = () => {
+    if (conditions.length === 0) {
+      // Remove from layout if no conditions
+      setLayout(prev => prev.filter(l => !(l.type === 'single_question' && l.fieldKey === fieldKey)));
+    } else {
+      if (existingIndex >= 0) {
+        setLayout(prev => prev.map((l, i) => i === existingIndex ? { ...l, conditions } : l));
+      } else {
+        setLayout(prev => [...prev, { id: 'item_' + Date.now(), type: 'single_question', fieldKey, conditions }]);
+      }
+    }
+    onClose();
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[500px] bg-white [&>button]:right-4 [&>button]:top-4 [&>button]:h-8 [&>button]:w-8 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full hover:[&>button]:bg-slate-100 [&>button]:text-slate-500 transition-colors">
+        <DialogHeader>
+          <DialogTitle>Dependency Rules for: {questionObj?.question}</DialogTitle>
+          <DialogDescription>Set visibility conditions for this single field.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          {conditions.map((cond, index) => (
+            <div key={index} className="flex items-end gap-2 bg-slate-50 p-3 border rounded shadow-sm">
+              <div className="flex-1">
+                <label className="text-[10px] font-medium text-slate-700">Depends On</label>
+                <Select value={cond.dependsOn} onValueChange={v => updateCondition(index, 'dependsOn', v)}>
+                  <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue placeholder="Select field" /></SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {mappedQuestions.filter(mq => mq.fieldKey !== fieldKey).map(mq => (
+                      <SelectItem key={mq.fieldKey} value={mq.fieldKey}>{mq.questionObj?.question?.substring(0,20) || mq.fieldKey}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-1">
+                <label className="text-[10px] font-medium text-slate-700">Operator</label>
+                <Select value={cond.operator} onValueChange={v => updateCondition(index, 'operator', v)}>
+                  <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="equals">Equals</SelectItem>
+                    <SelectItem value="not_equals">Does Not Equal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex-[0.8]">
+                <label className="text-[10px] font-medium text-slate-700">Value</label>
+                <DependencyValueInput cond={cond} updateCondition={updateCondition} index={index} mappedQuestions={mappedQuestions} />
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => removeCondition(index)} className="h-8 w-8 text-red-500"><Trash2 className="h-4 w-4" /></Button>
+            </div>
+          ))}
+          <Button variant="outline" onClick={addCondition} className="w-full text-xs border-dashed border-2">+ Add Condition</Button>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="text-xs">Cancel</Button>
+          <Button onClick={handleSave} className="text-xs bg-slate-900 hover:bg-black text-white">Save Rules</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+// --- END NEW DEPENDENCY UI COMPONENTS ---
 
 const getQuestionIcon = (type, className = "h-4 w-4") => {
   switch (type) {
@@ -145,7 +430,8 @@ export default function DocxPage() {
   const [hasDoc, setHasDoc] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [activeDoc, setActiveDoc] = useState(null);
-  const [dependencyConfigQuestion, setDependencyConfigQuestion] = useState(null);
+  const [activeGroupModal, setActiveGroupModal] = useState(null);
+  const [activeSingleDependencyModal, setActiveSingleDependencyModal] = useState(null);
 
   const { documents, uploading, savingMappings, loading: docsLoading, submissions, loadingSubmissions } = useSelector((state) => state.docx || { documents: [], uploading: false, savingMappings: false, loading: false, submissions: [], loadingSubmissions: false });
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -162,6 +448,12 @@ export default function DocxPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssignees, setSelectedAssignees] = useState([]);
   const [fetchingUsers, setFetchingUsers] = useState(false);
+
+  const [layout, setLayout] = useState([]);
+  const [dependencyMode, setDependencyMode] = useState(false);
+  const layoutRef = useRef(layout);
+  useEffect(() => { layoutRef.current = layout; }, [layout]);
+
 
   useEffect(() => {
     if (isSendModalOpen) {
@@ -235,7 +527,8 @@ export default function DocxPage() {
           dispatch(saveDocxMappings({
             docxId: activeDocRef.current._id,
             mappings: mappingsToSave,
-            draggedFields: draggedFieldsToSave
+            draggedFields: draggedFieldsToSave,
+            layout: layoutRef.current
           })).unwrap().then(() => {
             toast.success('Mappings saved successfully!');
           }).catch(err => {
@@ -319,7 +612,7 @@ export default function DocxPage() {
             const isChecked = currentVal === 'true' || currentVal === true;
             btn.innerHTML = `
               <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #ffffff; border: 1.5px solid #818cf8; box-sizing: border-box;" title="${short}">
-                <input type="checkbox" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 14px; height: 14px; accent-color: #4f46e5;" />
+                <input type="checkbox" data-field-id="${fieldId}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 14px; height: 14px; accent-color: #4f46e5;" />
               </div>
             `;
             btn.style.padding = '0';
@@ -332,7 +625,7 @@ export default function DocxPage() {
               optionsHtml += `<option value="${opt}" ${currentVal === opt ? 'selected' : ''}>${opt}</option>`;
             });
             btn.innerHTML = `
-              <select style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b; cursor: pointer;">
+              <select data-field-id="${fieldId}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b; cursor: pointer;">
                 ${optionsHtml}
               </select>
             `;
@@ -340,18 +633,18 @@ export default function DocxPage() {
             btn.style.border = 'none';
             btn.style.background = 'transparent';
           } else if (q.type === 'date') {
-            btn.innerHTML = `<input type="date" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b; cursor: pointer;" />`;
+            btn.innerHTML = `<input type="date" data-field-id="${fieldId}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b; cursor: pointer;" />`;
             btn.style.padding = '0';
             btn.style.border = 'none';
             btn.style.background = 'transparent';
           } else if (q.type === 'textarea') {
-            btn.innerHTML = `<textarea placeholder="${short}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 4px; font-size: 11px; color: #1e1b4b; resize: none;">${currentVal}</textarea>`;
+            btn.innerHTML = `<textarea data-field-id="${fieldId}" placeholder="${short}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 4px; font-size: 11px; color: #1e1b4b; resize: none;">${currentVal}</textarea>`;
             btn.style.padding = '0';
             btn.style.border = 'none';
             btn.style.background = 'transparent';
           } else {
             const typeAttr = q.type === 'number' ? 'number' : 'text';
-            btn.innerHTML = `<input type="${typeAttr}" placeholder="${short}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #0f172a; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #0f172a;" />`;
+            btn.innerHTML = `<input type="${typeAttr}" data-field-id="${fieldId}" placeholder="${short}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #0f172a; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #0f172a;" />`;
             btn.style.padding = '0';
             btn.style.border = 'none';
             btn.style.background = 'transparent';
@@ -402,27 +695,37 @@ export default function DocxPage() {
               }
             };
           }
-          btn.ondblclick = (e) => {
+          btn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
-            setDependencyConfigQuestion(q);
+            if (dependencyMode) {
+              setActiveSingleDependencyModal({ fieldKey: fieldId, questionObj: q });
+            } else {
+              if (handlePlusClickRef.current) {
+                handlePlusClickRef.current(fieldId, btn);
+              }
+            }
           };
         } else {
-          btn.innerText = '+';
-          btn.title = 'Click to assign a question';
-          btn.style.background = 'rgba(0, 0, 0, 0.05)';
-          btn.style.border = '1px dashed #64748b';
-          btn.style.color = '#64748b';
-          btn.style.fontSize = '13px';
-          btn.style.fontWeight = '600';
-          btn.style.padding = '0';
-          btn.style.justifyContent = 'center';
-          btn.ondblclick = null;
-          delete btn.dataset.assigned;
+          if (dependencyMode) {
+            btn.style.visibility = 'hidden';
+          } else {
+            btn.innerText = '+';
+            btn.title = 'Click to assign a question';
+            btn.style.background = 'rgba(0, 0, 0, 0.05)';
+            btn.style.border = '1px dashed #64748b';
+            btn.style.color = '#64748b';
+            btn.style.fontSize = '13px';
+            btn.style.fontWeight = '600';
+            btn.style.padding = '0';
+            btn.style.justifyContent = 'center';
+            btn.ondblclick = null;
+            delete btn.dataset.assigned;
+          }
         }
       }
     });
-  }, [interactionMode, fieldMappings]);
+  }, [interactionMode, fieldMappings, dependencyMode]);
 
   useEffect(() => {
     if (interactionMode !== 'interact') return;
@@ -505,6 +808,38 @@ export default function DocxPage() {
     toast.success(`Mapped: "${short}"`);
   };
 
+  const cleanupLayout = (fieldId) => {
+    setLayout(prev => {
+      let changed = false;
+      const next = [];
+      for (const item of prev) {
+        if (item.type === 'single_question') {
+          if (item.fieldKey === fieldId) {
+             changed = true;
+             continue;
+          }
+          const oldConds = item.conditions || [];
+          const newConds = oldConds.filter(c => c.dependsOn !== fieldId);
+          if (oldConds.length !== newConds.length) changed = true;
+          next.push({ ...item, conditions: newConds });
+        } else if (item.type === 'group') {
+          const oldChildren = item.children || [];
+          const newChildren = oldChildren.filter(c => c.fieldKey !== fieldId);
+          if (oldChildren.length !== newChildren.length) changed = true;
+
+          const oldConds = item.conditions || [];
+          const newConds = oldConds.filter(c => c.dependsOn !== fieldId);
+          if (oldConds.length !== newConds.length) changed = true;
+
+          next.push({ ...item, children: newChildren, conditions: newConds });
+        } else {
+          next.push(item);
+        }
+      }
+      return changed ? next : prev;
+    });
+  };
+
   const handleRemoveMapping = (id, btn) => {
     setFieldMappings((prev) => {
       const next = { ...prev };
@@ -519,6 +854,7 @@ export default function DocxPage() {
     });
 
     resetBtn(btn);
+    cleanupLayout(id);
     setPanelOpen(false);
     setActiveField(null);
     toast.success('Field mapping removed');
@@ -538,6 +874,7 @@ export default function DocxPage() {
           if (q._id === id) {
             delete next[fId];
             removed = true;
+            cleanupLayout(fId);
             const btn = fieldBtnsRef.current[fId];
             if (btn) resetBtn(btn);
           }
@@ -581,7 +918,7 @@ export default function DocxPage() {
       const parent = textNode.parentNode;
       if (!parent) return;
 
-      const block = parent.closest('p, div, section, article, li, tr') || parent;
+      const block = parent.closest('tr') || parent.closest('li') || parent.closest('p, div, section, article') || parent;
       const range = document.createRange();
       range.setStart(block, 0);
       range.setEndBefore(parent);
@@ -784,7 +1121,8 @@ export default function DocxPage() {
       await dispatch(saveDocxMappings({
         docxId: activeDoc._id,
         mappings: mappingsToSave,
-        draggedFields: draggedFieldsToSave
+        draggedFields: draggedFieldsToSave,
+        layout
       })).unwrap();
       toast.success('Mappings saved successfully!');
     } catch (err) {
@@ -843,6 +1181,8 @@ export default function DocxPage() {
           });
           setDraggedFields(restoredDraggedFields);
         }
+
+        setLayout(doc.layout || []);
 
         if (doc.mappings && Object.keys(doc.mappings).length > 0) {
           const newMappings = { ...autoMatches };
@@ -912,7 +1252,208 @@ export default function DocxPage() {
     }
   }, [location.state?.docToLoad, questions.length, navigate]);
 
+  const mappedQuestionsList = useMemo(() => {
+    const mapped = [];
+    const seen = new Set();
+    Object.entries(fieldMappings).forEach(([fieldKey, q]) => {
+      if (q && !seen.has(fieldKey)) {
+        mapped.push({ fieldKey, questionObj: q });
+        seen.add(fieldKey);
+      }
+    });
+    draggedFields.forEach(df => {
+      if (df.questionObj && !seen.has(df.id)) {
+        mapped.push({ fieldKey: df.id, questionObj: df.questionObj });
+        seen.add(df.id);
+      }
+    });
+    return mapped;
+  }, [fieldMappings, draggedFields]);
+
+  const handleFieldClickInDependencyMode = (fieldKey, questionObj) => {
+    if (!dependencyMode) return;
+    setActiveSingleDependencyModal({ fieldKey, questionObj });
+  };
+
   const mappedCount = Object.keys(fieldMappings).length;
+
+  const shouldRender = (fieldId, qObj) => {
+    if (!layout.length && (!qObj || !qObj.dependsOnId)) return true;
+
+    const evaluateCondition = (cond) => {
+      let depQId = null;
+      let depQObj = null;
+
+      const depMapping = fieldMappings[cond.dependsOn];
+      if (depMapping) {
+        depQObj = typeof depMapping === 'string' ? questions.find(q => q._id === depMapping) : depMapping.type ? depMapping : questions.find(q => q._id === depMapping.questionId);
+        depQId = depQObj?._id;
+      } else {
+        const dragged = draggedFields.find(df => df.id === cond.dependsOn);
+        if (dragged) {
+          depQObj = dragged.questionObj || questions.find(q => q._id === dragged.questionId);
+          depQId = depQObj?._id;
+        }
+      }
+
+      if (!depQId) return true;
+
+      const dependentFieldIds = [];
+      Object.entries(fieldMappings).forEach(([fId, q]) => {
+         const id = typeof q === 'string' ? q : (q._id || q.questionId);
+         if (id === depQId) dependentFieldIds.push(fId);
+      });
+      draggedFields.forEach(df => {
+         const id = df.questionId || df.questionObj?._id;
+         if (id === depQId) dependentFieldIds.push(df.id);
+      });
+
+      if (dependentFieldIds.length === 0) return false;
+
+      return dependentFieldIds.some(fId => {
+        let val = formValuesRef.current[fId];
+        if (depQObj && depQObj.type === 'checkbox') {
+           val = val || 'false';
+        } else {
+           val = val || '';
+        }
+
+        if (cond.operator === 'equals') {
+          if (Array.isArray(cond.value)) return cond.value.includes(String(val));
+          return String(val) === String(cond.value);
+        }
+        if (cond.operator === 'not_equals') {
+          if (Array.isArray(cond.value)) return !cond.value.includes(String(val));
+          return String(val) !== String(cond.value);
+        }
+        return true;
+      });
+    };
+
+    for (const group of layout.filter(l => l.type === 'group')) {
+      if (group.children?.some(c => c.fieldKey === fieldId)) {
+        if (group.conditions?.length > 0) {
+          const visible = group.conditions.every(evaluateCondition);
+          if (!visible) return false;
+        }
+      }
+    }
+
+    const singleRule = layout.find(l => l.type === 'single_question' && l.fieldKey === fieldId);
+    if (singleRule && singleRule.conditions?.length > 0) {
+      const visible = singleRule.conditions.every(evaluateCondition);
+      if (!visible) return false;
+    }
+
+    if (qObj && qObj.dependsOnId) {
+      const depFieldKey = Object.keys(fieldMappings).find(k => {
+        const m = fieldMappings[k];
+        return (typeof m === 'string' ? m : m.questionId) === qObj.dependsOnId;
+      });
+      if (depFieldKey) {
+        let val = formValuesRef.current[depFieldKey];
+        const depMapping = fieldMappings[depFieldKey];
+        let depQObj = null;
+        if (depMapping) {
+           depQObj = typeof depMapping === 'string' ? questions.find(q => q._id === depMapping) : depMapping.type ? depMapping : questions.find(q => q._id === depMapping.questionId);
+        } else {
+           const dragged = draggedFields.find(df => df.id === depFieldKey);
+           if (dragged) depQObj = dragged.questionObj || questions.find(q => q._id === dragged.questionId);
+        }
+        if (depQObj && depQObj.type === 'checkbox') {
+           val = val || 'false';
+        } else {
+           val = val || '';
+        }
+        if (String(val) !== String(qObj.dependsOnValue)) return false;
+      }
+    }
+    return true;
+  };
+
+  useEffect(() => {
+    if (!viewerRef.current) return;
+    const wrappers = viewerRef.current.querySelectorAll('.docx-injected-input-wrapper');
+    const blocksToHide = new Set();
+    const blocksToShow = new Set();
+
+    wrappers.forEach(btn => {
+      const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section');
+
+      if (interactionMode === 'edit') {
+        btn.style.display = 'flex';
+        btn.style.pointerEvents = 'auto';
+        if (btn.parentElement?.tagName === 'SPAN') {
+          btn.parentElement.style.display = 'inline-grid';
+        }
+        if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'hidden';
+        if (block) blocksToShow.add(block);
+        return;
+      }
+
+      const input = btn.querySelector('input, select, textarea') || btn;
+      if (input) {
+        const fieldId = input.getAttribute('data-field-id');
+        if (fieldId) {
+          const mapping = fieldMappings[fieldId];
+          let qObj = null;
+          if (mapping) {
+            if (typeof mapping === 'string') {
+              qObj = questions.find(q => q._id === mapping);
+            } else if (mapping.type) {
+              qObj = mapping;
+            } else {
+              qObj = questions.find(q => q._id === mapping.questionId);
+            }
+          }
+          
+          if (!qObj) {
+            btn.style.pointerEvents = 'none';
+            btn.style.display = 'none';
+            if (btn.parentElement?.tagName === 'SPAN') {
+              btn.parentElement.style.display = 'inline-grid';
+            }
+            if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'visible';
+            if (block) blocksToShow.add(block);
+          } else if (shouldRender(fieldId, qObj)) {
+            if (input && input.tagName !== 'DIV') {
+              if (input.type === 'checkbox') {
+                const expected = (formValuesRef.current[fieldId] === 'true' || formValuesRef.current[fieldId] === true);
+                if (input.checked !== expected) input.checked = expected;
+              } else {
+                const expected = formValuesRef.current[fieldId] || '';
+                if (input.value !== expected) input.value = expected;
+              }
+            }
+            btn.style.pointerEvents = 'auto';
+            btn.style.display = 'flex';
+            if (btn.parentElement?.tagName === 'SPAN') {
+              btn.parentElement.style.display = 'inline-grid';
+            }
+            if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'hidden';
+            if (block) blocksToShow.add(block);
+          } else {
+            btn.style.pointerEvents = 'auto';
+            btn.style.display = 'none';
+            if (btn.parentElement?.tagName === 'SPAN') {
+              btn.parentElement.style.display = 'none';
+            }
+            if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'hidden';
+            if (block) blocksToHide.add(block);
+          }
+        }
+      }
+    });
+
+    for (const block of blocksToHide) {
+      if (!blocksToShow.has(block)) {
+        block.style.display = 'none';
+      }
+    }
+    for (const block of blocksToShow) {
+      block.style.display = '';
+    }
+  }, [formValues, interactionMode, fieldMappings, layout, questions]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 relative">
@@ -935,6 +1476,17 @@ export default function DocxPage() {
               </Badge>
             )}
             <div className="flex gap-2 items-center mt-1">
+              
+              <div className="flex items-center gap-2 bg-slate-100 rounded-md p-1 border shadow-sm px-3 mr-2">
+                <span className={`text-xs font-semibold ${dependencyMode ? 'text-slate-900' : 'text-slate-500'}`}>Dependency Mode</span>
+                <button 
+                  onClick={() => setDependencyMode(!dependencyMode)}
+                  className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${dependencyMode ? 'bg-slate-900' : 'bg-slate-300'}`}
+                >
+                  <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${dependencyMode ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+
               <Button variant="outline" className="border-slate-300 text-slate-800 bg-white hover:bg-slate-50 h-8 text-xs font-semibold px-3" onClick={() => setIsSendModalOpen(true)}>
                 <Send className="h-3.5 w-3.5 mr-1.5" /> Send Docx
               </Button>
@@ -1076,7 +1628,7 @@ export default function DocxPage() {
 
                 {hasDoc && draggedFields.map(field => {
                   const q = field.questionObj;
-                  const isVisible = interactionMode === 'edit' || (q && isDependencyMet(q));
+                  const isVisible = interactionMode === 'edit' || (q && shouldRender(field.id, q));
 
                   if (!isVisible) return null;
 
@@ -1105,7 +1657,7 @@ export default function DocxPage() {
                       }}
                       onDoubleClick={() => {
                         if (interactionMode === 'edit' && q) {
-                          setDependencyConfigQuestion(q);
+                          handleFieldClickInDependencyMode(field.id, q);
                         }
                       }}
                       className={`absolute ${interactionMode === 'edit' ? 'bg-white/95 border-2 border-indigo-400 shadow-md flex items-center justify-center cursor-move group' : 'z-40'} rounded z-50`}
@@ -1113,7 +1665,10 @@ export default function DocxPage() {
                       {interactionMode === 'edit' ? (
                         <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
                           <button
-                            onClick={() => setDraggedFields(prev => prev.filter(f => f.id !== field.id))}
+                            onClick={() => {
+                              setDraggedFields(prev => prev.filter(f => f.id !== field.id));
+                              cleanupLayout(field.id);
+                            }}
                             className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 bg-red-100 text-red-600 rounded p-0.5 transition-opacity z-50 hover:bg-red-200"
                             title="Remove"
                           >
@@ -1182,29 +1737,11 @@ export default function DocxPage() {
         {hasDoc && (
           <div className="hidden lg:block w-80 shrink-0 sticky top-6">
             <Card className="shadow-md flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
-              {dependencyConfigQuestion ? (
-                <SidebarDependencyConfig
-                  q={questions.find(x => x._id === dependencyConfigQuestion._id) || dependencyConfigQuestion}
-                  questions={questions}
-                  mappedQuestions={(() => {
-                    const mapped = [];
-                    const seen = new Set();
-                    Object.values(fieldMappings).forEach(q => {
-                      if (q && !seen.has(q._id)) {
-                        mapped.push(q);
-                        seen.add(q._id);
-                      }
-                    });
-                    draggedFields.forEach(df => {
-                      if (df.questionObj && !seen.has(df.questionObj._id)) {
-                        mapped.push(df.questionObj);
-                        seen.add(df.questionObj._id);
-                      }
-                    });
-                    return mapped;
-                  })()}
-                  onSaveDependency={handleSaveDependency}
-                  onClose={() => setDependencyConfigQuestion(null)}
+              {dependencyMode ? (
+                <GroupsSidebar 
+                  layout={layout} 
+                  setLayout={setLayout} 
+                  onOpenGroupModal={setActiveGroupModal} 
                 />
               ) : (
                 <>
@@ -1586,6 +2123,28 @@ export default function DocxPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Render Modals */}
+      {activeGroupModal && (
+        <GroupConfigModal
+          group={activeGroupModal}
+          layout={layout}
+          setLayout={setLayout}
+          mappedQuestions={mappedQuestionsList}
+          onClose={() => setActiveGroupModal(null)}
+        />
+      )}
+      
+      {activeSingleDependencyModal && (
+        <SingleDependencyModal
+          fieldKey={activeSingleDependencyModal.fieldKey}
+          questionObj={activeSingleDependencyModal.questionObj}
+          layout={layout}
+          setLayout={setLayout}
+          mappedQuestions={mappedQuestionsList}
+          onClose={() => setActiveSingleDependencyModal(null)}
+        />
+      )}
     </div>
   );
 }

@@ -54,7 +54,7 @@ export const fetchUploadedDocx = createAsyncThunk(
 
 export const saveDocxMappings = createAsyncThunk(
   'docx/saveMappings',
-  async ({ docxId, mappings, draggedFields }, { getState, rejectWithValue }) => {
+  async ({ docxId, mappings, draggedFields, layout }, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
       const response = await fetch(`http://localhost:8888/docx/${docxId}/mappings`, {
@@ -63,7 +63,7 @@ export const saveDocxMappings = createAsyncThunk(
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ mappings, draggedFields }),
+        body: JSON.stringify({ mappings, draggedFields, layout }),
       });
 
       if (!response.ok) {

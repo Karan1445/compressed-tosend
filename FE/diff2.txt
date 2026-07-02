@@ -1,0 +1,750 @@
+﻿commit e046b8217f7ee67dc432ab2034a7ff073c611e3b
+Author: Karan1445 <goheljitu14@gmail.com>
+Date:   Thu Jul 2 20:00:40 2026 +0530
+
+    at c
+
+diff --git a/FE/src/pages/docx/DocxPage.jsx b/FE/src/pages/docx/DocxPage.jsx
+index 4aa0149..89c1957 100644
+--- a/FE/src/pages/docx/DocxPage.jsx
++++ b/FE/src/pages/docx/DocxPage.jsx
+@@ -23,7 +23,97 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
+ import { toast } from 'sonner';
+ import { uploadDocx, fetchUploadedDocx, saveDocxMappings, deleteDocx, assignDocx, fetchSubmissions } from '../../store/slices/docxSlice';
+ 
+-// Helper to get icon for question type
++
++function SidebarDependencyConfig({ q, questions, mappedQuestions, onSaveDependency, onClose }) {
++  const [localVal, setLocalVal] = useState(q?.dependsOnValue || '');
++  const [dependsOnId, setDependsOnId] = useState(q?.dependsOnId || '');
++
++  useEffect(() => {
++    setLocalVal(q?.dependsOnValue || '');
++    setDependsOnId(q?.dependsOnId || '');
++  }, [q]);
++
++  const handleSave = () => {
++    if (!q) return;
++    onSaveDependency(q._id, dependsOnId === 'none' ? null : dependsOnId, localVal);
++    onClose();
++  };
++
++  if (!q) return null;
++
++  return (
++    <div className="flex flex-col h-full bg-white">
++      <div className="p-4 border-b bg-slate-50 flex items-start gap-3 shrink-0">
++        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 shrink-0 rounded-full hover:bg-slate-200">
++          <RotateCcw className="h-4 w-4" />
++        </Button>
++        <div>
++          <h3 className="font-semibold text-slate-800 text-sm">Configure Dependency</h3>
++          <p className="text-[10px] text-slate-500 mt-1">Set visibility condition for this mapped question.</p>
++        </div>
++      </div>
++      <div className="p-4 space-y-4 flex-1 overflow-y-auto">
++        <div className="p-3 bg-gray-50 border border-gray-100 rounded text-sm text-gray-900 font-medium">
++          {q.question}
++        </div>
++        <div className="space-y-2">
++          <label className="text-xs font-medium text-slate-700">Depends on (Mapped Questions)</label>
++          <Select
++            value={dependsOnId || "none"}
++            onValueChange={setDependsOnId}
++          >
++            <SelectTrigger className="w-full bg-white text-xs h-9">
++              <SelectValue placeholder="No dependency" />
++            </SelectTrigger>
++            <SelectContent className="bg-white">
++              <SelectItem value="none">No dependency (Always show)</SelectItem>
++              {mappedQuestions.filter(other => other._id !== q._id).map(other => (
++                <SelectItem key={other._id} value={other._id}>{other.question}</SelectItem>
++              ))}
++            </SelectContent>
++          </Select>
++        </div>
++
++        {dependsOnId && dependsOnId !== 'none' && (
++          <div className="space-y-2">
++            <label className="text-xs font-medium text-slate-700">Required Value</label>
++            {(() => {
++              const parentQ = questions.find(x => x._id === dependsOnId);
++              if (parentQ?.type === 'checkbox') {
++                return (
++                  <Select
++                    value={localVal || ""}
++                    onValueChange={setLocalVal}
++                  >
++                    <SelectTrigger className="w-full bg-white text-xs h-9">
++                      <SelectValue placeholder="Select Yes/No" />
++                    </SelectTrigger>
++                    <SelectContent className="bg-white">
++                      <SelectItem value="true">Yes</SelectItem>
++                      <SelectItem value="false">No</SelectItem>
++                    </SelectContent>
++                  </Select>
++                );
++              }
++              return (
++                <Input
++                  className="text-xs h-9"
++                  placeholder="e.g. Yes"
++                  value={localVal}
++                  onChange={(e) => setLocalVal(e.target.value)}
++                />
++              );
++            })()}
++          </div>
++        )}
++      </div>
++      <div className="p-4 border-t bg-slate-50 shrink-0">
++        <Button onClick={handleSave} className="bg-gray-600 hover:bg-gray-700 text-white w-full">Save Settings</Button>
++      </div>
++    </div>
++  );
++}
++
+ const getQuestionIcon = (type, className = "h-4 w-4") => {
+   switch (type) {
+     case 'number': return <Hash className={className} />;
+@@ -43,7 +133,6 @@ export default function DocxPage() {
+   const navigate = useNavigate();
+   const viewerRef = useRef(null);
+ 
+-  // ΓöÇΓöÇΓöÇ Redux: questions ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const { questions, loading: qLoading } = useSelector((state) => state.questions);
+   const { token, user: currentUser } = useSelector(state => state.auth);
+ 
+@@ -51,26 +140,22 @@ export default function DocxPage() {
+     dispatch(fetchQuestions()).unwrap().catch(() => { });
+   }, [dispatch]);
+ 
+-  // ΓöÇΓöÇΓöÇ DOCX state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const [loading, setLoading] = useState(false);
+   const [fileName, setFileName] = useState('');
+   const [hasDoc, setHasDoc] = useState(false);
+   const [selectedFile, setSelectedFile] = useState(null);
+   const [activeDoc, setActiveDoc] = useState(null);
++  const [dependencyConfigQuestion, setDependencyConfigQuestion] = useState(null);
+ 
+-  // ΓöÇΓöÇΓöÇ Redux: uploaded documents ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const { documents, uploading, savingMappings, loading: docsLoading, submissions, loadingSubmissions } = useSelector((state) => state.docx || { documents: [], uploading: false, savingMappings: false, loading: false, submissions: [], loadingSubmissions: false });
+   const [historyOpen, setHistoryOpen] = useState(false);
+   const [historySearch, setHistorySearch] = useState('');
+ 
+   const [draggedFields, setDraggedFields] = useState([]);
+-  const [fieldMappings, setFieldMappings] = useState({}); // { fieldId: question }
+-
++  const [fieldMappings, setFieldMappings] = useState({});
+ 
+-  const [interactionMode, setInteractionMode] = useState('edit'); // 'edit' or 'interact'
++  const [interactionMode, setInteractionMode] = useState('edit');
+   const [formValues, setFormValues] = useState({});
+-
+-  // ΓöÇΓöÇΓöÇ Send Modal State ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+   const [users, setUsers] = useState([]);
+   const [isSubmissionsModalOpen, setIsSubmissionsModalOpen] = useState(false);
+@@ -104,7 +189,6 @@ export default function DocxPage() {
+     }
+   };
+ 
+-  // ΓöÇΓöÇΓöÇ Keep refs in sync for global listeners ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const activeDocRef = useRef(activeDoc);
+   useEffect(() => { activeDocRef.current = activeDoc; }, [activeDoc]);
+ 
+@@ -114,16 +198,18 @@ export default function DocxPage() {
+   const draggedFieldsRef = useRef(draggedFields);
+   useEffect(() => { draggedFieldsRef.current = draggedFields; }, [draggedFields]);
+ 
+-  // ΓöÇΓöÇΓöÇ Ctrl+S Listener ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   useEffect(() => {
+     const handleKeyDown = (e) => {
+       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+         e.preventDefault();
+-        // Call the save logic
+         if (activeDocRef.current) {
+           const mappingsToSave = {};
+           Object.entries(fieldMappingsRefForSave.current).forEach(([fieldId, q]) => {
+-            mappingsToSave[fieldId] = q._id;
++            mappingsToSave[fieldId] = {
++              questionId: q._id,
++              dependsOnId: q.dependsOnId || null,
++              dependsOnValue: q.dependsOnValue || ''
++            };
+           });
+           const draggedFieldsToSave = draggedFieldsRef.current.map(df => ({
+             id: df.id,
+@@ -131,7 +217,9 @@ export default function DocxPage() {
+             x: df.x,
+             y: df.y,
+             width: df.width,
+-            height: df.height
++            height: df.height,
++            dependsOnId: df.questionObj?.dependsOnId || null,
++            dependsOnValue: df.questionObj?.dependsOnValue || ''
+           }));
+           dispatch(saveDocxMappings({
+             docxId: activeDocRef.current._id,
+@@ -157,15 +245,11 @@ export default function DocxPage() {
+     dispatch(fetchUploadedDocx()).unwrap().catch(() => { });
+   }, [dispatch]);
+ 
+-  // ΓöÇΓöÇΓöÇ Panel state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const [panelOpen, setPanelOpen] = useState(false);
+   const [activeField, setActiveField] = useState(null);
+-  // activeField: { id, btn, currentMapping: question | null }
+ 
+-  // ΓöÇΓöÇΓöÇ DOM btn registry ΓÇö fieldId ΓåÆ btn element ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const fieldBtnsRef = useRef({});
+ 
+-  // ΓöÇΓöÇΓöÇ Keep refs in sync so DOM callbacks always see latest state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const fieldMappingsRef = useRef({});
+   useEffect(() => { fieldMappingsRef.current = fieldMappings; }, [fieldMappings]);
+ 
+@@ -174,7 +258,43 @@ export default function DocxPage() {
+   const formValuesRef = useRef(formValues);
+   useEffect(() => { formValuesRef.current = formValues; }, [formValues]);
+ 
+-  // ΓöÇΓöÇΓöÇ Sync DOM buttons with interactionMode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++  const isDependencyMet = useCallback((q) => {
++    if (!q.dependsOnId) return true;
++
++    const dependentFieldIds = [
++      ...Object.keys(fieldMappings).filter(fid => fieldMappings[fid]?._id === q.dependsOnId),
++      ...draggedFieldsRef.current.filter(df => df.questionObj?._id === q.dependsOnId).map(df => df.id)
++    ];
++
++    if (dependentFieldIds.length === 0) return false;
++
++    return dependentFieldIds.some(fid => {
++      const val = formValuesRef.current[fid];
++      return val === q.dependsOnValue;
++    });
++  }, [fieldMappings]);
++
++  const handleSaveDependency = useCallback((qId, dependsOnId, dependsOnValue) => {
++    setFieldMappings(prev => {
++      const next = { ...prev };
++      for (const fid in next) {
++        if (next[fid]?._id === qId) {
++          next[fid] = { ...next[fid], dependsOnId, dependsOnValue };
++        }
++      }
++      return next;
++    });
++
++    setDraggedFields(prev => prev.map(df => {
++      if (df.questionObj?._id === qId) {
++        return { ...df, questionObj: { ...df.questionObj, dependsOnId, dependsOnValue } };
++      }
++      return df;
++    }));
++
++    toast.success('Dependency saved locally. Press Ctrl+S to save document!');
++  }, []);
++
+   useEffect(() => {
+     Object.entries(fieldBtnsRef.current).forEach(([fieldId, btn]) => {
+       if (!btn) return;
+@@ -271,8 +391,12 @@ export default function DocxPage() {
+               }
+             };
+           }
++          btn.ondblclick = (e) => {
++            e.preventDefault();
++            e.stopPropagation();
++            setDependencyConfigQuestion(q);
++          };
+         } else {
+-          // Restore unmapped styling
+           btn.innerText = '+';
+           btn.title = 'Click to assign a question';
+           btn.style.background = 'rgba(0, 0, 0, 0.05)';
+@@ -282,30 +406,29 @@ export default function DocxPage() {
+           btn.style.fontWeight = '600';
+           btn.style.padding = '0';
+           btn.style.justifyContent = 'center';
++          btn.ondblclick = null;
+           delete btn.dataset.assigned;
+         }
+       }
+     });
+   }, [interactionMode, fieldMappings]);
+ 
+-  // ΓöÇΓöÇΓöÇ Dynamic Visibility Effect ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   useEffect(() => {
+     if (interactionMode !== 'interact') return;
+     Object.entries(fieldBtnsRef.current).forEach(([fieldId, btn]) => {
+       if (!btn) return;
+       const q = fieldMappings[fieldId];
+       if (q) {
+-        btn.style.visibility = 'visible';
++        const visible = isDependencyMet(q);
++        btn.style.visibility = visible ? 'visible' : 'hidden';
+       }
+     });
+-  }, [interactionMode, fieldMappings, formValues]);
++  }, [interactionMode, fieldMappings, formValues, isDependencyMet]);
+ 
+-  // ΓöÇΓöÇΓöÇ Filtered questions ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const filteredQuestions = questions.filter((q) =>
+     q.question.toLowerCase().includes(searchTerm.toLowerCase())
+   );
+ 
+-  // ΓöÇΓöÇΓöÇ handlePlusClick ΓÇö opened by injected DOM buttons ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const handlePlusClick = useCallback((fieldId, btn) => {
+     const currentMapping = fieldMappingsRef.current[fieldId] || null;
+     setActiveField({ id: fieldId, btn, currentMapping });
+@@ -316,7 +439,6 @@ export default function DocxPage() {
+   const handlePlusClickRef = useRef(handlePlusClick);
+   useEffect(() => { handlePlusClickRef.current = handlePlusClick; }, [handlePlusClick]);
+ 
+-  // ΓöÇΓöÇΓöÇ Reset a DOM button back to "unassigned" + style ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const resetBtn = (btn) => {
+     btn.innerText = '+';
+     btn.title = 'Click to assign a question';
+@@ -330,7 +452,6 @@ export default function DocxPage() {
+     delete btn.dataset.assigned;
+   };
+ 
+-  // ΓöÇΓöÇΓöÇ Assign question to field ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const handleAssignQuestion = (question) => {
+     if (!activeField) return;
+     const { id, btn } = activeField;
+@@ -355,7 +476,6 @@ export default function DocxPage() {
+     btn.style.padding = '0 4px';
+     btn.style.justifyContent = 'space-between';
+ 
+-    // Add text and remove icon
+     btn.innerHTML = `
+       <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${short}</span>
+       <span class="remove-mapping-icon" style="margin-left: 4px; padding: 0 4px; cursor: pointer; color: #dc2626; border-radius: 50%; font-size: 10px; font-weight: bold;" title="Remove mapping">Γ£ò</span>
+@@ -374,7 +494,6 @@ export default function DocxPage() {
+     toast.success(`Mapped: "${short}"`);
+   };
+ 
+-  // ΓöÇΓöÇΓöÇ Remove mapping from field ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const handleRemoveMapping = (id, btn) => {
+     setFieldMappings((prev) => {
+       const next = { ...prev };
+@@ -382,7 +501,6 @@ export default function DocxPage() {
+       return next;
+     });
+ 
+-    // Also clear from formValues
+     setFormValues((prev) => {
+       const next = { ...prev };
+       delete next[id];
+@@ -395,7 +513,6 @@ export default function DocxPage() {
+     toast.success('Field mapping removed');
+   };
+ 
+-  // Set the ref so useEffect can access it without closing over old state
+   useEffect(() => { handleRemoveMappingRef.current = handleRemoveMapping; });
+ 
+   const handleDeleteQuestion = async (e, id) => {
+@@ -403,7 +520,6 @@ export default function DocxPage() {
+     try {
+       await dispatch(deleteQuestion(id)).unwrap();
+       toast.success('Question deleted');
+-      // If it's mapped to any fields, remove it from fieldMappings
+       setFieldMappings(prev => {
+         const next = { ...prev };
+         let removed = false;
+@@ -411,7 +527,6 @@ export default function DocxPage() {
+           if (q._id === id) {
+             delete next[fId];
+             removed = true;
+-            // Also reset the DOM button
+             const btn = fieldBtnsRef.current[fId];
+             if (btn) resetBtn(btn);
+           }
+@@ -427,10 +542,9 @@ export default function DocxPage() {
+     }
+   };
+ 
+-  // ΓöÇΓöÇΓöÇ DOM injection: replace _____ with + buttons & Auto-Map ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const normalizeString = (str) => {
+     if (!str) return '';
+-    // Strip leading numbering like "1.", "Q1.", "Question 1:", etc.
++
+     const noNumbering = str.replace(/^(?:q(?:uestion)?\s*)?\d*[\.\-\):]+\s*/i, '');
+     return noNumbering.toLowerCase().replace(/[^a-z0-9]/g, '');
+   };
+@@ -516,10 +630,8 @@ export default function DocxPage() {
+             }
+           };
+ 
+-          // Register this btn in the DOM ref map
+           fieldBtnsRef.current[fieldId] = btn;
+ 
+-          // Auto-mapping logic
+           const precedingText = range.toString() + (textNode.nodeValue.split(part)[0] || '');
+           const precedingParts = precedingText.split(/_+|\+/);
+           const rawQuestion = precedingParts[precedingParts.length - 1].trim();
+@@ -576,7 +688,6 @@ export default function DocxPage() {
+     return autoMatches;
+   };
+ 
+-  // ΓöÇΓöÇΓöÇ File upload ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   const handleFileChange = async (event) => {
+     const file = event.target.files[0];
+     if (!file) return;
+@@ -588,7 +699,7 @@ export default function DocxPage() {
+     setLoading(true);
+     setHasDoc(false);
+     setFieldMappings({});
+-    fieldBtnsRef.current = {}; // clear btn registry on new file
++    fieldBtnsRef.current = {};
+ 
+     try {
+       const arrayBuffer = await file.arrayBuffer();
+@@ -627,7 +738,6 @@ export default function DocxPage() {
+   const handleSaveMappings = async () => {
+     if (!activeDoc) return;
+ 
+-    // Transform fieldMappings (which has full question objects) into { fieldId: questionId }
+     const mappingsToSave = {};
+     Object.entries(fieldMappings).forEach(([fieldId, q]) => {
+       mappingsToSave[fieldId] = q._id;
+@@ -658,7 +768,6 @@ export default function DocxPage() {
+     try {
+       await dispatch(deleteDocx(doc._id)).unwrap();
+       toast.success(`Document "${doc.originalName}" deleted`);
+-      // If the deleted document is currently active, clear the viewer
+       if (activeDoc?._id === doc._id) {
+         setActiveDoc(null);
+         setHasDoc(false);
+@@ -692,10 +801,8 @@ export default function DocxPage() {
+         });
+         const autoMatches = injectFullWidthButtons();
+         setHasDoc(true);
+-        // Mock a file object for re-upload if needed (not perfect but allows UI to continue)
+-        setSelectedFile(new File([arrayBuffer], doc.originalName, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+ 
+-        // Restore dragged fields
++        setSelectedFile(new File([arrayBuffer], doc.originalName, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+         if (doc.draggedFields && Array.isArray(doc.draggedFields)) {
+           const restoredDraggedFields = doc.draggedFields.map(df => {
+             const q = questions.find(q => q._id === df.questionId);
+@@ -709,9 +816,8 @@ export default function DocxPage() {
+           setDraggedFields(restoredDraggedFields);
+         }
+ 
+-        // Restore mappings if they exist
+         if (doc.mappings && Object.keys(doc.mappings).length > 0) {
+-          const newMappings = { ...autoMatches }; // merge with auto matches
++          const newMappings = { ...autoMatches };
+           let restoredCount = 0;
+           Object.entries(doc.mappings).forEach(([fieldId, mappingObj]) => {
+             const qId = typeof mappingObj === 'string' ? mappingObj : mappingObj.questionId;
+@@ -725,7 +831,7 @@ export default function DocxPage() {
+               newMappings[fieldId] = enhancedQ;
+               restoredCount++;
+ 
+-              // Apply visual styling to the button
++
+               const btn = fieldBtnsRef.current[fieldId];
+               if (btn) {
+                 const short = question.question.length > 22 ? question.question.substring(0, 22) + 'ΓÇª' : question.question;
+@@ -771,22 +877,18 @@ export default function DocxPage() {
+     }
+   };
+ 
+-  // ΓöÇΓöÇΓöÇ Auto-load doc from navigation state ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   useEffect(() => {
+     if (location.state?.docToLoad && questions.length > 0) {
+       handleLoadFromHistory(location.state.docToLoad);
+-      // Clear state so it doesn't auto-load again on refresh
+       navigate('/docx-viewer', { replace: true, state: {} });
+     }
+   }, [location.state?.docToLoad, questions.length, navigate]);
+ 
+   const mappedCount = Object.keys(fieldMappings).length;
+ 
+-  // ΓöÇΓöÇΓöÇ Render ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+   return (
+     <div className="space-y-6 animate-in fade-in duration-300 relative">
+ 
+-      {/* Header */}
+       <div className="flex items-start justify-between">
+         <div>
+           <h2 className="text-3xl font-bold tracking-tight">DOCX Viewer</h2>
+@@ -808,12 +910,6 @@ export default function DocxPage() {
+               <Button variant="outline" className="border-slate-300 text-slate-800 bg-white hover:bg-slate-50 h-8 text-xs font-semibold px-3" onClick={() => setIsSendModalOpen(true)}>
+                 <Send className="h-3.5 w-3.5 mr-1.5" /> Send Docx
+               </Button>
+-              <Button variant="outline" className="border-slate-300 text-slate-800 bg-white hover:bg-slate-50 h-8 text-xs font-semibold px-3" onClick={() => {
+-                dispatch(fetchSubmissions(activeDoc._id));
+-                setIsSubmissionsModalOpen(true);
+-              }}>
+-                <FileText className="h-3.5 w-3.5 mr-1.5" /> View Submissions
+-              </Button>
+               <div className="flex bg-slate-100 rounded-md p-1 border shadow-sm">
+                 <button
+                   onClick={() => setInteractionMode('edit')}
+@@ -833,13 +929,10 @@ export default function DocxPage() {
+         )}
+       </div>
+ 
+-      {/* ΓöÇΓöÇ MAIN COLUMNS ΓöÇΓöÇ */}
+       <div className="flex flex-col lg:flex-row gap-6 items-start w-full">
+ 
+-        {/* ΓöÇΓöÇ LEFT COLUMN ΓöÇΓöÇ */}
+         <div className="flex-1 space-y-6 min-w-0 w-full">
+ 
+-          {/* Upload Card */}
+           <Card className="shadow-md">
+             <CardHeader className="pb-3">
+               <CardTitle className="text-sm font-medium flex items-center gap-2">
+@@ -907,7 +1000,6 @@ export default function DocxPage() {
+             </CardContent>
+           </Card>
+ 
+-          {/* DOCX Render Area */}
+           <Card className="shadow-md">
+             <CardContent className="p-0">
+               <div
+@@ -922,7 +1014,6 @@ export default function DocxPage() {
+                     const wrapper = e.currentTarget;
+                     const rect = wrapper.getBoundingClientRect();
+ 
+-                    // Calculate drop coordinates relative to the scrolling content
+                     const x = e.clientX - rect.left + wrapper.scrollLeft;
+                     const y = e.clientY - rect.top + wrapper.scrollTop;
+ 
+@@ -932,7 +1023,7 @@ export default function DocxPage() {
+                         id: 'drag-' + Date.now(),
+                         questionId: question._id,
+                         questionObj: question,
+-                        x: Math.max(0, x - 100), // center the 200px box slightly
++                        x: Math.max(0, x - 100),
+                         y: Math.max(0, y - 25),
+                         width: 200,
+                         height: 40
+@@ -955,10 +1046,9 @@ export default function DocxPage() {
+                   )}
+                 </div>
+ 
+-                {/* Draggable dropped elements */}
+                 {hasDoc && draggedFields.map(field => {
+                   const q = field.questionObj;
+-                  const isVisible = true;
++                  const isVisible = interactionMode === 'edit' || (q && isDependencyMet(q));
+ 
+                   if (!isVisible) return null;
+ 
+@@ -985,7 +1075,12 @@ export default function DocxPage() {
+                           ...position
+                         } : f));
+                       }}
+-                      className={`absolute ${interactionMode === 'edit' ? 'bg-white/95 border-2 border-slate-400 shadow-md flex items-center justify-center cursor-move group' : 'z-40'} rounded z-50`}
++                      onDoubleClick={() => {
++                        if (interactionMode === 'edit' && q) {
++                          setDependencyConfigQuestion(q);
++                        }
++                      }}
++                      className={`absolute ${interactionMode === 'edit' ? 'bg-white/95 border-2 border-indigo-400 shadow-md flex items-center justify-center cursor-move group' : 'z-40'} rounded z-50`}
+                     >
+                       {interactionMode === 'edit' ? (
+                         <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
+@@ -996,7 +1091,12 @@ export default function DocxPage() {
+                           >
+                             <X className="h-3 w-3" />
+                           </button>
+-                          <p className="text-xs font-semibold text-slate-900 truncate px-2 select-none pointer-events-none text-center">
++                          {q?.dependsOnId && (
++                            <div className="absolute top-0.5 left-0.5 bg-indigo-100 text-indigo-600 rounded p-0.5 z-40" title="Has Dependency">
++                              <Link2 className="h-3 w-3" />
++                            </div>
++                          )}
++                          <p className="text-xs font-semibold text-indigo-900 truncate px-2 select-none pointer-events-none text-center">
+                             {field.questionObj?.question || 'Unknown Question'}
+                           </p>
+                         </div>
+@@ -1051,62 +1151,87 @@ export default function DocxPage() {
+           </Card>
+         </div>
+ 
+-        {/* ΓöÇΓöÇ RIGHT COLUMN: Fixed Draggable Questions Sidebar ΓöÇΓöÇ */}
+         {hasDoc && (
+           <div className="hidden lg:block w-80 shrink-0 sticky top-6">
+             <Card className="shadow-md flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
+-              <CardHeader className="pb-3 border-b bg-white shrink-0">
+-                <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
+-                  <CheckCircle2 className="h-4 w-4 text-slate-800" /> Drag Questions
+-                </CardTitle>
+-                <p className="text-xs text-slate-500 mt-1">
+-                  Drag and drop these questions anywhere on your document to map them visually.
+-                </p>
+-              </CardHeader>
+-
+-              <div className="p-3 bg-slate-50 border-b shrink-0">
+-                <Input
+-                  placeholder="Search questions..."
+-                  value={searchTerm}
+-                  onChange={(e) => setSearchTerm(e.target.value)}
+-                  className="bg-white border-slate-200 focus:bg-white text-sm h-9 w-full"
++              {dependencyConfigQuestion ? (
++                <SidebarDependencyConfig
++                  q={questions.find(x => x._id === dependencyConfigQuestion._id) || dependencyConfigQuestion}
++                  questions={questions}
++                  mappedQuestions={(() => {
++                    const mapped = [];
++                    const seen = new Set();
++                    Object.values(fieldMappings).forEach(q => {
++                      if (q && !seen.has(q._id)) {
++                        mapped.push(q);
++                        seen.add(q._id);
++                      }
++                    });
++                    draggedFields.forEach(df => {
++                      if (df.questionObj && !seen.has(df.questionObj._id)) {
++                        mapped.push(df.questionObj);
++                        seen.add(df.questionObj._id);
++                      }
++                    });
++                    return mapped;
++                  })()}
++                  onSaveDependency={handleSaveDependency}
++                  onClose={() => setDependencyConfigQuestion(null)}
+                 />
+-              </div>
++              ) : (
++                <>
++                  <CardHeader className="pb-3 border-b bg-white shrink-0">
++                    <CardTitle className="text-base font-semibold flex items-center gap-2 text-slate-800">
++                      <CheckCircle2 className="h-4 w-4 text-slate-800" /> Drag Questions
++                    </CardTitle>
++                    <p className="text-xs text-slate-500 mt-1">
++                      Drag and drop these questions anywhere on your document to map them visually.
++                    </p>
++                  </CardHeader>
++
++                  <div className="p-3 bg-slate-50 border-b shrink-0">
++                    <Input
++                      placeholder="Search questions..."
++                      value={searchTerm}
++                      onChange={(e) => setSearchTerm(e.target.value)}
++                      className="bg-white border-slate-200 focus:bg-white text-sm h-9 w-full"
++                    />
++                  </div>
+ 
+-              <CardContent className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/50">
+-                {filteredQuestions.length === 0 ? (
+-                  <div className="text-center text-slate-400 py-10 text-sm">No questions found.</div>
+-                ) : (
+-                  filteredQuestions.map(q => (
+-                    <div
+-                      key={q._id}
+-                      draggable
+-                      onDragStart={(e) => {
+-                        e.dataTransfer.setData('application/json', JSON.stringify(q));
+-                        e.dataTransfer.effectAllowed = 'copy';
+-                      }}
+-                      className="bg-white border border-slate-200 rounded p-3 text-sm text-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:border-slate-400 hover:shadow-md transition-all select-none flex items-center gap-2"
+-                    >
+-                      <div className="text-slate-400 shrink-0">
+-                        {getQuestionIcon(q.type)}
+-                      </div>
+-                      <span className="truncate">{q.question}</span>
+-                    </div>
+-                  ))
+-                )}
+-              </CardContent>
++                  <CardContent className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50/50">
++                    {filteredQuestions.length === 0 ? (
++                      <div className="text-center text-slate-400 py-10 text-sm">No questions found.</div>
++                    ) : (
++                      filteredQuestions.map(q => (
++                        <div
++                          key={q._id}
++                          draggable
++                          onDragStart={(e) => {
++                            e.dataTransfer.setData('application/json', JSON.stringify(q));
++                            e.dataTransfer.effectAllowed = 'copy';
++                          }}
++                          className="bg-white border border-slate-200 rounded p-3 text-sm text-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:border-slate-400 hover:shadow-md transition-all select-none flex items-center gap-2"
++                        >
++                          <div className="text-slate-400 shrink-0">
++                            {getQuestionIcon(q.type)}
++                          </div>
++                          <span className="truncate">{q.question}</span>
++                        </div>
++                      ))
++                    )}
++                  </CardContent>
++                </>
++              )}
+             </Card>
+           </div>
+         )}
+       </div>
+ 
+-      {/* ΓöÇΓöÇ Auto-Mapping Panel (Sheet) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+       <Sheet open={panelOpen} onOpenChange={setPanelOpen}>
+         <SheetContent
+           side="right"
+           className="w-[420px] sm:w-[460px] flex flex-col gap-0 p-0 bg-white shadow-2xl border-l border-slate-200"
+         >
+-          {/* Simple White header */}
+           <SheetHeader className="px-6 pt-6 pb-4 shrink-0 border-b border-slate-200 bg-white">
+             <div className="flex items-center gap-2 mb-1">
+               <Link2 className="h-5 w-5 text-slate-800" />
+@@ -1119,7 +1244,6 @@ export default function DocxPage() {
+             </SheetDescription>
+           </SheetHeader>
+ 
+-          {/* Search bar */}
+           <div className="px-5 pt-4 pb-3 shrink-0 bg-white">
+             <div className="relative">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+@@ -1133,7 +1257,6 @@ export default function DocxPage() {
+             </div>
+           </div>
+ 
+-          {/* Questions list */}
+           <div className="flex-1 overflow-y-auto px-4 pb-2 space-y-2">
+             {qLoading ? (
+               <div className="flex items-center justify-center py-16 gap-2 text-slate-400">
+@@ -1185,7 +1308,6 @@ export default function DocxPage() {
+             )}
+           </div>
+ 
+-          {/* Footer */}
+           <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+             <span className="text-xs text-slate-400">
+               {filteredQuestions.length} question{filteredQuestions.length !== 1 ? 's' : ''}
+@@ -1202,7 +1324,6 @@ export default function DocxPage() {
+         </SheetContent>
+       </Sheet>
+ 
+-      {/* ΓöÇΓöÇ Document History Panel (Left Sheet) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+       <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+         <SheetContent side="left" className="w-[400px] sm:w-[460px] flex flex-col gap-0 p-0 bg-slate-50 shadow-2xl border-r border-slate-200">
+           <SheetHeader className="px-6 pt-6 pb-4 border-b bg-white shrink-0">
+@@ -1298,7 +1419,6 @@ export default function DocxPage() {
+         </SheetContent>
+       </Sheet>
+ 
+-      {/* Send Document Modal */}
+       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
+         <DialogContent className="bg-white">
+           <DialogHeader>
+@@ -1338,7 +1458,6 @@ export default function DocxPage() {
+         </DialogContent>
+       </Dialog>
+ 
+-      {/* ΓöÇΓöÇ Submissions Modal ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ */}
+       <Dialog open={isSubmissionsModalOpen} onOpenChange={setIsSubmissionsModalOpen}>
+         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+           <DialogHeader className="px-6 py-4 border-b">
+@@ -1355,7 +1474,6 @@ export default function DocxPage() {
+               </div>
+             ) : submissions?.length > 0 ? (
+               (() => {
+-                // Compute unique mapped questions
+                 const qIds = new Set();
+                 if (activeDoc?.mappings) {
+                   Object.values(activeDoc.mappings).forEach(m => qIds.add(typeof m === 'string' ? m : m.questionId));

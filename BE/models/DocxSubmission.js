@@ -16,6 +16,9 @@ const DocxSubmissionSchema = new mongoose.Schema({
     of: mongoose.Schema.Types.Mixed,
     default: {},
   },
+  layout: [{
+    type: mongoose.Schema.Types.Mixed
+  }],
   draggedFields: [{
     id: String,
     questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
