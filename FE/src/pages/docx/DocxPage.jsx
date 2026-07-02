@@ -1385,20 +1385,15 @@ export default function DocxPage() {
   useEffect(() => {
     if (!viewerRef.current) return;
     const wrappers = viewerRef.current.querySelectorAll('.docx-injected-input-wrapper');
-    const blocksToHide = new Set();
-    const blocksToShow = new Set();
 
     wrappers.forEach(btn => {
-      const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section');
-
       if (interactionMode === 'edit') {
-        btn.style.display = 'flex';
+        btn.style.visibility = 'visible';
         btn.style.pointerEvents = 'auto';
         if (btn.parentElement?.tagName === 'SPAN') {
-          btn.parentElement.style.display = 'inline-grid';
+          btn.parentElement.style.visibility = 'visible';
         }
         if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'hidden';
-        if (block) blocksToShow.add(block);
         return;
       }
 
@@ -1420,12 +1415,11 @@ export default function DocxPage() {
           
           if (!qObj) {
             btn.style.pointerEvents = 'none';
-            btn.style.display = 'none';
+            btn.style.visibility = 'hidden';
             if (btn.parentElement?.tagName === 'SPAN') {
-              btn.parentElement.style.display = 'inline-grid';
+              btn.parentElement.style.visibility = 'hidden';
             }
             if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'visible';
-            if (block) blocksToShow.add(block);
           } else if (shouldRender(fieldId, qObj)) {
             if (input && input.tagName !== 'DIV') {
               if (input.type === 'checkbox') {
@@ -1437,33 +1431,22 @@ export default function DocxPage() {
               }
             }
             btn.style.pointerEvents = 'auto';
-            btn.style.display = 'flex';
+            btn.style.visibility = 'visible';
             if (btn.parentElement?.tagName === 'SPAN') {
-              btn.parentElement.style.display = 'inline-grid';
+              btn.parentElement.style.visibility = 'visible';
             }
             if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'hidden';
-            if (block) blocksToShow.add(block);
           } else {
             btn.style.pointerEvents = 'auto';
-            btn.style.display = 'none';
+            btn.style.visibility = 'hidden';
             if (btn.parentElement?.tagName === 'SPAN') {
-              btn.parentElement.style.display = 'none';
+              btn.parentElement.style.visibility = 'hidden';
             }
-            if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'hidden';
-            if (block) blocksToHide.add(block);
+            if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'visible';
           }
         }
       }
     });
-
-    for (const block of blocksToHide) {
-      if (!blocksToShow.has(block)) {
-        block.style.display = 'none';
-      }
-    }
-    for (const block of blocksToShow) {
-      block.style.display = '';
-    }
   }, [formValues, interactionMode, fieldMappings, layout, questions]);
 
   return (

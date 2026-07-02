@@ -25,37 +25,41 @@ export default function FillDocxPage() {
   const formValuesRef = useRef(formValues);
   useEffect(() => { formValuesRef.current = formValues; }, [formValues]);
 
+  const effectiveMappings = submission?.docxId?.mappings || submission?.mappings || {};
+  const effectiveLayout = submission?.docxId?.layout || submission?.layout || [];
+  const effectiveDraggedFields = submission?.docxId?.draggedFields || submission?.draggedFields || [];
+
   const shouldRender = (fieldId, qObj) => {
-    const layout = submission?.layout || [];
+    const layout = effectiveLayout;
     if (!layout.length && (!qObj || !qObj.dependsOnId)) return true;
 
     const evaluateCondition = (cond) => {
       let depQId = null;
       let depQObj = null;
 
-      const depMapping = submission?.mappings?.[cond.dependsOn];
+      const depMapping = effectiveMappings[cond.dependsOn];
       if (depMapping) {
         depQObj = typeof depMapping === 'string' ? questions.find(q => q._id === depMapping) : depMapping.type ? depMapping : questions.find(q => q._id === depMapping.questionId);
-        depQId = depQObj?._id;
+        depQId = depQObj?._id || depQObj?.questionId;
       } else {
-        const dragged = submission?.draggedFields?.find(df => df.id === cond.dependsOn);
+        const dragged = effectiveDraggedFields.find(df => df.id === cond.dependsOn);
         if (dragged) {
           depQObj = dragged.questionObj || questions.find(q => q._id === dragged.questionId);
-          depQId = depQObj?._id;
+          depQId = depQObj?._id || depQObj?.questionId;
         }
       }
 
       if (!depQId) return true;
 
       const dependentFieldIds = [];
-      if (submission?.mappings) {
-        Object.entries(submission.mappings).forEach(([fId, q]) => {
+      if (effectiveMappings) {
+        Object.entries(effectiveMappings).forEach(([fId, q]) => {
           const id = typeof q === 'string' ? q : (q._id || q.questionId);
           if (id === depQId) dependentFieldIds.push(fId);
         });
       }
-      if (submission?.draggedFields) {
-        submission.draggedFields.forEach(df => {
+      if (effectiveDraggedFields) {
+        effectiveDraggedFields.forEach(df => {
           const id = df.questionId || df.questionObj?._id;
           if (id === depQId) dependentFieldIds.push(df.id);
         });
@@ -103,15 +107,15 @@ export default function FillDocxPage() {
     // Legacy legacy rule
     if (qObj && qObj.dependsOnId) {
       const dependentFieldIds = [];
-      if (submission?.mappings) {
-        Object.entries(submission.mappings).forEach(([k, m]) => {
+      if (effectiveMappings) {
+        Object.entries(effectiveMappings).forEach(([k, m]) => {
           if ((typeof m === 'string' ? m : m.questionId) === qObj.dependsOnId) {
             dependentFieldIds.push(k);
           }
         });
       }
-      if (submission?.draggedFields) {
-        submission.draggedFields.forEach(df => {
+      if (effectiveDraggedFields) {
+        effectiveDraggedFields.forEach(df => {
           if ((df.questionId || df.questionObj?._id) === qObj.dependsOnId) {
             dependentFieldIds.push(df.id);
           }
@@ -185,12 +189,12 @@ export default function FillDocxPage() {
   };
 
   const handleInputChangeRef = useRef(handleInputChange);
-  useEffect(() => { handleInputChangeRef.current = handleInputChange; }, []);
+  useEffect(() => { handleInputChangeRef.current = handleInputChange; }, [effectiveMappings]);
 
   const injectInputs = () => {
     if (!viewerRef.current) return;
 
-    const mappings = submission.mappings || {};
+    const mappings = effectiveMappings;
     let fieldCount = 0;
 
     const textNodes = [];
@@ -340,8 +344,8 @@ export default function FillDocxPage() {
 
   const handleSubmit = async () => {
 
-    const mappings = submission.mappings || {};
-    const draggedFields = submission.draggedFields || [];
+    const mappings = effectiveMappings;
+    const draggedFields = effectiveDraggedFields;
 
     let isValid = true;
     const missingQuestions = [];
@@ -409,7 +413,7 @@ export default function FillDocxPage() {
       if (input) {
         const fieldId = input.getAttribute('data-field-id');
         if (fieldId) {
-          const mapping = submission?.mappings?.[fieldId];
+          const mapping = effectiveMappings[fieldId];
           let qObj = null;
           if (mapping) {
             if (typeof mapping === 'string') {
@@ -431,20 +435,20 @@ export default function FillDocxPage() {
                 if (input.value !== expected) input.value = expected;
               }
             }
-            btn.style.display = 'flex';
+            btn.style.visibility = 'visible';
             if (btn.parentElement?.tagName === 'SPAN') {
-              btn.parentElement.style.display = 'inline-grid';
+              btn.parentElement.style.visibility = 'visible';
             }
           } else {
-            btn.style.display = 'none';
+            btn.style.visibility = 'hidden';
             if (btn.parentElement?.tagName === 'SPAN') {
-              btn.parentElement.style.display = 'none';
+              btn.parentElement.style.visibility = 'hidden';
             }
           }
         }
       }
     });
-  }, [formValues, submission, questions]);
+  }, [formValues, submission, questions, loading, effectiveLayout, effectiveMappings, effectiveDraggedFields]);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -481,7 +485,7 @@ export default function FillDocxPage() {
                 <p className="text-sm">Loading document for filling...</p>
               </div>
             )}
-            {!loading && submission && (submission.draggedFields || []).map(df => {
+            {!loading && submission && effectiveDraggedFields.map(df => {
               const questionObj = df.type ? df : questions.find(q => q._id === df.questionId);
               if (!questionObj) return null;
 
