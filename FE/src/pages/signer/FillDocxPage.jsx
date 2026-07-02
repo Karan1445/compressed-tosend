@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/button';
 import { Loader2, ArrowLeft, Send, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { submitDocx } from '../../store/slices/docxSlice';
-import { fetchQuestions, fetchQuestionsAll } from '../../store/slices/questionSlice';
+import { fetchQuestions } from '../../store/slices/questionSlice';
 
 export default function FillDocxPage() {
   const location = useLocation();
@@ -15,7 +15,7 @@ export default function FillDocxPage() {
   const dispatch = useDispatch();
   const viewerRef = useRef(null);
 
-  const [doc, setDoc] = useState(location.state?.doc || null);
+  const [submission, setSubmission] = useState(location.state?.doc || null);
   const [loading, setLoading] = useState(true);
   const [formValues, setFormValues] = useState({});
   const { submitting } = useSelector(state => state.docx);
@@ -28,14 +28,14 @@ export default function FillDocxPage() {
 
   useEffect(() => {
     if (questions.length === 0) {
-      dispatch(fetchQuestionsAll()).unwrap().finally(() => setQuestionsLoaded(true));
+      dispatch(fetchQuestions()).unwrap().catch(() => {}).finally(() => setQuestionsLoaded(true));
     } else {
       setQuestionsLoaded(true);
     }
   }, [dispatch, questions.length]);
 
   useEffect(() => {
-    if (!doc) {
+    if (!submission) {
       toast.error('Document not found in state.');
       navigate('/signer');
       return;
@@ -44,7 +44,7 @@ export default function FillDocxPage() {
     const loadDoc = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`http://localhost:8888/${doc.path.replace(/\\/g, '/')}`);
+        const response = await fetch(`http://localhost:8888/${submission.docxId?.path.replace(/\\/g, '/')}`);
         if (!response.ok) throw new Error('Network error loading document');
         const arrayBuffer = await response.arrayBuffer();
 
@@ -66,16 +66,16 @@ export default function FillDocxPage() {
     if (questionsLoaded) {
       loadDoc();
     }
-  }, [doc, questionsLoaded, questions]);
+  }, [submission, questionsLoaded, questions]);
 
   const handleInputChange = (fieldId, value) => {
 
     let qId = null;
-    const mapping = doc?.mappings?.[fieldId];
+    const mapping = submission?.mappings?.[fieldId];
     if (mapping) {
       qId = typeof mapping === 'string' ? mapping : mapping.questionId;
     } else {
-      const dragged = doc?.draggedFields?.find(df => df.id === fieldId);
+      const dragged = submission?.draggedFields?.find(df => df.id === fieldId);
       if (dragged) qId = dragged.questionId;
     }
 
@@ -83,14 +83,14 @@ export default function FillDocxPage() {
       const next = { ...prev, [fieldId]: value };
 
       if (qId) {
-        if (doc?.mappings) {
-          Object.entries(doc.mappings).forEach(([mId, m]) => {
+        if (submission?.mappings) {
+          Object.entries(submission.mappings).forEach(([mId, m]) => {
             const mappedQId = typeof m === 'string' ? m : m.questionId;
             if (mappedQId === qId) next[mId] = value;
           });
         }
-        if (doc?.draggedFields) {
-          doc.draggedFields.forEach(df => {
+        if (submission?.draggedFields) {
+          submission.draggedFields.forEach(df => {
             if (df.questionId === qId) next[df.id] = value;
           });
         }
@@ -105,7 +105,7 @@ export default function FillDocxPage() {
   const injectInputs = () => {
     if (!viewerRef.current) return;
 
-    const mappings = doc.mappings || {};
+    const mappings = submission.mappings || {};
     let fieldCount = 0;
 
     const textNodes = [];
@@ -135,7 +135,16 @@ export default function FillDocxPage() {
           const fieldId = `field-${fieldCount}`;
 
           const mapping = mappings[fieldId];
-          const questionObj = mapping && questions ? questions.find(q => q._id === (typeof mapping === 'string' ? mapping : mapping.questionId)) : null;
+          let questionObj = null;
+          if (mapping) {
+            if (typeof mapping === 'string') {
+              questionObj = questions ? questions.find(q => q._id === mapping) : null;
+            } else if (mapping.type) {
+              questionObj = mapping;
+            } else {
+              questionObj = questions ? questions.find(q => q._id === mapping.questionId) : null;
+            }
+          }
 
           if (questionObj) {
             const container = document.createElement('span');
@@ -246,15 +255,21 @@ export default function FillDocxPage() {
 
   const handleSubmit = async () => {
 
-    const mappings = doc.mappings || {};
-    const draggedFields = doc.draggedFields || [];
+    const mappings = submission.mappings || {};
+    const draggedFields = submission.draggedFields || [];
 
     let isValid = true;
     const missingQuestions = [];
 
     for (const [fieldId, mapping] of Object.entries(mappings)) {
-      const qId = typeof mapping === 'string' ? mapping : mapping.questionId;
-      const questionObj = questions.find(q => q._id === qId);
+      let questionObj = null;
+      if (typeof mapping === 'string') {
+        questionObj = questions.find(q => q._id === mapping);
+      } else if (mapping.type) {
+        questionObj = mapping;
+      } else {
+        questionObj = questions.find(q => q._id === mapping.questionId);
+      }
 
       if (questionObj && questionObj.required) {
         if (!formValues[fieldId] || formValues[fieldId].trim() === '') {
@@ -271,7 +286,12 @@ export default function FillDocxPage() {
     }
 
     draggedFields.forEach(df => {
-      const questionObj = questions.find(q => q._id === df.questionId);
+      let questionObj = null;
+      if (df.type) {
+        questionObj = df;
+      } else {
+        questionObj = questions.find(q => q._id === df.questionId);
+      }
       if (questionObj && questionObj.required) {
         if (!formValues[df.id] || formValues[df.id].trim() === '') {
           isValid = false;
@@ -287,7 +307,7 @@ export default function FillDocxPage() {
     }
 
     try {
-      await dispatch(submitDocx({ docxId: doc._id, answers: formValues })).unwrap();
+      await dispatch(submitDocx({ docxId: submission._id, answers: formValues })).unwrap();
       toast.success('Document successfully submitted!');
       navigate('/signer');
     } catch (err) {
@@ -306,7 +326,7 @@ export default function FillDocxPage() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-gray-900">Fill Document</h2>
             <p className="text-muted-foreground text-sm mt-1">
-              {doc?.originalName}
+              {submission?.docxId?.originalName}
             </p>
           </div>
         </div>
@@ -330,13 +350,15 @@ export default function FillDocxPage() {
                 <p className="text-sm">Loading document for filling...</p>
               </div>
             )}
-
-            {!loading && doc?.draggedFields && doc.draggedFields.map((df) => {
-              const questionObj = questions.find(q => q._id === df.questionId);
+            {!loading && submission && (submission.draggedFields || []).map(df => {
+              const questionObj = df.type ? df : questions.find(q => q._id === df.questionId);
               if (!questionObj) return null;
 
               const isRequired = questionObj.required;
               const isEmpty = !formValues[df.id] || formValues[df.id].trim() === '';
+              
+              const currentVal = formValues[df.id] || '';
+              const short = questionObj.question;
 
               return (
                 <div
@@ -350,18 +372,81 @@ export default function FillDocxPage() {
                     zIndex: 20
                   }}
                 >
-                  <input
-                    type={questionObj.type === 'number' ? 'number' : (questionObj.type === 'date' ? 'date' : 'text')}
-                    placeholder={questionObj.question + (isRequired ? ' *' : '')}
-                    value={formValues[df.id] || ''}
-                    onChange={(e) => handleInputChange(df.id, e.target.value)}
-                    className="w-full h-full border rounded px-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-colors docx-dragged-input"
-                    style={{
-                      backgroundColor: isRequired && isEmpty ? '#fef2f2' : 'white',
+                  {(() => {
+                    const commonClasses = "w-full h-full border rounded focus:ring-2 focus:ring-blue-500 outline-none transition-colors shadow-sm docx-dragged-input";
+                    const commonStyle = {
+                      backgroundColor: isRequired && isEmpty ? '#fef2f2' : 'rgba(255, 255, 255, 0.9)',
                       borderColor: isRequired && isEmpty ? '#ef4444' : '#cbd5e1',
                       borderLeft: isRequired ? '3px solid #ef4444' : undefined
-                    }}
-                  />
+                    };
+
+                    if (questionObj.type === 'checkbox') {
+                      const isChecked = currentVal === 'true' || currentVal === true;
+                      return (
+                        <div 
+                          className="w-full h-full border rounded flex items-center justify-center shadow-sm transition-colors"
+                          style={{
+                            backgroundColor: isRequired && isEmpty ? '#fef2f2' : 'rgba(255, 255, 255, 0.9)',
+                            borderColor: isRequired && isEmpty ? '#ef4444' : '#cbd5e1',
+                            borderLeft: isRequired ? '3px solid #ef4444' : undefined
+                          }}
+                        >
+                           <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={(e) => handleInputChange(df.id, e.target.checked.toString())}
+                            className="cursor-pointer h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                          />
+                        </div>
+                      );
+                    } else if (questionObj.type === 'dropdown' || questionObj.type === 'radio') {
+                      return (
+                        <select
+                          value={currentVal}
+                          onChange={(e) => handleInputChange(df.id, e.target.value)}
+                          className={`${commonClasses} px-2 text-sm cursor-pointer`}
+                          style={commonStyle}
+                        >
+                          <option value="" disabled>{short + (isRequired ? ' *' : '')}</option>
+                          {(questionObj.options || []).map((opt, i) => (
+                            <option key={i} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      );
+                    } else if (questionObj.type === 'date') {
+                      return (
+                        <input
+                          type="date"
+                          value={currentVal}
+                          onChange={(e) => handleInputChange(df.id, e.target.value)}
+                          className={`${commonClasses} px-2 text-sm cursor-pointer`}
+                          style={commonStyle}
+                        />
+                      );
+                    } else if (questionObj.type === 'textarea') {
+                      return (
+                        <textarea
+                          placeholder={short + (isRequired ? ' *' : '')}
+                          value={currentVal}
+                          onChange={(e) => handleInputChange(df.id, e.target.value)}
+                          className={`${commonClasses} p-2 text-sm resize-none`}
+                          style={commonStyle}
+                        />
+                      );
+                    } else {
+                      const typeAttr = questionObj.type === 'number' ? 'number' : 'text';
+                      return (
+                        <input
+                          type={typeAttr}
+                          placeholder={short + (isRequired ? ' *' : '')}
+                          value={currentVal}
+                          onChange={(e) => handleInputChange(df.id, e.target.value)}
+                          className={`${commonClasses} px-2 text-sm`}
+                          style={commonStyle}
+                        />
+                      );
+                    }
+                  })()}
                 </div>
               );
             })}

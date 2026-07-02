@@ -110,6 +110,9 @@ export default function SubmissionsPage() {
                             <tr key={sub._id} className="hover:bg-slate-50">
                               <td className="px-4 py-3 sticky left-0 bg-white border-r z-10 font-medium shadow-[1px_0_0_0_#e2e8f0]">
                                 {sub.signerId?.name || 'Unknown'}
+                                <span className={`ml-2 px-2 py-0.5 text-[10px] rounded-full ${sub.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                  {sub.status === 'completed' ? 'Submitted' : 'Pending'}
+                                </span>
                               </td>
                               {uniqueQuestions.map((q, i) => (
                                 <td key={i} className="px-4 py-3 border-r max-w-xs truncate" title={String(getAnswerForQuestion(sub, q._id))}>

@@ -30,6 +30,10 @@ const DocxSchema = new mongoose.Schema({
   draggedFields: [{
     id: String,
     questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
+    question: String,
+    type: { type: String },
+    options: [String],
+    required: Boolean,
     x: Number,
     y: Number,
     width: Number,

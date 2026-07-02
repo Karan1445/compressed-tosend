@@ -50,20 +50,20 @@ export default function SignerPage() {
                   </td>
                 </tr>
               ) : assignedDocuments?.length > 0 ? (
-                assignedDocuments.map((doc) => (
-                  <tr key={doc._id} className="hover:bg-gray-50">
+                assignedDocuments.map((sub) => (
+                  <tr key={sub._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium text-gray-900">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-blue-500 shrink-0" />
-                        {doc.originalName}
+                        {sub.docxId?.originalName || 'Unknown Document'}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-gray-500">
-                      {new Date(doc.uploadDate).toLocaleDateString()}
+                      {new Date(sub.submittedAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => navigate(`/signer/fill/${doc._id}`, { state: { doc } })}
+                        onClick={() => navigate(`/signer/fill/${sub._id}`, { state: { doc: sub } })}
                         className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
                       >
                         Open & Fill

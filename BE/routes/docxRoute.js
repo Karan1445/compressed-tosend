@@ -110,9 +110,20 @@ router.post('/:id/assign', async (req, res) => {
 
     const currentAssignees = doc.assignees ? doc.assignees.map(id => id.toString()) : [];
     doc.assignees = [...new Set([...currentAssignees, ...assigneeIds])];
-    const updatedDoc = await doc.save();
+    await doc.save();
 
-    res.json(updatedDoc);
+    for (const assigneeId of assigneeIds) {
+      const submission = new DocxSubmission({
+        docxId: doc._id,
+        signerId: assigneeId,
+        status: 'pending',
+        mappings: doc.mappings,
+        draggedFields: doc.draggedFields
+      });
+      await submission.save();
+    }
+
+    res.json(doc);
   } catch (err) {
     console.error(err.message);
     if (err.kind === 'ObjectId') {
@@ -124,8 +135,10 @@ router.post('/:id/assign', async (req, res) => {
 
 router.get('/assigned', requirePermission('sign'), async (req, res) => {
   try {
-    const docs = await Docx.find({ assignees: { $in: [req.user._id] } }).sort({ uploadDate: -1 });
-    res.json(docs);
+    const submissions = await DocxSubmission.find({ signerId: req.user._id, status: 'pending' })
+      .populate('docxId')
+      .sort({ submittedAt: -1 });
+    res.json(submissions);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -135,36 +148,36 @@ router.get('/assigned', requirePermission('sign'), async (req, res) => {
 router.post('/:id/submit', requirePermission('sign'), async (req, res) => {
   try {
     const { answers } = req.body;
-    const doc = await Docx.findById(req.params.id);
-    if (!doc) {
-      return res.status(404).json({ msg: 'Document not found' });
+    const submission = await DocxSubmission.findById(req.params.id);
+    
+    if (!submission) {
+      return res.status(404).json({ msg: 'Assignment not found' });
     }
 
-    const isAssigned = doc.assignees && doc.assignees.some(id => id.toString() === req.user._id.toString());
-    if (!isAssigned && req.user.role !== 'Super Admin') {
+    if (submission.signerId.toString() !== req.user._id.toString() && req.user.role !== 'Super Admin') {
       return res.status(403).json({ msg: 'You are not assigned to this document' });
     }
 
-    const submission = new DocxSubmission({
-      docxId: doc._id,
-      signerId: req.user._id,
-      answers: answers
-    });
-
+    submission.answers = answers;
+    submission.status = 'completed';
+    submission.submittedAt = Date.now();
     await submission.save();
 
-    const idx = doc.assignees.findIndex(id => id.toString() === req.user._id.toString());
-    if (idx !== -1) {
-      doc.assignees.splice(idx, 1);
-      doc.markModified('assignees');
-      await doc.save();
+    const doc = await Docx.findById(submission.docxId);
+    if (doc) {
+      const idx = doc.assignees.findIndex(id => id.toString() === req.user._id.toString());
+      if (idx !== -1) {
+        doc.assignees.splice(idx, 1);
+        doc.markModified('assignees');
+        await doc.save();
+      }
     }
 
     res.json({ msg: 'Document submitted successfully', submission });
   } catch (err) {
     console.error(err.message);
     if (err.kind === 'ObjectId') {
-      return res.status(404).json({ msg: 'Document not found' });
+      return res.status(404).json({ msg: 'Document/Assignment not found' });
     }
     res.status(500).send('Server Error');
   }

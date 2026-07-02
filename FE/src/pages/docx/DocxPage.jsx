@@ -207,20 +207,31 @@ export default function DocxPage() {
           Object.entries(fieldMappingsRefForSave.current).forEach(([fieldId, q]) => {
             mappingsToSave[fieldId] = {
               questionId: q._id,
+              question: q.question,
+              type: q.type,
+              options: q.options,
+              required: q.required,
               dependsOnId: q.dependsOnId || null,
               dependsOnValue: q.dependsOnValue || ''
             };
           });
-          const draggedFieldsToSave = draggedFieldsRef.current.map(df => ({
-            id: df.id,
-            questionId: df.questionId || (df.questionObj ? df.questionObj._id : null),
-            x: df.x,
-            y: df.y,
-            width: df.width,
-            height: df.height,
-            dependsOnId: df.questionObj?.dependsOnId || null,
-            dependsOnValue: df.questionObj?.dependsOnValue || ''
-          }));
+          const draggedFieldsToSave = draggedFieldsRef.current.map(df => {
+            const q = df.questionObj;
+            return {
+              id: df.id,
+              questionId: df.questionId || (q ? q._id : null),
+              question: q ? q.question : '',
+              type: q ? q.type : '',
+              options: q ? q.options : [],
+              required: q ? q.required : false,
+              x: df.x,
+              y: df.y,
+              width: df.width,
+              height: df.height,
+              dependsOnId: q?.dependsOnId || null,
+              dependsOnValue: q?.dependsOnValue || ''
+            };
+          });
           dispatch(saveDocxMappings({
             docxId: activeDocRef.current._id,
             mappings: mappingsToSave,
@@ -740,17 +751,34 @@ export default function DocxPage() {
 
     const mappingsToSave = {};
     Object.entries(fieldMappings).forEach(([fieldId, q]) => {
-      mappingsToSave[fieldId] = q._id;
+      mappingsToSave[fieldId] = {
+        questionId: q._id,
+        question: q.question,
+        type: q.type,
+        options: q.options,
+        required: q.required,
+        dependsOnId: q.dependsOnId || null,
+        dependsOnValue: q.dependsOnValue || ''
+      };
     });
 
-    const draggedFieldsToSave = draggedFields.map(df => ({
-      id: df.id,
-      questionId: df.questionId,
-      x: df.x,
-      y: df.y,
-      width: df.width,
-      height: df.height
-    }));
+    const draggedFieldsToSave = draggedFields.map(df => {
+      const q = df.questionObj;
+      return {
+        id: df.id,
+        questionId: df.questionId || (q ? q._id : null),
+        question: q ? q.question : '',
+        type: q ? q.type : '',
+        options: q ? q.options : [],
+        required: q ? q.required : false,
+        x: df.x,
+        y: df.y,
+        width: df.width,
+        height: df.height,
+        dependsOnId: q?.dependsOnId || null,
+        dependsOnValue: q?.dependsOnValue || ''
+      };
+    });
 
     try {
       await dispatch(saveDocxMappings({
