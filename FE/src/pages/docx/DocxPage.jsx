@@ -573,10 +573,16 @@ export default function DocxPage() {
     if (dependentFieldIds.length === 0) return false;
 
     return dependentFieldIds.some(fid => {
-      const val = formValuesRef.current[fid];
+      let val = formValuesRef.current[fid];
+      const parentQ = questions.find(x => x._id === q.dependsOnId);
+      if (parentQ && parentQ.type === 'checkbox') {
+         val = val === undefined ? 'false' : String(val);
+      } else {
+         val = val === undefined ? '' : String(val);
+      }
       return val === q.dependsOnValue;
     });
-  }, [fieldMappings]);
+  }, [fieldMappings, questions]);
 
   const handleSaveDependency = useCallback((qId, dependsOnId, dependsOnValue) => {
     setFieldMappings(prev => {
@@ -733,11 +739,11 @@ export default function DocxPage() {
       if (!btn) return;
       const q = fieldMappings[fieldId];
       if (q) {
-        const visible = isDependencyMet(q);
+        const visible = shouldRender(fieldId, q);
         btn.style.visibility = visible ? 'visible' : 'hidden';
       }
     });
-  }, [interactionMode, fieldMappings, formValues, isDependencyMet]);
+  }, [interactionMode, fieldMappings, formValues, shouldRender]);
 
   const filteredQuestions = questions.filter((q) =>
     q.question.toLowerCase().includes(searchTerm.toLowerCase())
@@ -1277,7 +1283,7 @@ export default function DocxPage() {
 
   const mappedCount = Object.keys(fieldMappings).length;
 
-  const shouldRender = (fieldId, qObj) => {
+  function shouldRender(fieldId, qObj) {
     if (!layout.length && (!qObj || !qObj.dependsOnId)) return true;
 
     const evaluateCondition = (cond) => {
@@ -1346,26 +1352,31 @@ export default function DocxPage() {
     }
 
     if (qObj && qObj.dependsOnId) {
-      const depFieldKey = Object.keys(fieldMappings).find(k => {
+      const dependentFieldIds = [];
+      Object.keys(fieldMappings).forEach(k => {
         const m = fieldMappings[k];
-        return (typeof m === 'string' ? m : m.questionId) === qObj.dependsOnId;
+        if ((typeof m === 'string' ? m : m.questionId) === qObj.dependsOnId) {
+           dependentFieldIds.push(k);
+        }
       });
-      if (depFieldKey) {
-        let val = formValuesRef.current[depFieldKey];
-        const depMapping = fieldMappings[depFieldKey];
-        let depQObj = null;
-        if (depMapping) {
-           depQObj = typeof depMapping === 'string' ? questions.find(q => q._id === depMapping) : depMapping.type ? depMapping : questions.find(q => q._id === depMapping.questionId);
-        } else {
-           const dragged = draggedFields.find(df => df.id === depFieldKey);
-           if (dragged) depQObj = dragged.questionObj || questions.find(q => q._id === dragged.questionId);
-        }
-        if (depQObj && depQObj.type === 'checkbox') {
-           val = val || 'false';
-        } else {
-           val = val || '';
-        }
-        if (String(val) !== String(qObj.dependsOnValue)) return false;
+      draggedFields.forEach(df => {
+         if ((df.questionId || df.questionObj?._id) === qObj.dependsOnId) {
+            dependentFieldIds.push(df.id);
+         }
+      });
+
+      if (dependentFieldIds.length > 0) {
+        const isMet = dependentFieldIds.some(fId => {
+          let val = formValuesRef.current[fId];
+          const parentQ = questions.find(x => x._id === qObj.dependsOnId);
+          if (parentQ && parentQ.type === 'checkbox') {
+             val = val === undefined ? 'false' : String(val);
+          } else {
+             val = val === undefined ? '' : String(val);
+          }
+          return val === qObj.dependsOnValue;
+        });
+        if (!isMet) return false;
       }
     }
     return true;

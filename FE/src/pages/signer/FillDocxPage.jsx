@@ -50,14 +50,14 @@ export default function FillDocxPage() {
       const dependentFieldIds = [];
       if (submission?.mappings) {
         Object.entries(submission.mappings).forEach(([fId, q]) => {
-           const id = typeof q === 'string' ? q : (q._id || q.questionId);
-           if (id === depQId) dependentFieldIds.push(fId);
+          const id = typeof q === 'string' ? q : (q._id || q.questionId);
+          if (id === depQId) dependentFieldIds.push(fId);
         });
       }
       if (submission?.draggedFields) {
         submission.draggedFields.forEach(df => {
-           const id = df.questionId || df.questionObj?._id;
-           if (id === depQId) dependentFieldIds.push(df.id);
+          const id = df.questionId || df.questionObj?._id;
+          if (id === depQId) dependentFieldIds.push(df.id);
         });
       }
 
@@ -66,9 +66,9 @@ export default function FillDocxPage() {
       return dependentFieldIds.some(fId => {
         let val = formValuesRef.current[fId];
         if (depQObj && depQObj.type === 'checkbox') {
-           val = val || 'false';
+          val = val || 'false';
         } else {
-           val = val || '';
+          val = val || '';
         }
 
         if (cond.operator === 'equals') {
@@ -102,26 +102,34 @@ export default function FillDocxPage() {
 
     // Legacy legacy rule
     if (qObj && qObj.dependsOnId) {
-      const depFieldKey = Object.keys(submission?.mappings || {}).find(k => {
-        const m = submission.mappings[k];
-        return (typeof m === 'string' ? m : m.questionId) === qObj.dependsOnId;
-      });
-      if (depFieldKey) {
-        let val = formValuesRef.current[depFieldKey];
-        const depMapping = submission?.mappings?.[depFieldKey];
-        let depQObj = null;
-        if (depMapping) {
-           depQObj = typeof depMapping === 'string' ? questions.find(q => q._id === depMapping) : depMapping.type ? depMapping : questions.find(q => q._id === depMapping.questionId);
-        } else {
-           const dragged = submission?.draggedFields?.find(df => df.id === depFieldKey);
-           if (dragged) depQObj = dragged.questionObj || questions.find(q => q._id === dragged.questionId);
-        }
-        if (depQObj && depQObj.type === 'checkbox') {
-           val = val || 'false';
-        } else {
-           val = val || '';
-        }
-        if (String(val) !== String(qObj.dependsOnValue)) return false;
+      const dependentFieldIds = [];
+      if (submission?.mappings) {
+        Object.entries(submission.mappings).forEach(([k, m]) => {
+          if ((typeof m === 'string' ? m : m.questionId) === qObj.dependsOnId) {
+            dependentFieldIds.push(k);
+          }
+        });
+      }
+      if (submission?.draggedFields) {
+        submission.draggedFields.forEach(df => {
+          if ((df.questionId || df.questionObj?._id) === qObj.dependsOnId) {
+            dependentFieldIds.push(df.id);
+          }
+        });
+      }
+
+      if (dependentFieldIds.length > 0) {
+        const isMet = dependentFieldIds.some(fId => {
+          let val = formValuesRef.current[fId];
+          const parentQ = questions.find(x => x._id === qObj.dependsOnId);
+          if (parentQ && parentQ.type === 'checkbox') {
+            val = val === undefined ? 'false' : String(val);
+          } else {
+            val = val === undefined ? '' : String(val);
+          }
+          return val === qObj.dependsOnValue;
+        });
+        if (!isMet) return false;
       }
     }
 
@@ -132,7 +140,7 @@ export default function FillDocxPage() {
 
   useEffect(() => {
     if (questions.length === 0) {
-      dispatch(fetchQuestions()).unwrap().catch(() => {}).finally(() => setQuestionsLoaded(true));
+      dispatch(fetchQuestions()).unwrap().catch(() => { }).finally(() => setQuestionsLoaded(true));
     } else {
       setQuestionsLoaded(true);
     }
@@ -173,34 +181,7 @@ export default function FillDocxPage() {
   }, [submission, questionsLoaded, questions]);
 
   const handleInputChange = (fieldId, value) => {
-
-    let qId = null;
-    const mapping = submission?.mappings?.[fieldId];
-    if (mapping) {
-      qId = typeof mapping === 'string' ? mapping : mapping.questionId;
-    } else {
-      const dragged = submission?.draggedFields?.find(df => df.id === fieldId);
-      if (dragged) qId = dragged.questionId;
-    }
-
-    setFormValues(prev => {
-      const next = { ...prev, [fieldId]: value };
-
-      if (qId) {
-        if (submission?.mappings) {
-          Object.entries(submission.mappings).forEach(([mId, m]) => {
-            const mappedQId = typeof m === 'string' ? m : m.questionId;
-            if (mappedQId === qId) next[mId] = value;
-          });
-        }
-        if (submission?.draggedFields) {
-          submission.draggedFields.forEach(df => {
-            if (df.questionId === qId) next[df.id] = value;
-          });
-        }
-      }
-      return next;
-    });
+    setFormValues(prev => ({ ...prev, [fieldId]: value }));
   };
 
   const handleInputChangeRef = useRef(handleInputChange);
@@ -420,10 +401,8 @@ export default function FillDocxPage() {
 
   useEffect(() => {
     if (!viewerRef.current) return;
-    
+
     const wrappers = viewerRef.current.querySelectorAll('.docx-injected-input-wrapper');
-    const blocksToHide = new Set();
-    const blocksToShow = new Set();
 
     wrappers.forEach(btn => {
       const input = btn.querySelector('input, select, textarea');
@@ -441,8 +420,7 @@ export default function FillDocxPage() {
               qObj = questions.find(q => q._id === mapping.questionId);
             }
           }
-          
-          const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section');
+
           if (shouldRender(fieldId, qObj)) {
             if (input && input.tagName !== 'DIV') {
               if (input.type === 'checkbox') {
@@ -457,26 +435,15 @@ export default function FillDocxPage() {
             if (btn.parentElement?.tagName === 'SPAN') {
               btn.parentElement.style.display = 'inline-grid';
             }
-            if (block) blocksToShow.add(block);
           } else {
             btn.style.display = 'none';
             if (btn.parentElement?.tagName === 'SPAN') {
               btn.parentElement.style.display = 'none';
             }
-            if (block) blocksToHide.add(block);
           }
         }
       }
     });
-
-    for (const block of blocksToHide) {
-      if (!blocksToShow.has(block)) {
-        block.style.display = 'none';
-      }
-    }
-    for (const block of blocksToShow) {
-      block.style.display = '';
-    }
   }, [formValues, submission, questions]);
 
   return (
@@ -520,7 +487,7 @@ export default function FillDocxPage() {
 
               const isRequired = questionObj.required;
               const isEmpty = !formValues[df.id] || formValues[df.id].trim() === '';
-              
+
               const currentVal = formValues[df.id] || '';
               const short = questionObj.question;
 
@@ -549,7 +516,7 @@ export default function FillDocxPage() {
                     if (questionObj.type === 'checkbox') {
                       const isChecked = currentVal === 'true' || currentVal === true;
                       return (
-                        <div 
+                        <div
                           className="w-full h-full border rounded flex items-center justify-center shadow-sm transition-colors"
                           style={{
                             backgroundColor: isRequired && isEmpty ? '#fef2f2' : 'rgba(255, 255, 255, 0.9)',
@@ -557,7 +524,7 @@ export default function FillDocxPage() {
                             borderLeft: isRequired ? '3px solid #ef4444' : undefined
                           }}
                         >
-                           <input
+                          <input
                             type="checkbox"
                             checked={isChecked}
                             onChange={(e) => handleInputChange(df.id, e.target.checked.toString())}
