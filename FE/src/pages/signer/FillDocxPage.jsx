@@ -7,14 +7,14 @@ import { Button } from '../../components/ui/button';
 import { Loader2, ArrowLeft, Send, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { submitDocx } from '../../store/slices/docxSlice';
-import { fetchQuestions } from '../../store/slices/questionSlice';
+import { fetchQuestions, fetchQuestionsAll } from '../../store/slices/questionSlice';
 
 export default function FillDocxPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const viewerRef = useRef(null);
-  
+
   const [doc, setDoc] = useState(location.state?.doc || null);
   const [loading, setLoading] = useState(true);
   const [formValues, setFormValues] = useState({});
@@ -26,10 +26,9 @@ export default function FillDocxPage() {
 
   const [questionsLoaded, setQuestionsLoaded] = useState(false);
 
-  // Load questions if missing
   useEffect(() => {
     if (questions.length === 0) {
-      dispatch(fetchQuestions()).unwrap().finally(() => setQuestionsLoaded(true));
+      dispatch(fetchQuestionsAll()).unwrap().finally(() => setQuestionsLoaded(true));
     } else {
       setQuestionsLoaded(true);
     }
@@ -37,7 +36,6 @@ export default function FillDocxPage() {
 
   useEffect(() => {
     if (!doc) {
-      // In a real app we'd fetch the single doc here, but for now just go back
       toast.error('Document not found in state.');
       navigate('/signer');
       return;
@@ -49,13 +47,13 @@ export default function FillDocxPage() {
         const response = await fetch(`http://localhost:8888/${doc.path.replace(/\\/g, '/')}`);
         if (!response.ok) throw new Error('Network error loading document');
         const arrayBuffer = await response.arrayBuffer();
-        
+
         if (viewerRef.current) {
           viewerRef.current.innerHTML = '';
           await renderAsync(arrayBuffer, viewerRef.current, null, {
             className: 'docx', inWrapper: true,
           });
-          
+
           injectInputs();
         }
       } catch (err) {
@@ -64,14 +62,14 @@ export default function FillDocxPage() {
         setLoading(false);
       }
     };
-    
+
     if (questionsLoaded) {
       loadDoc();
     }
-  }, [doc, questionsLoaded, questions]); // Wait for questions to load before injecting inputs so we know what's required
+  }, [doc, questionsLoaded, questions]);
 
   const handleInputChange = (fieldId, value) => {
-    // Find if this field is mapped to a specific question
+
     let qId = null;
     const mapping = doc?.mappings?.[fieldId];
     if (mapping) {
@@ -83,7 +81,7 @@ export default function FillDocxPage() {
 
     setFormValues(prev => {
       const next = { ...prev, [fieldId]: value };
-      // If it maps to a question, auto-fill all other fields mapped to the same question
+
       if (qId) {
         if (doc?.mappings) {
           Object.entries(doc.mappings).forEach(([mId, m]) => {
@@ -100,13 +98,13 @@ export default function FillDocxPage() {
       return next;
     });
   };
-  // Keep a ref to handleInputChange so injected DOM elements can call it
+
   const handleInputChangeRef = useRef(handleInputChange);
   useEffect(() => { handleInputChangeRef.current = handleInputChange; }, []);
 
   const injectInputs = () => {
     if (!viewerRef.current) return;
-    
+
     const mappings = doc.mappings || {};
     let fieldCount = 0;
 
@@ -135,52 +133,105 @@ export default function FillDocxPage() {
         if (/_{5,}/.test(part)) {
           fieldCount++;
           const fieldId = `field-${fieldCount}`;
-          
+
           const mapping = mappings[fieldId];
           const questionObj = mapping && questions ? questions.find(q => q._id === (typeof mapping === 'string' ? mapping : mapping.questionId)) : null;
 
-          const container = document.createElement('span');
-          container.style.position = 'relative';
-          container.style.display = 'inline-grid';
-          container.style.verticalAlign = 'middle';
-
-          const sizer = document.createElement('span');
-          sizer.textContent = part; // Use the dashes to size it initially
-          sizer.style.visibility = 'hidden';
-          sizer.style.gridArea = '1 / 1';
-          sizer.style.minWidth = '100px';
-
-          // If this field is mapped to a question, render an input
           if (questionObj) {
-            const input = document.createElement('input');
-            input.type = questionObj.type === 'number' ? 'number' : (questionObj.type === 'date' ? 'date' : 'text');
-            input.placeholder = questionObj.question;
-            input.className = "docx-injected-input";
-            input.style.gridArea = '1 / 1';
-            input.style.width = '100%';
-            input.style.height = '100%';
-            input.style.background = 'rgba(59, 130, 246, 0.05)';
-            input.style.border = '1px solid #3b82f6';
-            input.style.borderRadius = '4px';
-            input.style.padding = '0 6px';
-            input.style.fontSize = '13px';
-            input.style.outline = 'none';
-            input.dataset.fieldId = fieldId;
-            
-            // Add a red asterisk if required
-            if (questionObj.required) {
-               input.style.borderLeft = '3px solid #ef4444';
+            const container = document.createElement('span');
+            container.style.position = 'relative';
+            container.style.display = 'inline-grid';
+            container.style.verticalAlign = 'middle';
+            container.style.alignItems = 'center';
+            container.style.margin = '0 2px';
+
+            const sizer = document.createElement('span');
+            sizer.textContent = part;
+            sizer.style.visibility = 'hidden';
+            sizer.style.gridArea = '1 / 1';
+            sizer.style.minWidth = '100px';
+            sizer.style.fontSize = '11px';
+            sizer.style.padding = '4px 0';
+            container.appendChild(sizer);
+
+            const btn = document.createElement('div');
+            btn.className = "docx-injected-input-wrapper";
+            btn.style.gridArea = '1 / 1';
+            btn.style.width = '100%';
+            btn.style.height = '100%';
+            btn.style.visibility = 'visible';
+            btn.style.display = 'flex';
+            btn.title = questionObj.question;
+
+            const short = questionObj.question.length > 22 ? questionObj.question.substring(0, 22) + '…' : questionObj.question;
+            const currentVal = formValues[fieldId] || '';
+
+            if (questionObj.type === 'checkbox') {
+              const isChecked = currentVal === 'true' || currentVal === true;
+              btn.innerHTML = `
+            <input type="checkbox" data-field-id="${fieldId}" ${isChecked ? 'checked' : ''} style="cursor: pointer; width: 14px; height: 14px; accent-color: #4f46e5; margin: 0; padding: 0;" />
+        `;
+              btn.style.padding = '0';
+              btn.style.border = 'none';
+              btn.style.background = 'transparent';
+            } else if (questionObj.type === 'dropdown' || questionObj.type === 'radio') {
+              const options = questionObj.options || [];
+              let optionsHtml = `<option value="" disabled ${!currentVal ? 'selected' : ''}>${short}</option>`;
+              options.forEach(opt => {
+                optionsHtml += `<option value="${opt}" ${currentVal === opt ? 'selected' : ''}>${opt}</option>`;
+              });
+              btn.innerHTML = `
+          <select data-field-id="${fieldId}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b; cursor: pointer; display: block; line-height: normal; margin: 0;">
+            ${optionsHtml}
+          </select>
+        `;
+              btn.style.padding = '0';
+              btn.style.border = 'none';
+              btn.style.background = 'transparent';
+            } else if (questionObj.type === 'date') {
+              btn.innerHTML = `<input type="date" data-field-id="${fieldId}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #1e1b4b; cursor: pointer; display: block; line-height: normal; margin: 0;" />`;
+              btn.style.padding = '0';
+              btn.style.border = 'none';
+              btn.style.background = 'transparent';
+            } else if (questionObj.type === 'textarea') {
+              btn.innerHTML = `<textarea data-field-id="${fieldId}" placeholder="${short}" style="width: 100%; height: 60px; box-sizing: border-box; border: 1.5px solid #818cf8; background: #ffffff; outline: none; padding: 4px; font-size: 11px; color: #1e1b4b; resize: none; display: block; font-family: sans-serif; margin: 0;">${currentVal}</textarea>`;
+              btn.style.padding = '0';
+              btn.style.border = 'none';
+              btn.style.background = 'transparent';
+            } else {
+              const typeAttr = questionObj.type === 'number' ? 'number' : 'text';
+              btn.innerHTML = `<input type="${typeAttr}" data-field-id="${fieldId}" placeholder="${short}" value="${currentVal}" style="width: 100%; height: 100%; box-sizing: border-box; border: 1.5px solid #0f172a; background: #ffffff; outline: none; padding: 0 4px; font-size: 11px; color: #0f172a; display: block; line-height: normal; margin: 0;" />`;
+              btn.style.padding = '0';
+              btn.style.border = 'none';
+              btn.style.background = 'transparent';
             }
 
-            input.oninput = (e) => {
-              handleInputChangeRef.current(fieldId, e.target.value);
-            };
+            const input = btn.querySelector('input, select, textarea');
+            if (input) {
+              if (questionObj.required) {
+                input.style.borderLeft = '3px solid #ef4444';
+              }
 
-            container.appendChild(sizer);
-            container.appendChild(input);
+              input.onclick = (e) => e.stopPropagation();
+              input.onmousedown = (e) => e.stopPropagation();
+
+              input.onchange = (e) => {
+                const val = input.type === 'checkbox' ? e.target.checked.toString() : e.target.value;
+                handleInputChangeRef.current(fieldId, val);
+              };
+
+              if ((input.tagName === 'INPUT' && input.type !== 'checkbox' && input.type !== 'date') || input.tagName === 'TEXTAREA') {
+                input.oninput = (e) => {
+                  handleInputChangeRef.current(fieldId, e.target.value);
+                  e.target.style.backgroundColor = '#ffffff';
+                  e.target.style.borderColor = questionObj.type === 'text' || questionObj.type === 'number' ? '#0f172a' : '#818cf8';
+                };
+              }
+            }
+
+            container.appendChild(btn);
             wrapper.appendChild(container);
           } else {
-            // Not mapped, just leave dashes
             const span = document.createElement('span');
             span.textContent = part;
             wrapper.appendChild(span);
@@ -189,29 +240,27 @@ export default function FillDocxPage() {
           wrapper.appendChild(document.createTextNode(part));
         }
       });
-
       parent.replaceChild(wrapper, textNode);
     });
   };
 
   const handleSubmit = async () => {
-    // 1. Validation
+
     const mappings = doc.mappings || {};
     const draggedFields = doc.draggedFields || [];
-    
+
     let isValid = true;
     const missingQuestions = [];
 
-    // Check inline mappings
     for (const [fieldId, mapping] of Object.entries(mappings)) {
       const qId = typeof mapping === 'string' ? mapping : mapping.questionId;
       const questionObj = questions.find(q => q._id === qId);
-      
+
       if (questionObj && questionObj.required) {
         if (!formValues[fieldId] || formValues[fieldId].trim() === '') {
           isValid = false;
           missingQuestions.push(questionObj.question);
-          // Highlight empty input in DOM
+
           const input = viewerRef.current?.querySelector(`input[data-field-id="${fieldId}"]`);
           if (input) {
             input.style.backgroundColor = '#fef2f2';
@@ -220,18 +269,16 @@ export default function FillDocxPage() {
         }
       }
     }
-    
-    // Check dragged fields
+
     draggedFields.forEach(df => {
-       const questionObj = questions.find(q => q._id === df.questionId);
-       if (questionObj && questionObj.required) {
-         if (!formValues[df.id] || formValues[df.id].trim() === '') {
-           isValid = false;
-           missingQuestions.push(questionObj.question);
-           // We'll rely on the React state (isEmpty) to color it red, which is evaluated during render.
-           // Trigger a dummy state update to force re-render if needed, but since we use toast, it's fine.
-         }
-       }
+      const questionObj = questions.find(q => q._id === df.questionId);
+      if (questionObj && questionObj.required) {
+        if (!formValues[df.id] || formValues[df.id].trim() === '') {
+          isValid = false;
+          missingQuestions.push(questionObj.question);
+
+        }
+      }
     });
 
     if (!isValid) {
@@ -239,7 +286,6 @@ export default function FillDocxPage() {
       return;
     }
 
-    // 2. Submit
     try {
       await dispatch(submitDocx({ docxId: doc._id, answers: formValues })).unwrap();
       toast.success('Document successfully submitted!');
@@ -251,7 +297,7 @@ export default function FillDocxPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Header */}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate('/signer')}>
@@ -264,8 +310,8 @@ export default function FillDocxPage() {
             </p>
           </div>
         </div>
-        <Button 
-          onClick={handleSubmit} 
+        <Button
+          onClick={handleSubmit}
           disabled={loading || submitting}
           className="bg-green-600 hover:bg-green-700 text-white gap-2"
         >
@@ -284,15 +330,14 @@ export default function FillDocxPage() {
                 <p className="text-sm">Loading document for filling...</p>
               </div>
             )}
-            
-            {/* Render dragged fields as absolute inputs */}
+
             {!loading && doc?.draggedFields && doc.draggedFields.map((df) => {
               const questionObj = questions.find(q => q._id === df.questionId);
               if (!questionObj) return null;
-              
+
               const isRequired = questionObj.required;
               const isEmpty = !formValues[df.id] || formValues[df.id].trim() === '';
-              
+
               return (
                 <div
                   key={df.id}
@@ -312,9 +357,9 @@ export default function FillDocxPage() {
                     onChange={(e) => handleInputChange(df.id, e.target.value)}
                     className="w-full h-full border rounded px-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-colors docx-dragged-input"
                     style={{
-                       backgroundColor: isRequired && isEmpty ? '#fef2f2' : 'white',
-                       borderColor: isRequired && isEmpty ? '#ef4444' : '#cbd5e1',
-                       borderLeft: isRequired ? '3px solid #ef4444' : undefined
+                      backgroundColor: isRequired && isEmpty ? '#fef2f2' : 'white',
+                      borderColor: isRequired && isEmpty ? '#ef4444' : '#cbd5e1',
+                      borderLeft: isRequired ? '3px solid #ef4444' : undefined
                     }}
                   />
                 </div>

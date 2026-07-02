@@ -15,6 +15,7 @@ export default function UserDirectory() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
+
     dispatch(fetchUsers())
       .unwrap()
       .catch((err) => toast.error(err || 'Failed to load users.'));

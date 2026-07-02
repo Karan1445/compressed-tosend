@@ -88,7 +88,7 @@ export const deleteRole = createAsyncThunk(
       });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error || 'Failed to delete role');
-      return roleId; // return the deleted id so we can remove it from state
+      return roleId;
     } catch (err) {
       return rejectWithValue('Network error');
     }
@@ -125,7 +125,7 @@ const roleSlice = createSlice({
         state.loading = false;
         state.error = payload;
       });
-      
+
     builder
       .addCase(assignRole.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(assignRole.fulfilled, (state) => { state.loading = false; })

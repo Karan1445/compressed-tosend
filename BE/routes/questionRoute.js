@@ -10,7 +10,6 @@ const verifyToken = (req, res, next) => {
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ message: 'Access Denied: No Token Provided' });
         }
-
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -27,14 +26,24 @@ router.use(verifyToken);
 
 router.get('/', async (req, res) => {
     try {
-        const questions = await Question.find({}).lean();
+        const questions = await Question.find({userID : req?.user._id}).lean();
+        res.json(questions);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+router.get('/all', async (req, res) => {
+    try {
+        const questions = await Question.find().lean();
         res.json(questions);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
+
 router.post('/', async (req, res) => {
+
     try {
         const newQuestion = new Question({
             userID: req.user._id,

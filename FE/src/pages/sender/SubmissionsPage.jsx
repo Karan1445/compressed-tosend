@@ -53,7 +53,6 @@ export default function SubmissionsPage() {
         </Select>
       </div>
 
-      {/* Data Table */}
       {activeDoc && (
         <div className="bg-white border rounded-md shadow-sm overflow-hidden w-full">
           <div className="overflow-x-auto">
@@ -135,4 +134,3 @@ export default function SubmissionsPage() {
     </div>
   );
 }
-

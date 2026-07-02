@@ -16,7 +16,6 @@ export default function SignerPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-gray-900">Signer Dashboard</h2>
@@ -26,7 +25,6 @@ export default function SignerPage() {
         </div>
       </div>
 
-      {/* Documents table */}
       <div className="bg-white border rounded-md shadow-sm overflow-hidden">
         <div className="border-b px-6 py-4">
           <h3 className="font-semibold text-sm text-gray-900">Pending Documents</h3>

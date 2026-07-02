@@ -88,7 +88,6 @@ export default function RoleCreation() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* ── Create Form ── */}
         <form onSubmit={handleCreate} className="space-y-6 bg-white p-6 border rounded-md shadow-sm h-fit">
           <h3 className="font-semibold text-base">Create New Role</h3>
 
@@ -124,7 +123,6 @@ export default function RoleCreation() {
           </Button>
         </form>
 
-        {/* ── Existing Roles ── */}
         <div className="bg-white p-6 border rounded-md shadow-sm space-y-3">
           <h3 className="font-semibold text-base">Existing Roles</h3>
 

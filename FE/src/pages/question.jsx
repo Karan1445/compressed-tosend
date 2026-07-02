@@ -276,8 +276,6 @@ export function QuestionPage() {
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
     );
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 gap-2 text-muted-foreground">
@@ -296,7 +294,6 @@ export function QuestionPage() {
   return (
     <div className="w-full space-y-4 p-6 text-left">
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Questions Dashboard</h2>
@@ -315,7 +312,6 @@ export function QuestionPage() {
             </Button>
           )}
 
-          {/* ── Add Question Dialog ── */}
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger asChild>
               <Button className="flex items-center gap-2 bg-black text-white hover:bg-neutral-800">
@@ -329,7 +325,6 @@ export function QuestionPage() {
               </DialogHeader>
               <form onSubmit={handleAddQuestion} className="space-y-5 py-2">
 
-                {/* Question text */}
                 <div className="space-y-2">
                   <Label htmlFor="add-question">Question Text</Label>
                   <Textarea
@@ -341,7 +336,6 @@ export function QuestionPage() {
                   />
                 </div>
 
-                {/* Type picker */}
                 <div className="space-y-2">
                   <Label>Question Type</Label>
                   <Select value={addForm.type} onValueChange={(t) => setAddForm((p) => ({ ...p, type: t }))}>
@@ -366,10 +360,8 @@ export function QuestionPage() {
                   )}
                 </div>
 
-                {/* Extra fields */}
                 <ExtraFormFields form={addForm} setForm={setAddForm} questions={questions} editingItemId={null} />
 
-                {/* Required toggle */}
                 <div className="flex items-center gap-2 pt-1">
                   <Checkbox
                     id="add-required"
@@ -396,7 +388,6 @@ export function QuestionPage() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="rounded-md border bg-white">
         <Table>
           <TableHeader>
@@ -475,7 +466,6 @@ export function QuestionPage() {
         </Table>
       </div>
 
-      {/* ── Edit Dialog ── */}
       <Dialog open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
         <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto bg-white text-black">
           <DialogHeader>
@@ -519,7 +509,6 @@ export function QuestionPage() {
                 )}
               </div>
 
-              {/* Extra fields */}
               <ExtraFormFields form={editForm} setForm={setEditForm} questions={questions} editingItemId={editingItem._id} />
 
               <div className="flex items-center gap-2 pt-1">
@@ -547,7 +536,6 @@ export function QuestionPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete Confirm ── */}
       <AlertDialog open={!!deletingItem} onOpenChange={(open) => !open && setDeletingItem(null)}>
         <AlertDialogContent className="text-left bg-white text-black border shadow-lg max-w-[425px]">
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>

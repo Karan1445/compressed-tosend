@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-// Async Thunks
 export const uploadDocx = createAsyncThunk(
   'docx/upload',
   async (file, { getState, rejectWithValue }) => {
@@ -94,7 +93,7 @@ export const deleteDocx = createAsyncThunk(
         throw new Error('Failed to delete document');
       }
 
-      return docxId; // Return the ID so we can remove it from state
+      return docxId;
     } catch (error) {
       return rejectWithValue(error.message || 'An error occurred deleting document');
     }
@@ -167,7 +166,7 @@ export const submitDocx = createAsyncThunk(
         throw new Error(errorData.msg || 'Failed to submit document');
       }
 
-      return docxId; // return docxId to remove it from the assigned state
+      return docxId;
     } catch (error) {
       return rejectWithValue(error.message || 'An error occurred submitting document');
     }

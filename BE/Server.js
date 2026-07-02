@@ -21,7 +21,7 @@ async function bootstrapRolesAndAdmin() {
         name: superAdminRoleName,
         permissions: ['send', 'sign', 'create_role', 'assign_role']
       });
-      console.log('✅ Super Admin role created.');
+      console.log('Super Admin role created.');
     }
 
     const signerRoleName = 'Signer';
@@ -31,7 +31,7 @@ async function bootstrapRolesAndAdmin() {
         name: signerRoleName,
         permissions: ['sign']
       });
-      console.log('✅ Signer role created.');
+      console.log('Signer role created.');
     }
 
     const db = mongoose.connection.db;
@@ -46,14 +46,14 @@ async function bootstrapRolesAndAdmin() {
         const firstUser = await usersCol.findOne({}, { sort: { _id: 1 } });
         if (firstUser) {
           await usersCol.updateOne({ _id: firstUser._id }, { $set: { role: superAdminRole._id } });
-          console.log(`👑 Assigned Super Admin role to the first user.`);
+          console.log(`Assigned Super Admin role to the first user.`);
         }
       }
     }
 
     const usersWithStringRole = await usersCol.find({ role: { $type: 2 } }).toArray();
     if (usersWithStringRole.length > 0) {
-      console.log(`🔄 Found ${usersWithStringRole.length} users with string roles. Migrating...`);
+      console.log(`Found ${usersWithStringRole.length} users with string roles. Migrating...`);
       for (const u of usersWithStringRole) {
         const foundRole = await Role.findOne({ name: u.role });
         if (foundRole) {
@@ -62,7 +62,7 @@ async function bootstrapRolesAndAdmin() {
           await usersCol.updateOne({ _id: u._id }, { $set: { role: signerRole._id } });
         }
       }
-      console.log('✅ Migration complete.');
+      console.log('Migration complete.');
     }
   } catch (error) {
     console.error('Error bootstrapping roles:', error);

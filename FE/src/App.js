@@ -39,9 +39,9 @@ function PermissionRoute({ permission, children }) {
   }
   if (user.role === 'Super Admin') return children;
   const perms = user.permissions || [];
-  
-  const hasAccess = Array.isArray(permission) 
-    ? permission.some(p => perms.includes(p)) 
+
+  const hasAccess = Array.isArray(permission)
+    ? permission.some(p => perms.includes(p))
     : perms.includes(permission);
 
   if (!hasAccess) {
@@ -77,17 +77,17 @@ function RoleSyncProvider({ children }) {
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login"    element={<PublicRoute><LoginForm /></PublicRoute>} />
+      <Route path="/login" element={<PublicRoute><LoginForm /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><SignupForm /></PublicRoute>} />
       <Route path="/reset-password/:token" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
       <Route path="/unauthorized" element={<Unauthorized />} />
 
-      <Route path="/"         element={<PermissionRoute permission={['assign_role', 'create_role']}><Layout><HomePage /></Layout></PermissionRoute>} />
+      <Route path="/" element={<PermissionRoute permission={['assign_role', 'create_role']}><Layout><HomePage /></Layout></PermissionRoute>} />
       <Route path="/roles/create" element={<PermissionRoute permission="create_role"><Layout><RoleCreation /></Layout></PermissionRoute>} />
       <Route path="/roles/assign" element={<PermissionRoute permission="assign_role"><Layout><RoleAssignment /></Layout></PermissionRoute>} />
 
       <Route path="/question" element={<PermissionRoute permission="send"><Layout><QuestionPage /></Layout></PermissionRoute>} />
-      <Route path="/sender"      element={<PermissionRoute permission="send"><Layout><SenderPage /></Layout></PermissionRoute>} />
+      <Route path="/sender" element={<PermissionRoute permission="send"><Layout><SenderPage /></Layout></PermissionRoute>} />
       <Route path="/docx-viewer" element={<PermissionRoute permission="send"><Layout><DocxPage /></Layout></PermissionRoute>} />
       <Route path="/submissions" element={<PermissionRoute permission="send"><Layout><SubmissionsPage /></Layout></PermissionRoute>} />
 

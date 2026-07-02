@@ -36,14 +36,14 @@ export default function Layout({ children }) {
   const perms = user?.permissions || [];
   const isSuperAdmin = user?.role === 'Super Admin';
   const navigationItems = [
-    ...(isSuperAdmin || perms.includes('assign_role') || perms.includes('create_role') ? [{ title: 'User List',       url: '/',            icon: Users }]        : []),
-    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Add Question',    url: '/question',    icon: FileQuestion }] : []),
-    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Sender Dashboard', url: '/sender',       icon: Send }]         : []),
-    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'DOCX Viewer',      url: '/docx-viewer',  icon: FileText }]     : []),
-    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Submissions',      url: '/submissions',  icon: List }]         : []),
-    ...(isSuperAdmin || perms.includes('create_role') ? [{ title: 'Create Role',       url: '/roles/create', icon: Shield }]      : []),
-    ...(isSuperAdmin || perms.includes('assign_role') ? [{ title: 'Assign Role',       url: '/roles/assign', icon: UserPlus }]    : []),
+    ...(isSuperAdmin || perms.includes('assign_role') || perms.includes('create_role') ? [{ title: 'User List', url: '/', icon: Users }] : []),
+    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Add Question', url: '/question', icon: FileQuestion }] : []),
+    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Sender Dashboard', url: '/sender', icon: Send }] : []),
+    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'DOCX Viewer', url: '/docx-viewer', icon: FileText }] : []),
     ...(isSuperAdmin || perms.includes('sign') ? [{ title: 'Sign Document', url: '/signer', icon: FileText }] : []),
+    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Submissions', url: '/submissions', icon: List }] : []),
+    ...(isSuperAdmin || perms.includes('create_role') ? [{ title: 'Create Role', url: '/roles/create', icon: Shield }] : []),
+    ...(isSuperAdmin || perms.includes('assign_role') ? [{ title: 'Assign Role', url: '/roles/assign', icon: UserPlus }] : []),
   ];
 
   const [resetForm, setResetForm] = useState({ email: '', oldPassword: '', newPassword: '' });
@@ -76,7 +76,7 @@ export default function Layout({ children }) {
     try {
       setResetLoading(true);
       await dispatch(resetPassword({ email, oldPassword, newPassword })).unwrap();
-      toast.success('Password updated successfully! Logging you out... 🔐');
+      toast.success('Password updated successfully! Logging you out...');
       setTimeout(() => {
         dispatch(logout());
         navigate('/login', { replace: true });
@@ -90,7 +90,7 @@ export default function Layout({ children }) {
 
   function handleLogout() {
     dispatch(logout());
-    toast.success('Logged out successfully. See you soon! 👋');
+    toast.success('Logged out successfully. See you soon!');
     navigate('/login', { replace: true });
   }
 

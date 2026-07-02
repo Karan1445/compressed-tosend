@@ -8,7 +8,22 @@ export const fetchQuestions = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const { token } = getState().auth;
-      const res  = await fetch(`${API}/question`, { headers: authHeaders(token) });
+      const res = await fetch(`${API}/question`, { headers: authHeaders(token) });
+      const data = await res.json();
+      if (!res.ok) return rejectWithValue(data.message || 'Failed to load questions');
+      return data;
+    } catch {
+      return rejectWithValue('Network error — could not load questions.');
+    }
+  }
+);
+
+export const fetchQuestionsAll = createAsyncThunk(
+  'questions/fetchAll',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const { token } = getState().auth;
+      const res = await fetch(`${API}/question/all`, { headers: authHeaders(token) });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.message || 'Failed to load questions');
       return data;
@@ -23,10 +38,10 @@ export const addQuestion = createAsyncThunk(
   async (payload, { getState, rejectWithValue }) => {
     try {
       const { token } = getState().auth;
-      const res  = await fetch(`${API}/question`, {
-        method:  'POST',
+      const res = await fetch(`${API}/question`, {
+        method: 'POST',
         headers: authHeaders(token),
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.message || 'Failed to create question');
@@ -42,10 +57,10 @@ export const updateQuestion = createAsyncThunk(
   async ({ id, payload }, { getState, rejectWithValue }) => {
     try {
       const { token } = getState().auth;
-      const res  = await fetch(`${API}/question/${id}`, {
-        method:  'PUT',
+      const res = await fetch(`${API}/question/${id}`, {
+        method: 'PUT',
         headers: authHeaders(token),
-        body:    JSON.stringify(payload),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.message || 'Failed to update question');
@@ -62,7 +77,7 @@ export const deleteQuestion = createAsyncThunk(
     try {
       const { token } = getState().auth;
       const res = await fetch(`${API}/question/${id}`, {
-        method:  'DELETE',
+        method: 'DELETE',
         headers: authHeaders(token),
       });
       if (!res.ok) {
@@ -82,9 +97,9 @@ export const bulkDeleteQuestions = createAsyncThunk(
     try {
       const { token } = getState().auth;
       const res = await fetch(`${API}/question/bulk/delete`, {
-        method:  'DELETE',
+        method: 'DELETE',
         headers: authHeaders(token),
-        body:    JSON.stringify({ ids }),
+        body: JSON.stringify({ ids }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -100,22 +115,22 @@ export const bulkDeleteQuestions = createAsyncThunk(
 const questionSlice = createSlice({
   name: 'questions',
   initialState: {
-    questions:     [],
-    loading:       false,
+    questions: [],
+    loading: false,
     actionLoading: false,
-    error:         null,
+    error: null,
   },
   reducers: {
     clearQuestionError(state) { state.error = null; },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchQuestions.pending,   (state)             => { state.loading = true;  state.error = null; })
+      .addCase(fetchQuestions.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(fetchQuestions.fulfilled, (state, { payload }) => { state.loading = false; state.questions = payload; })
-      .addCase(fetchQuestions.rejected,  (state, { payload }) => { state.loading = false; state.error = payload; });
+      .addCase(fetchQuestions.rejected, (state, { payload }) => { state.loading = false; state.error = payload; });
 
     builder
-      .addCase(addQuestion.pending,   (state)             => { state.actionLoading = true; })
+      .addCase(addQuestion.pending, (state) => { state.actionLoading = true; })
       .addCase(addQuestion.fulfilled, (state, { payload }) => {
         state.actionLoading = false;
         state.questions.push(payload);
@@ -123,7 +138,7 @@ const questionSlice = createSlice({
       .addCase(addQuestion.rejected, (state) => { state.actionLoading = false; });
 
     builder
-      .addCase(updateQuestion.pending,   (state)             => { state.actionLoading = true; })
+      .addCase(updateQuestion.pending, (state) => { state.actionLoading = true; })
       .addCase(updateQuestion.fulfilled, (state, { payload }) => {
         state.actionLoading = false;
         const idx = state.questions.findIndex((q) => q._id === payload._id);
@@ -132,7 +147,7 @@ const questionSlice = createSlice({
       .addCase(updateQuestion.rejected, (state) => { state.actionLoading = false; });
 
     builder
-      .addCase(deleteQuestion.pending,   (state)                 => { state.actionLoading = true; })
+      .addCase(deleteQuestion.pending, (state) => { state.actionLoading = true; })
       .addCase(deleteQuestion.fulfilled, (state, { payload: id }) => {
         state.actionLoading = false;
         state.questions = state.questions.filter((q) => q._id !== id);
@@ -140,7 +155,7 @@ const questionSlice = createSlice({
       .addCase(deleteQuestion.rejected, (state) => { state.actionLoading = false; });
 
     builder
-      .addCase(bulkDeleteQuestions.pending,   (state)                  => { state.actionLoading = true; })
+      .addCase(bulkDeleteQuestions.pending, (state) => { state.actionLoading = true; })
       .addCase(bulkDeleteQuestions.fulfilled, (state, { payload: ids }) => {
         state.actionLoading = false;
         state.questions = state.questions.filter((q) => !ids.includes(q._id));

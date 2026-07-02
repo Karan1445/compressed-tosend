@@ -58,7 +58,7 @@ export function LoginForm({ className }) {
     if (!validateForm()) return;
     try {
       const result = await dispatch(loginUser(form)).unwrap();
-      toast.success(`Welcome back, ${result.user.name}! 👋`);
+      toast.success(`Welcome back, ${result.user.name}!`);
       navigate('/', { replace: true });
     } catch (err) {
     }
@@ -70,7 +70,7 @@ export function LoginForm({ className }) {
     try {
       setForgotLoading(true);
       await dispatch(forgotPassword(forgotEmail)).unwrap();
-      toast.success('A temporary password has been sent to your email! 📧');
+      toast.success('A temporary password has been sent to your email!');
       setIsDialogOpen(false);
     } catch (err) {
       toast.error(err || 'Failed to send password reset email.');

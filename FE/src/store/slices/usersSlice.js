@@ -7,7 +7,7 @@ export const fetchUsers = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const { token } = getState().auth;
-      const res  = await fetch(`${API}/`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API}/`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (!res.ok) return rejectWithValue('Failed to load users');
       return data;
@@ -23,9 +23,9 @@ const usersSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchUsers.pending,   (state)             => { state.loading = true;  state.error = null; })
+      .addCase(fetchUsers.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(fetchUsers.fulfilled, (state, { payload }) => { state.loading = false; state.users = payload; })
-      .addCase(fetchUsers.rejected,  (state, { payload }) => { state.loading = false; state.error = payload; });
+      .addCase(fetchUsers.rejected, (state, { payload }) => { state.loading = false; state.error = payload; });
   },
 });
 
