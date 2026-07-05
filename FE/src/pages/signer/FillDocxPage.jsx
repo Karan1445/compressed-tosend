@@ -29,7 +29,8 @@ export default function FillDocxPage() {
   const effectiveLayout = submission?.docxId?.layout || submission?.layout || [];
   const effectiveDraggedFields = submission?.docxId?.draggedFields || submission?.draggedFields || [];
 
-  const shouldRender = (fieldId, qObj) => {
+  const shouldRender = (fieldId, qObj, actualFieldId) => {
+    const loopSuffix = actualFieldId && actualFieldId.includes('_loop_') ? actualFieldId.substring(actualFieldId.indexOf('_loop_')) : '';
     const layout = effectiveLayout;
     if (!layout.length && (!qObj || !qObj.dependsOnId)) return true;
 
@@ -68,7 +69,8 @@ export default function FillDocxPage() {
       if (dependentFieldIds.length === 0) return false;
 
       return dependentFieldIds.some(fId => {
-        let val = formValuesRef.current[fId];
+        let val = formValuesRef.current[fId + loopSuffix];
+        if (val === undefined) val = formValuesRef.current[fId];
         if (depQObj && depQObj.type === 'checkbox') {
           val = val || 'false';
         } else {
@@ -124,7 +126,8 @@ export default function FillDocxPage() {
 
       if (dependentFieldIds.length > 0) {
         const isMet = dependentFieldIds.some(fId => {
-          let val = formValuesRef.current[fId];
+          let val = formValuesRef.current[fId + loopSuffix];
+          if (val === undefined) val = formValuesRef.current[fId];
           const parentQ = questions.find(x => x._id === qObj.dependsOnId);
           if (parentQ && parentQ.type === 'checkbox') {
             val = val === undefined ? 'false' : String(val);
@@ -254,6 +257,7 @@ export default function FillDocxPage() {
 
             const btn = document.createElement('div');
             btn.className = "docx-injected-input-wrapper";
+            btn.dataset.fieldId = fieldId;
             btn.style.gridArea = '1 / 1';
             btn.style.width = '100%';
             btn.style.height = '100%';
@@ -406,6 +410,93 @@ export default function FillDocxPage() {
   useEffect(() => {
     if (!viewerRef.current) return;
 
+    // 1. Process Loopable Configurations (DOM Cloning)
+    const allLoopRules = [];
+    effectiveLayout.forEach(l => {
+      if (l.type === 'loopable' && l.enabled) {
+        allLoopRules.push({ rule: l, fields: [l.fieldKey], id: "single_" + l.fieldKey });
+      } else if (l.type === 'group' && l.loopable?.enabled) {
+        allLoopRules.push({ rule: l.loopable, fields: (l.children || []).map(c => c.fieldKey), id: "group_" + l.id });
+      }
+    });
+
+    allLoopRules.forEach(({ rule, fields, id: loopId }) => {
+      let loopCount = 1;
+      if (rule.sourceQuestionId) {
+        const sourceVal = formValuesRef.current[rule.sourceQuestionId];
+        if (sourceVal !== undefined && rule.optionMappings && rule.optionMappings[sourceVal] !== undefined) {
+          loopCount = parseInt(rule.optionMappings[sourceVal]) || 0;
+        }
+      }
+
+      // Collect original blocks
+      const originalBlocks = [];
+      fields.forEach(fieldKey => {
+        // Find the ORIGINAL injected wrapper (not clones, clones have _loop_ in data-field-id)
+        const btn = viewerRef.current.querySelector(`.docx-injected-input-wrapper[data-field-id="${fieldKey}"]`);
+        if (btn) {
+          const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section') || btn.parentElement;
+          if (block && !originalBlocks.includes(block)) {
+            originalBlocks.push(block);
+            block.dataset.loopOriginalFor = loopId;
+          }
+        }
+      });
+
+      if (originalBlocks.length === 0) return;
+
+      const parentElement = originalBlocks[0].parentElement;
+      const existingClones = Array.from(parentElement.children).filter(child => child.dataset.loopCloneForId === loopId);
+
+      // Calculate current iterations based on existing clones
+      const currentIterations = originalBlocks.length > 0 ? Math.floor(existingClones.length / originalBlocks.length) : 0;
+      const targetIterations = Math.max(0, loopCount - 1);
+
+      if (currentIterations < targetIterations) {
+        // Add missing clones
+        let lastReferenceNode = existingClones.length > 0 ? existingClones[existingClones.length - 1] : originalBlocks[originalBlocks.length - 1];
+
+        for (let i = currentIterations + 1; i <= targetIterations; i++) {
+          originalBlocks.forEach(origBlock => {
+            const clone = origBlock.cloneNode(true);
+            clone.dataset.loopCloneForId = loopId;
+            clone.dataset.loopCloneIndex = i;
+            delete clone.dataset.loopOriginalFor;
+
+            const cloneInputs = clone.querySelectorAll('input, select, textarea, div.docx-injected-input-wrapper');
+            cloneInputs.forEach(ci => {
+              const origFieldId = ci.getAttribute('data-field-id');
+              if (origFieldId && !origFieldId.includes('_loop_')) {
+                const newId = origFieldId + '_loop_' + i;
+                ci.setAttribute('data-field-id', newId);
+              }
+            });
+
+            if (lastReferenceNode && lastReferenceNode.parentNode) {
+              lastReferenceNode.parentNode.insertBefore(clone, lastReferenceNode.nextSibling);
+              lastReferenceNode = clone;
+            }
+          });
+        }
+      } else if (currentIterations > targetIterations) {
+        // Remove excess clones
+        const clonesToRemove = existingClones.filter(c => parseInt(c.dataset.loopCloneIndex) > targetIterations);
+        clonesToRemove.forEach(c => c.remove());
+      }
+
+      // Toggle visibility of original blocks if loopCount === 0
+      originalBlocks.forEach(origBlock => {
+        if (loopCount === 0) {
+          origBlock.style.display = 'none';
+          origBlock.dataset.loopHidden = 'true';
+        } else {
+          origBlock.style.display = '';
+          delete origBlock.dataset.loopHidden;
+        }
+      });
+    });
+
+    // 2. Process Visibility and Values for all inputs (originals and clones)
     const wrappers = viewerRef.current.querySelectorAll('.docx-injected-input-wrapper');
 
     wrappers.forEach(btn => {
@@ -413,7 +504,8 @@ export default function FillDocxPage() {
       if (input) {
         const fieldId = input.getAttribute('data-field-id');
         if (fieldId) {
-          const mapping = effectiveMappings[fieldId];
+          const originalFieldId = fieldId.split('_loop_')[0];
+          const mapping = effectiveMappings[originalFieldId];
           let qObj = null;
           if (mapping) {
             if (typeof mapping === 'string') {
@@ -425,30 +517,61 @@ export default function FillDocxPage() {
             }
           }
 
-          if (shouldRender(fieldId, qObj)) {
-            if (input && input.tagName !== 'DIV') {
-              if (input.type === 'checkbox') {
-                const expected = (formValuesRef.current[fieldId] === 'true' || formValuesRef.current[fieldId] === true);
-                if (input.checked !== expected) input.checked = expected;
-              } else {
-                const expected = formValuesRef.current[fieldId] || '';
-                if (input.value !== expected) input.value = expected;
-              }
-            }
-            btn.style.visibility = 'visible';
-            if (btn.parentElement?.tagName === 'SPAN') {
-              btn.parentElement.style.visibility = 'visible';
-            }
-          } else {
+          if (!qObj) {
             btn.style.visibility = 'hidden';
             if (btn.parentElement?.tagName === 'SPAN') {
               btn.parentElement.style.visibility = 'hidden';
+            }
+          } else {
+            // For shouldRender, evaluate conditions on the original field rules
+            if (shouldRender(originalFieldId, qObj, fieldId)) {
+              if (input && input.tagName !== 'DIV') {
+                if (input.type === 'checkbox') {
+                  const expected = (formValuesRef.current[fieldId] === 'true' || formValuesRef.current[fieldId] === true);
+                  if (input.checked !== expected) input.checked = expected;
+                } else {
+                  const expected = formValuesRef.current[fieldId] || '';
+                  if (input.value !== expected) input.value = expected;
+                }
+                
+                // Re-bind listeners for cloned inputs
+                input.onchange = (e) => {
+                  const val = input.type === 'checkbox' ? e.target.checked.toString() : e.target.value;
+                  handleInputChangeRef.current(fieldId, val);
+                };
+                if ((input.tagName === 'INPUT' && input.type !== 'checkbox' && input.type !== 'date') || input.tagName === 'TEXTAREA') {
+                  input.oninput = (e) => {
+                    handleInputChangeRef.current(fieldId, e.target.value);
+                  };
+                }
+              }
+
+              const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section, article') || btn.parentElement;
+              // Since block visibility is handled in step 1, we just ensure the wrapper is visible
+              btn.style.visibility = 'visible';
+              if (btn.parentElement?.tagName === 'SPAN') {
+                btn.parentElement.style.visibility = 'visible';
+              }
+              if (block && block.dataset.loopHidden !== 'true') {
+                block.style.display = '';
+              }
+            } else {
+              const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section, article') || btn.parentElement;
+              btn.style.visibility = 'hidden';
+              if (btn.parentElement?.tagName === 'SPAN') {
+                btn.parentElement.style.visibility = 'hidden';
+              }
+              if (block) {
+                block.style.display = 'none';
+              }
             }
           }
         }
       }
     });
   }, [formValues, submission, questions, loading, effectiveLayout, effectiveMappings, effectiveDraggedFields]);
+
+
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">

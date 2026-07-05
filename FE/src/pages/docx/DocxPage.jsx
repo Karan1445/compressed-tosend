@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { renderAsync } from 'docx-preview';
 import { Rnd } from 'react-rnd';
@@ -55,7 +55,7 @@ function DependencyValueInput({ cond, updateCondition, index, mappedQuestions })
         updateCondition(index, 'value', [...selectedValues, opt]);
       }
     };
-    
+
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -113,8 +113,8 @@ function GroupsSidebar({ layout, setLayout, onOpenGroupModal }) {
           <div className="text-center text-slate-400 py-10 text-sm">No groups created yet.</div>
         ) : (
           groups.map(g => (
-            <div 
-              key={g.id} 
+            <div
+              key={g.id}
               onClick={() => onOpenGroupModal(g)}
               className="bg-white border border-slate-200 rounded p-3 cursor-pointer hover:border-slate-400 hover:shadow-md transition-all flex justify-between items-center group"
             >
@@ -124,10 +124,10 @@ function GroupsSidebar({ layout, setLayout, onOpenGroupModal }) {
               </div>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity" 
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -142,11 +142,11 @@ function GroupsSidebar({ layout, setLayout, onOpenGroupModal }) {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
+                    <AlertDialogAction
                       onClick={(e) => {
                         e.stopPropagation();
                         setLayout(prev => prev.filter(l => l.id !== g.id));
-                      }} 
+                      }}
                       className="bg-red-600 hover:bg-red-700 text-white"
                     >
                       Delete
@@ -164,7 +164,10 @@ function GroupsSidebar({ layout, setLayout, onOpenGroupModal }) {
 
 function GroupConfigModal({ group, layout, setLayout, mappedQuestions, onClose }) {
   const [activeTab, setActiveTab] = useState('questions');
-  const [localGroup, setLocalGroup] = useState(group);
+  const [localGroup, setLocalGroup] = useState(() => ({
+    ...group,
+    loopable: group.loopable || { enabled: false, sourceQuestionId: '', optionMappings: {} }
+  }));
 
   const availableFields = mappedQuestions.filter(mq => {
     // Check if this field is already in another group
@@ -225,28 +228,34 @@ function GroupConfigModal({ group, layout, setLayout, mappedQuestions, onClose }
       <DialogContent className="sm:max-w-[800px] h-[700px] flex flex-col p-0 overflow-hidden bg-white [&>button]:right-4 [&>button]:top-4 [&>button]:h-8 [&>button]:w-8 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full hover:[&>button]:bg-slate-100 [&>button]:text-slate-500 transition-colors">
         <DialogHeader className="p-6 pb-2 shrink-0 border-b">
           <DialogTitle className="flex items-center gap-3">
-            <Input 
-              value={localGroup.label} 
-              onChange={e => setLocalGroup(prev => ({...prev, label: e.target.value}))} 
+            <Input
+              value={localGroup.label}
+              onChange={e => setLocalGroup(prev => ({ ...prev, label: e.target.value }))}
               className="text-lg font-bold border-0 border-b border-transparent hover:border-slate-200 focus-visible:border-slate-900 focus-visible:ring-0 rounded-none px-1 h-9 bg-transparent transition-colors shadow-none w-full"
             />
           </DialogTitle>
           <div className="flex gap-4 mt-4 border-b">
-            <button 
+            <button
               className={`pb-2 text-sm font-medium ${activeTab === 'questions' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-500'}`}
               onClick={() => setActiveTab('questions')}
             >
               Add Questions
             </button>
-            <button 
+            <button
               className={`pb-2 text-sm font-medium ${activeTab === 'dependencies' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-500'}`}
               onClick={() => setActiveTab('dependencies')}
             >
               Add Dependencies
             </button>
+            <button
+              className={`pb-2 text-sm font-medium ${activeTab === 'loopable' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-500'}`}
+              onClick={() => setActiveTab('loopable')}
+            >
+              Loopable
+            </button>
           </div>
         </DialogHeader>
-        
+
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
           {activeTab === 'questions' ? (
             <div className="space-y-3">
@@ -254,13 +263,13 @@ function GroupConfigModal({ group, layout, setLayout, mappedQuestions, onClose }
               {availableFields.map(mq => {
                 const isSelected = localGroup.children?.some(c => c.fieldKey === mq.fieldKey);
                 return (
-                  <div 
-                    key={mq.fieldKey} 
+                  <div
+                    key={mq.fieldKey}
                     onClick={() => handleToggleField(mq.fieldKey)}
                     className="flex items-center gap-3 bg-white p-3 border rounded shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
                   >
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={isSelected}
                       readOnly
                       className="h-4 w-4 text-slate-900 rounded border-gray-300 focus:ring-slate-900 pointer-events-none"
@@ -274,7 +283,7 @@ function GroupConfigModal({ group, layout, setLayout, mappedQuestions, onClose }
               })}
               {availableFields.length === 0 && <div className="text-sm text-slate-500">No available mapped questions to add.</div>}
             </div>
-          ) : (
+          ) : activeTab === 'dependencies' ? (
             <div className="space-y-4">
               <p className="text-sm text-slate-500 mb-2">Set visibility rules for this entire group.</p>
               {(localGroup.conditions || []).map((cond, index) => (
@@ -285,7 +294,7 @@ function GroupConfigModal({ group, layout, setLayout, mappedQuestions, onClose }
                       <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue placeholder="Select field" /></SelectTrigger>
                       <SelectContent className="bg-white">
                         {mappedQuestions.filter(mq => !localGroup.children?.some(c => c.fieldKey === mq.fieldKey)).map(mq => (
-                          <SelectItem key={mq.fieldKey} value={mq.fieldKey}>{mq.questionObj?.question?.substring(0,20) || mq.fieldKey}</SelectItem>
+                          <SelectItem key={mq.fieldKey} value={mq.fieldKey}>{mq.questionObj?.question?.substring(0, 20) || mq.fieldKey}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -309,7 +318,64 @@ function GroupConfigModal({ group, layout, setLayout, mappedQuestions, onClose }
               ))}
               <Button variant="outline" onClick={addCondition} className="w-full text-xs border-dashed border-2">+ Add Condition</Button>
             </div>
-          )}
+          ) : activeTab === 'loopable' ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-slate-700 cursor-pointer flex items-center gap-2" onClick={() => setLocalGroup(prev => ({ ...prev, loopable: { ...prev.loopable, enabled: !prev.loopable?.enabled } }))}>
+                  <input type="checkbox" checked={localGroup.loopable?.enabled || false} onChange={() => { }} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                  Enable Loopable Group
+                </label>
+              </div>
+              {localGroup.loopable?.enabled && (
+                <>
+                  <div className="mt-4">
+                    <label className="text-xs font-medium text-slate-700">Source Question</label>
+                    <Select value={localGroup.loopable.sourceQuestionId} onValueChange={v => setLocalGroup(prev => ({ ...prev, loopable: { ...prev.loopable, sourceQuestionId: v } }))}>
+                      <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue placeholder="Select dropdown/radio field" /></SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {mappedQuestions.filter(mq => ['dropdown', 'radio'].includes(mq.questionObj?.type) && !localGroup.children?.some(c => c.fieldKey === mq.fieldKey)).map(mq => (
+                          <SelectItem key={mq.fieldKey} value={mq.fieldKey}>{mq.questionObj?.question?.substring(0, 30) || mq.fieldKey}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-slate-500 mt-1">Select a dropdown or radio button question that dictates how many times this group should repeat.</p>
+                  </div>
+
+                  {localGroup.loopable.sourceQuestionId && mappedQuestions.find(mq => mq.fieldKey === localGroup.loopable.sourceQuestionId)?.questionObj?.options?.length > 0 && (
+                    <div className="space-y-2 mt-4 bg-slate-50 p-3 rounded border">
+                      <label className="text-xs font-semibold text-slate-700">Configure Iterations per Option</label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div className="text-[10px] font-medium text-slate-500">Option Value</div>
+                        <div className="text-[10px] font-medium text-slate-500">Number of Loops</div>
+                        {mappedQuestions.find(mq => mq.fieldKey === localGroup.loopable.sourceQuestionId).questionObj.options.map(opt => (
+                          <Fragment key={opt}>
+                            <div className="text-xs flex items-center">{opt}</div>
+                            <Input
+                              type="number"
+                              min="0"
+                              max="20"
+                              className="h-7 text-xs bg-white"
+                              value={localGroup.loopable.optionMappings?.[opt] !== undefined ? localGroup.loopable.optionMappings[opt] : ''}
+                              onChange={e => {
+                                const val = parseInt(e.target.value) || 0;
+                                setLocalGroup(prev => ({
+                                  ...prev,
+                                  loopable: {
+                                    ...prev.loopable,
+                                    optionMappings: { ...(prev.loopable?.optionMappings || {}), [opt]: val }
+                                  }
+                                }));
+                              }}
+                            />
+                          </Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ) : null}
         </div>
         <DialogFooter className="p-4 border-t bg-white shrink-0 sm:justify-end">
           <div className="flex gap-2">
@@ -327,6 +393,11 @@ function SingleDependencyModal({ fieldKey, questionObj, layout, setLayout, mappe
   const existingIndex = layout.findIndex(l => l.type === 'single_question' && l.fieldKey === fieldKey);
   const [conditions, setConditions] = useState(existingIndex >= 0 ? (layout[existingIndex].conditions || []) : []);
 
+  const existingLoopIndex = layout.findIndex(l => l.type === 'loopable' && l.fieldKey === fieldKey);
+  const [loopConfig, setLoopConfig] = useState(existingLoopIndex >= 0 ? layout[existingLoopIndex] : { type: 'loopable', fieldKey, enabled: false, sourceQuestionId: '', optionMappings: {} });
+
+  const [activeTab, setActiveTab] = useState('dependencies'); // 'dependencies' | 'loopable'
+
   const addCondition = () => setConditions([...conditions, { dependsOn: '', operator: 'equals', value: '' }]);
   const updateCondition = (index, key, value) => {
     const newConds = [...conditions];
@@ -336,59 +407,145 @@ function SingleDependencyModal({ fieldKey, questionObj, layout, setLayout, mappe
   const removeCondition = (index) => setConditions(conditions.filter((_, i) => i !== index));
 
   const handleSave = () => {
+    // 1. Handle single_question layout
+    let updatedLayout = [...layout];
     if (conditions.length === 0) {
-      // Remove from layout if no conditions
-      setLayout(prev => prev.filter(l => !(l.type === 'single_question' && l.fieldKey === fieldKey)));
+      updatedLayout = updatedLayout.filter(l => !(l.type === 'single_question' && l.fieldKey === fieldKey));
     } else {
       if (existingIndex >= 0) {
-        setLayout(prev => prev.map((l, i) => i === existingIndex ? { ...l, conditions } : l));
+        updatedLayout = updatedLayout.map((l, i) => i === existingIndex ? { ...l, conditions } : l);
       } else {
-        setLayout(prev => [...prev, { id: 'item_' + Date.now(), type: 'single_question', fieldKey, conditions }]);
+        updatedLayout.push({ id: 'item_' + Date.now(), type: 'single_question', fieldKey, conditions });
       }
     }
+
+    // 2. Handle loopable layout
+    if (!loopConfig.enabled) {
+      updatedLayout = updatedLayout.filter(l => !(l.type === 'loopable' && l.fieldKey === fieldKey));
+    } else {
+      if (existingLoopIndex >= 0) {
+        updatedLayout = updatedLayout.map((l, i) => i === existingLoopIndex ? loopConfig : l);
+      } else {
+        updatedLayout.push({ ...loopConfig, id: 'loop_' + Date.now() });
+      }
+    }
+
+    setLayout(updatedLayout);
     onClose();
   };
+
+  const loopableOptions = mappedQuestions.filter(mq => ['dropdown', 'radio'].includes(mq.questionObj?.type));
+  const selectedSourceQuestion = loopableOptions.find(mq => mq.fieldKey === loopConfig.sourceQuestionId);
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[500px] bg-white [&>button]:right-4 [&>button]:top-4 [&>button]:h-8 [&>button]:w-8 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:rounded-full hover:[&>button]:bg-slate-100 [&>button]:text-slate-500 transition-colors">
         <DialogHeader>
-          <DialogTitle>Dependency Rules for: {questionObj?.question}</DialogTitle>
-          <DialogDescription>Set visibility conditions for this single field.</DialogDescription>
+          <DialogTitle>Rules for: {questionObj?.question}</DialogTitle>
+          <DialogDescription>Set visibility or loopable conditions.</DialogDescription>
+          <div className="flex gap-4 mt-4 border-b">
+            <button
+              className={`pb-2 text-sm font-medium ${activeTab === 'dependencies' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-500'}`}
+              onClick={() => setActiveTab('dependencies')}
+            >
+              Visibility Dependencies
+            </button>
+            <button
+              className={`pb-2 text-sm font-medium ${activeTab === 'loopable' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-500'}`}
+              onClick={() => setActiveTab('loopable')}
+            >
+              Loopable
+            </button>
+          </div>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          {conditions.map((cond, index) => (
-            <div key={index} className="flex items-end gap-2 bg-slate-50 p-3 border rounded shadow-sm">
-              <div className="flex-1">
-                <label className="text-[10px] font-medium text-slate-700">Depends On</label>
-                <Select value={cond.dependsOn} onValueChange={v => updateCondition(index, 'dependsOn', v)}>
-                  <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue placeholder="Select field" /></SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {mappedQuestions.filter(mq => mq.fieldKey !== fieldKey).map(mq => (
-                      <SelectItem key={mq.fieldKey} value={mq.fieldKey}>{mq.questionObj?.question?.substring(0,20) || mq.fieldKey}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+        {activeTab === 'dependencies' ? (
+          <div className="space-y-4 py-4 min-h-[150px]">
+            {conditions.map((cond, index) => (
+              <div key={index} className="flex items-end gap-2 bg-slate-50 p-3 border rounded shadow-sm">
+                <div className="flex-1">
+                  <label className="text-[10px] font-medium text-slate-700">Depends On</label>
+                  <Select value={cond.dependsOn} onValueChange={v => updateCondition(index, 'dependsOn', v)}>
+                    <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue placeholder="Select field" /></SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {mappedQuestions.filter(mq => mq.fieldKey !== fieldKey).map(mq => (
+                        <SelectItem key={mq.fieldKey} value={mq.fieldKey}>{mq.questionObj?.question?.substring(0, 20) || mq.fieldKey}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-medium text-slate-700">Operator</label>
+                  <Select value={cond.operator} onValueChange={v => updateCondition(index, 'operator', v)}>
+                    <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="equals">Equals</SelectItem>
+                      <SelectItem value="not_equals">Does Not Equal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-[0.8]">
+                  <label className="text-[10px] font-medium text-slate-700">Value</label>
+                  <DependencyValueInput cond={cond} updateCondition={updateCondition} index={index} mappedQuestions={mappedQuestions} />
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => removeCondition(index)} className="h-8 w-8 text-red-500"><Trash2 className="h-4 w-4" /></Button>
               </div>
-              <div className="flex-1">
-                <label className="text-[10px] font-medium text-slate-700">Operator</label>
-                <Select value={cond.operator} onValueChange={v => updateCondition(index, 'operator', v)}>
-                  <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="equals">Equals</SelectItem>
-                    <SelectItem value="not_equals">Does Not Equal</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex-[0.8]">
-                <label className="text-[10px] font-medium text-slate-700">Value</label>
-                <DependencyValueInput cond={cond} updateCondition={updateCondition} index={index} mappedQuestions={mappedQuestions} />
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => removeCondition(index)} className="h-8 w-8 text-red-500"><Trash2 className="h-4 w-4" /></Button>
+            ))}
+            <Button variant="outline" onClick={addCondition} className="w-full text-xs border-dashed border-2">+ Add Condition</Button>
+          </div>
+        ) : (
+          <div className="space-y-4 py-4 min-h-[150px]">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-slate-700 cursor-pointer flex items-center gap-2" onClick={() => setLoopConfig({ ...loopConfig, enabled: !loopConfig.enabled })}>
+                <input type="checkbox" checked={loopConfig.enabled} onChange={() => { }} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                Enable Loopable
+              </label>
             </div>
-          ))}
-          <Button variant="outline" onClick={addCondition} className="w-full text-xs border-dashed border-2">+ Add Condition</Button>
-        </div>
+            {loopConfig.enabled && (
+              <>
+                <div className="mt-4">
+                  <label className="text-xs font-medium text-slate-700">Source Question</label>
+                  <Select value={loopConfig.sourceQuestionId} onValueChange={v => setLoopConfig({ ...loopConfig, sourceQuestionId: v })}>
+                    <SelectTrigger className="h-8 mt-1 text-xs"><SelectValue placeholder="Select dropdown/radio field" /></SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {loopableOptions.filter(mq => mq.fieldKey !== fieldKey).map(mq => (
+                        <SelectItem key={mq.fieldKey} value={mq.fieldKey}>{mq.questionObj?.question?.substring(0, 30) || mq.fieldKey}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-slate-500 mt-1">Select a dropdown or radio button question that dictates how many times this field should repeat.</p>
+                </div>
+
+                {selectedSourceQuestion && selectedSourceQuestion.questionObj?.options?.length > 0 && (
+                  <div className="space-y-2 mt-4 bg-slate-50 p-3 rounded border">
+                    <label className="text-xs font-semibold text-slate-700">Configure Iterations per Option</label>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div className="text-[10px] font-medium text-slate-500">Option Value</div>
+                      <div className="text-[10px] font-medium text-slate-500">Number of Loops</div>
+                      {selectedSourceQuestion.questionObj.options.map(opt => (
+                        <Fragment key={opt}>
+                          <div className="text-xs flex items-center">{opt}</div>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="20"
+                            className="h-7 text-xs bg-white"
+                            value={loopConfig.optionMappings[opt] !== undefined ? loopConfig.optionMappings[opt] : ''}
+                            onChange={e => setLoopConfig({
+                              ...loopConfig,
+                              optionMappings: { ...loopConfig.optionMappings, [opt]: parseInt(e.target.value) || 0 }
+                            })}
+                          />
+                        </Fragment>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="text-xs">Cancel</Button>
           <Button onClick={handleSave} className="text-xs bg-slate-900 hover:bg-black text-white">Save Rules</Button>
@@ -576,9 +733,9 @@ export default function DocxPage() {
       let val = formValuesRef.current[fid];
       const parentQ = questions.find(x => x._id === q.dependsOnId);
       if (parentQ && parentQ.type === 'checkbox') {
-         val = val === undefined ? 'false' : String(val);
+        val = val === undefined ? 'false' : String(val);
       } else {
-         val = val === undefined ? '' : String(val);
+        val = val === undefined ? '' : String(val);
       }
       return val === q.dependsOnValue;
     });
@@ -821,8 +978,8 @@ export default function DocxPage() {
       for (const item of prev) {
         if (item.type === 'single_question') {
           if (item.fieldKey === fieldId) {
-             changed = true;
-             continue;
+            changed = true;
+            continue;
           }
           const oldConds = item.conditions || [];
           const newConds = oldConds.filter(c => c.dependsOn !== fieldId);
@@ -949,6 +1106,7 @@ export default function DocxPage() {
           sizer.style.gridArea = '1 / 1';
 
           const btn = document.createElement('button');
+          btn.className = 'docx-injected-input-wrapper';
           btn.innerText = '+';
           btn.type = 'button';
           btn.dataset.fieldId = fieldId;
@@ -1283,7 +1441,8 @@ export default function DocxPage() {
 
   const mappedCount = Object.keys(fieldMappings).length;
 
-  function shouldRender(fieldId, qObj) {
+  function shouldRender(fieldId, qObj, actualFieldId) {
+    const loopSuffix = actualFieldId && actualFieldId.includes('_loop_') ? actualFieldId.substring(actualFieldId.indexOf('_loop_')) : '';
     if (!layout.length && (!qObj || !qObj.dependsOnId)) return true;
 
     const evaluateCondition = (cond) => {
@@ -1306,22 +1465,23 @@ export default function DocxPage() {
 
       const dependentFieldIds = [];
       Object.entries(fieldMappings).forEach(([fId, q]) => {
-         const id = typeof q === 'string' ? q : (q._id || q.questionId);
-         if (id === depQId) dependentFieldIds.push(fId);
+        const id = typeof q === 'string' ? q : (q._id || q.questionId);
+        if (id === depQId) dependentFieldIds.push(fId);
       });
       draggedFields.forEach(df => {
-         const id = df.questionId || df.questionObj?._id;
-         if (id === depQId) dependentFieldIds.push(df.id);
+        const id = df.questionId || df.questionObj?._id;
+        if (id === depQId) dependentFieldIds.push(df.id);
       });
 
       if (dependentFieldIds.length === 0) return false;
 
       return dependentFieldIds.some(fId => {
-        let val = formValuesRef.current[fId];
+        let val = formValuesRef.current[fId + loopSuffix];
+        if (val === undefined) val = formValuesRef.current[fId];
         if (depQObj && depQObj.type === 'checkbox') {
-           val = val || 'false';
+          val = val || 'false';
         } else {
-           val = val || '';
+          val = val || '';
         }
 
         if (cond.operator === 'equals') {
@@ -1356,23 +1516,24 @@ export default function DocxPage() {
       Object.keys(fieldMappings).forEach(k => {
         const m = fieldMappings[k];
         if ((typeof m === 'string' ? m : m.questionId) === qObj.dependsOnId) {
-           dependentFieldIds.push(k);
+          dependentFieldIds.push(k);
         }
       });
       draggedFields.forEach(df => {
-         if ((df.questionId || df.questionObj?._id) === qObj.dependsOnId) {
-            dependentFieldIds.push(df.id);
-         }
+        if ((df.questionId || df.questionObj?._id) === qObj.dependsOnId) {
+          dependentFieldIds.push(df.id);
+        }
       });
 
       if (dependentFieldIds.length > 0) {
         const isMet = dependentFieldIds.some(fId => {
-          let val = formValuesRef.current[fId];
+          let val = formValuesRef.current[fId + loopSuffix];
+          if (val === undefined) val = formValuesRef.current[fId];
           const parentQ = questions.find(x => x._id === qObj.dependsOnId);
           if (parentQ && parentQ.type === 'checkbox') {
-             val = val === undefined ? 'false' : String(val);
+            val = val === undefined ? 'false' : String(val);
           } else {
-             val = val === undefined ? '' : String(val);
+            val = val === undefined ? '' : String(val);
           }
           return val === qObj.dependsOnValue;
         });
@@ -1384,24 +1545,109 @@ export default function DocxPage() {
 
   useEffect(() => {
     if (!viewerRef.current) return;
-    const wrappers = viewerRef.current.querySelectorAll('.docx-injected-input-wrapper');
 
-    wrappers.forEach(btn => {
-      if (interactionMode === 'edit') {
+    if (interactionMode === 'edit') {
+      const wrappers = viewerRef.current.querySelectorAll('.docx-injected-input-wrapper');
+      wrappers.forEach(btn => {
         btn.style.visibility = 'visible';
         btn.style.pointerEvents = 'auto';
         if (btn.parentElement?.tagName === 'SPAN') {
           btn.parentElement.style.visibility = 'visible';
         }
         if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'hidden';
-        return;
+      });
+      return;
+    }
+
+    // 1. Process Loopable Configurations (DOM Cloning)
+    const allLoopRules = [];
+    layout.forEach(l => {
+      if (l.type === 'loopable' && l.enabled) {
+        allLoopRules.push({ rule: l, fields: [l.fieldKey], id: "single_" + l.fieldKey });
+      } else if (l.type === 'group' && l.loopable?.enabled) {
+        allLoopRules.push({ rule: l.loopable, fields: (l.children || []).map(c => c.fieldKey), id: "group_" + l.id });
+      }
+    });
+
+    allLoopRules.forEach(({ rule, fields, id: loopId }) => {
+      let loopCount = 1;
+      if (rule.sourceQuestionId) {
+        const sourceVal = formValues[rule.sourceQuestionId];
+        if (sourceVal !== undefined && rule.optionMappings && rule.optionMappings[sourceVal] !== undefined) {
+          loopCount = parseInt(rule.optionMappings[sourceVal]) || 0;
+        }
       }
 
+      // Collect original blocks
+      const originalBlocks = [];
+      fields.forEach(fieldKey => {
+        const btn = viewerRef.current.querySelector(`.docx-injected-input-wrapper[data-field-id="${fieldKey}"]`);
+        if (btn) {
+          const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section, article') || btn.parentElement;
+          if (block && !originalBlocks.includes(block)) {
+            originalBlocks.push(block);
+            block.dataset.loopOriginalFor = loopId;
+          }
+        }
+      });
+
+      if (originalBlocks.length === 0) return;
+
+      const parentElement = originalBlocks[0].parentElement;
+      const existingClones = Array.from(parentElement.children).filter(child => child.dataset.loopCloneForId === loopId);
+
+      const currentIterations = originalBlocks.length > 0 ? Math.floor(existingClones.length / originalBlocks.length) : 0;
+      const targetIterations = Math.max(0, loopCount - 1);
+
+      if (currentIterations < targetIterations) {
+        let lastReferenceNode = existingClones.length > 0 ? existingClones[existingClones.length - 1] : originalBlocks[originalBlocks.length - 1];
+
+        for (let i = currentIterations + 1; i <= targetIterations; i++) {
+          originalBlocks.forEach(origBlock => {
+            const clone = origBlock.cloneNode(true);
+            clone.dataset.loopCloneForId = loopId;
+            clone.dataset.loopCloneIndex = i;
+            delete clone.dataset.loopOriginalFor;
+
+            const cloneInputs = clone.querySelectorAll('input, select, textarea, button.docx-injected-input-wrapper');
+            cloneInputs.forEach(ci => {
+              const origFieldId = ci.getAttribute('data-field-id');
+              if (origFieldId && !origFieldId.includes('_loop_')) {
+                const newId = origFieldId + '_loop_' + i;
+                ci.setAttribute('data-field-id', newId);
+              }
+            });
+
+            if (lastReferenceNode && lastReferenceNode.parentNode) {
+              lastReferenceNode.parentNode.insertBefore(clone, lastReferenceNode.nextSibling);
+              lastReferenceNode = clone;
+            }
+          });
+        }
+      } else if (currentIterations > targetIterations) {
+        const clonesToRemove = existingClones.filter(c => parseInt(c.dataset.loopCloneIndex) > targetIterations);
+        clonesToRemove.forEach(c => c.remove());
+      }
+
+      originalBlocks.forEach(origBlock => {
+        if (loopCount === 0) {
+          origBlock.style.display = 'none';
+        } else {
+          origBlock.style.display = '';
+        }
+      });
+    });
+
+    // 2. Process Visibility and Values for all inputs
+    const wrappers = viewerRef.current.querySelectorAll('.docx-injected-input-wrapper');
+
+    wrappers.forEach(btn => {
       const input = btn.querySelector('input, select, textarea') || btn;
       if (input) {
         const fieldId = input.getAttribute('data-field-id');
         if (fieldId) {
-          const mapping = fieldMappings[fieldId];
+          const originalFieldId = fieldId.split('_loop_')[0];
+          const mapping = fieldMappings[originalFieldId];
           let qObj = null;
           if (mapping) {
             if (typeof mapping === 'string') {
@@ -1412,7 +1658,7 @@ export default function DocxPage() {
               qObj = questions.find(q => q._id === mapping.questionId);
             }
           }
-          
+
           if (!qObj) {
             btn.style.pointerEvents = 'none';
             btn.style.visibility = 'hidden';
@@ -1420,34 +1666,45 @@ export default function DocxPage() {
               btn.parentElement.style.visibility = 'hidden';
             }
             if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'visible';
-          } else if (shouldRender(fieldId, qObj)) {
-            if (input && input.tagName !== 'DIV') {
-              if (input.type === 'checkbox') {
-                const expected = (formValuesRef.current[fieldId] === 'true' || formValuesRef.current[fieldId] === true);
-                if (input.checked !== expected) input.checked = expected;
-              } else {
-                const expected = formValuesRef.current[fieldId] || '';
-                if (input.value !== expected) input.value = expected;
-              }
-            }
-            btn.style.pointerEvents = 'auto';
-            btn.style.visibility = 'visible';
-            if (btn.parentElement?.tagName === 'SPAN') {
-              btn.parentElement.style.visibility = 'visible';
-            }
-            if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'hidden';
           } else {
-            btn.style.pointerEvents = 'auto';
-            btn.style.visibility = 'hidden';
-            if (btn.parentElement?.tagName === 'SPAN') {
-              btn.parentElement.style.visibility = 'hidden';
+            if (shouldRender(originalFieldId, qObj, fieldId)) {
+              if (input && input.tagName !== 'DIV') {
+                if (input.type === 'checkbox') {
+                  const expected = (formValues[fieldId] === 'true' || formValues[fieldId] === true);
+                  if (input.checked !== expected) input.checked = expected;
+                } else {
+                  const expected = formValues[fieldId] || '';
+                  if (input.value !== expected) input.value = expected;
+                }
+
+                input.onchange = (e) => {
+                  const val = input.type === 'checkbox' ? e.target.checked.toString() : e.target.value;
+                  setFormValues(prev => ({ ...prev, [fieldId]: val }));
+                };
+                if ((input.tagName === 'INPUT' && input.type !== 'checkbox' && input.type !== 'date') || input.tagName === 'TEXTAREA') {
+                  input.oninput = (e) => {
+                    setFormValues(prev => ({ ...prev, [fieldId]: e.target.value }));
+                  };
+                }
+              }
+
+              btn.style.pointerEvents = 'auto';
+              btn.style.visibility = 'visible';
+              if (btn.parentElement?.tagName === 'SPAN') btn.parentElement.style.visibility = 'visible';
+              if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'hidden';
+            } else {
+              btn.style.pointerEvents = 'auto';
+              btn.style.visibility = 'hidden';
+              if (btn.parentElement?.tagName === 'SPAN') btn.parentElement.style.visibility = 'hidden';
+              if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'visible';
             }
-            if (btn.previousElementSibling) btn.previousElementSibling.style.visibility = 'visible';
           }
         }
       }
     });
   }, [formValues, interactionMode, fieldMappings, layout, questions]);
+
+
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 relative">
@@ -1470,10 +1727,10 @@ export default function DocxPage() {
               </Badge>
             )}
             <div className="flex gap-2 items-center mt-1">
-              
+
               <div className="flex items-center gap-2 bg-slate-100 rounded-md p-1 border shadow-sm px-3 mr-2">
                 <span className={`text-xs font-semibold ${dependencyMode ? 'text-slate-900' : 'text-slate-500'}`}>Dependency Mode</span>
-                <button 
+                <button
                   onClick={() => setDependencyMode(!dependencyMode)}
                   className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${dependencyMode ? 'bg-slate-900' : 'bg-slate-300'}`}
                 >
@@ -1732,10 +1989,10 @@ export default function DocxPage() {
           <div className="hidden lg:block w-80 shrink-0 sticky top-6">
             <Card className="shadow-md flex flex-col h-[calc(100vh-8rem)] overflow-hidden">
               {dependencyMode ? (
-                <GroupsSidebar 
-                  layout={layout} 
-                  setLayout={setLayout} 
-                  onOpenGroupModal={setActiveGroupModal} 
+                <GroupsSidebar
+                  layout={layout}
+                  setLayout={setLayout}
+                  onOpenGroupModal={setActiveGroupModal}
                 />
               ) : (
                 <>
@@ -2128,7 +2385,7 @@ export default function DocxPage() {
           onClose={() => setActiveGroupModal(null)}
         />
       )}
-      
+
       {activeSingleDependencyModal && (
         <SingleDependencyModal
           fieldKey={activeSingleDependencyModal.fieldKey}
