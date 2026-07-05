@@ -46,7 +46,7 @@ export default function FillDocxPage() {
         const dragged = effectiveDraggedFields.find(df => df.id === cond.dependsOn);
         if (dragged) {
           depQObj = dragged.questionObj || questions.find(q => q._id === dragged.questionId);
-          depQId = depQObj?._id || depQObj?.questionId;
+          depQId = dragged.questionId || depQObj?._id || depQObj?.questionId;
         }
       }
 
@@ -435,7 +435,7 @@ export default function FillDocxPage() {
         // Find the ORIGINAL injected wrapper (not clones, clones have _loop_ in data-field-id)
         const btn = viewerRef.current.querySelector(`.docx-injected-input-wrapper[data-field-id="${fieldKey}"]`);
         if (btn) {
-          const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section') || btn.parentElement;
+          const block = btn.parentElement?.closest('tr') || btn.parentElement?.closest('li') || btn.parentElement?.closest('p, div, section') || btn.parentElement;
           if (block && !originalBlocks.includes(block)) {
             originalBlocks.push(block);
             block.dataset.loopOriginalFor = loopId;
@@ -546,7 +546,7 @@ export default function FillDocxPage() {
                 }
               }
 
-              const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section, article') || btn.parentElement;
+              const block = btn.parentElement?.closest('tr') || btn.parentElement?.closest('li') || btn.parentElement?.closest('p, div, section, article') || btn.parentElement;
               // Since block visibility is handled in step 1, we just ensure the wrapper is visible
               btn.style.visibility = 'visible';
               if (btn.parentElement?.tagName === 'SPAN') {
@@ -556,13 +556,13 @@ export default function FillDocxPage() {
                 block.style.display = '';
               }
             } else {
-              const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section, article') || btn.parentElement;
+              btn.style.pointerEvents = 'auto';
               btn.style.visibility = 'hidden';
               if (btn.parentElement?.tagName === 'SPAN') {
                 btn.parentElement.style.visibility = 'hidden';
               }
-              if (block) {
-                block.style.display = 'none';
+              if (btn.previousElementSibling) {
+                btn.previousElementSibling.style.visibility = 'visible';
               }
             }
           }

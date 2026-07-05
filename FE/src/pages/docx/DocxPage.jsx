@@ -1583,7 +1583,7 @@ export default function DocxPage() {
       fields.forEach(fieldKey => {
         const btn = viewerRef.current.querySelector(`.docx-injected-input-wrapper[data-field-id="${fieldKey}"]`);
         if (btn) {
-          const block = btn.closest('tr') || btn.closest('li') || btn.closest('p, div, section, article') || btn.parentElement;
+          const block = btn.parentElement?.closest('tr') || btn.parentElement?.closest('li') || btn.parentElement?.closest('p, div, section, article') || btn.parentElement;
           if (block && !originalBlocks.includes(block)) {
             originalBlocks.push(block);
             block.dataset.loopOriginalFor = loopId;
