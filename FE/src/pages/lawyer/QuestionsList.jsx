@@ -44,7 +44,6 @@ export default function QuestionsList() {
 
   return (
     <div className="w-full px-8 pb-12">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8 pb-5 border-b border-slate-200">
         <div>
           <h1 className="text-[22px] font-bold text-slate-800">Questions</h1>
@@ -61,7 +60,6 @@ export default function QuestionsList() {
         </Button>
       </div>
 
-      {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="flex flex-col items-center gap-3">
@@ -104,7 +102,6 @@ export default function QuestionsList() {
                   )}
                   
                   <div className="flex flex-wrap items-center gap-2 mt-2.5">
-                    {/* Monochrome Type Badge */}
                     <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-600">
                       <Settings2 className="h-3 w-3 text-slate-400" />
                       <span className="text-[11px] font-semibold">{q.answerType}</span>

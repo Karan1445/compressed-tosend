@@ -117,7 +117,6 @@ export default function QuestionBuilder() {
   return (
     <div className="w-full px-8 max-w-full mx-auto">
 
-      {/* ── Top Navigation Bar ── */}
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={() => navigate('/lawyer/questions')}
@@ -144,7 +143,6 @@ export default function QuestionBuilder() {
         </div>
       </div>
 
-      {/* ── Page Title ── */}
       <div className="mb-8">
         <h1 className="text-[22px] font-bold text-slate-800">
           {isEditMode ? 'Edit Question' : 'Add / Edit Question'}
@@ -156,9 +154,6 @@ export default function QuestionBuilder() {
 
       <div className="space-y-10">
 
-        {/* ─────────────────────────────────────────────
-            SECTION A: QUESTION DETAILS
-           ───────────────────────────────────────────── */}
         <section className="space-y-6">
           <div className="border-b border-slate-100 pb-3">
             <h2 className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">
@@ -166,7 +161,6 @@ export default function QuestionBuilder() {
             </h2>
           </div>
 
-          {/* Title */}
           <div className="space-y-2">
             <Label className="text-[13px] font-semibold text-slate-700">
               Question Title <span className="text-red-400">*</span>
@@ -179,7 +173,6 @@ export default function QuestionBuilder() {
             />
           </div>
 
-          {/* Description */}
           <div className="space-y-2">
             <Label className="text-[13px] font-semibold text-slate-700">
               Description <span className="text-slate-300 font-normal">(Optional)</span>
@@ -194,18 +187,12 @@ export default function QuestionBuilder() {
           </div>
         </section>
 
-        {/* ─────────────────────────────────────────────
-            SECTION B: CONDITIONAL VISIBILITY
-           ───────────────────────────────────────────── */}
         <ConditionPanel
           currentId={id || ''}
           condition={appearanceCondition}
           onChange={setAppearanceCondition}
         />
 
-        {/* ─────────────────────────────────────────────
-            SECTION C: ANSWER TYPE
-           ───────────────────────────────────────────── */}
         <section className="space-y-6">
           <div className="border-b border-slate-100 pb-3">
             <h2 className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">
@@ -213,7 +200,6 @@ export default function QuestionBuilder() {
             </h2>
           </div>
 
-          {/* Answer type pills */}
           <div className="flex flex-wrap gap-2">
             {ANSWER_TYPES.map((type) => (
               <button
@@ -231,7 +217,6 @@ export default function QuestionBuilder() {
             ))}
           </div>
 
-          {/* Required toggle */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setRequired(!required)}
@@ -248,7 +233,6 @@ export default function QuestionBuilder() {
             <span className="text-[13px] font-medium text-slate-600">Required to fill answer</span>
           </div>
 
-          {/* Config panels */}
           <div className="space-y-4">
             {answerType === 'Group Fields' && (
               <GroupFieldsPanel config={configuration} onChange={setConfiguration} onOpenNestedConfig={(i, t) => setNestedModalState({ index: i, type: t })} />
@@ -279,7 +263,6 @@ export default function QuestionBuilder() {
 
       </div>
 
-      {/* Nested Config Modal */}
       <NestedConfigModal
         open={nestedModalState !== null}
         onClose={() => setNestedModalState(null)}

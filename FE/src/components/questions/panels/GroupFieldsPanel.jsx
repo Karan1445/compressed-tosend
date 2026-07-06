@@ -51,7 +51,6 @@ export function GroupFieldsPanel({ config, onChange, onOpenNestedConfig }) {
         </button>
       </div>
 
-      {/* Repeating entries toggle */}
       <div className="flex flex-wrap gap-4">
         <div className="inline-flex items-center gap-6 bg-[#F9F9F9] rounded-lg px-5 py-4">
           <div>
@@ -67,7 +66,6 @@ export function GroupFieldsPanel({ config, onChange, onOpenNestedConfig }) {
         </div>
       </div>
 
-      {/* Field Rows */}
       <div className="space-y-3">
         {groupFields.map((field, i) => (
           <div key={i} className="flex items-center gap-4">
@@ -84,7 +82,6 @@ export function GroupFieldsPanel({ config, onChange, onOpenNestedConfig }) {
                 </SelectContent>
               </Select>
 
-              {/* Visibility toggle */}
               <div className="flex items-center gap-2 shrink-0 px-2">
                 <button onClick={() => updateGroupField(i, 'visible', field.visible === false ? true : false)}
                   className={cn('p-1.5 rounded-md transition-colors',
@@ -95,7 +92,6 @@ export function GroupFieldsPanel({ config, onChange, onOpenNestedConfig }) {
                 <span className="text-[11px] font-medium text-muted-foreground">Vis.</span>
               </div>
 
-              {/* Required toggle */}
               <div className="flex items-center gap-2 shrink-0 px-2">
                 <button onClick={() => updateGroupField(i, 'required', !field.required)}
                   className={cn('relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
@@ -106,7 +102,6 @@ export function GroupFieldsPanel({ config, onChange, onOpenNestedConfig }) {
                 <span className="text-[11px] font-medium text-muted-foreground">Req.</span>
               </div>
 
-              {/* Settings gear — opens nested config */}
               <button onClick={() => CONFIGURABLE_FIELDS.includes(field.type) ? onOpenNestedConfig(i, field.type) : undefined}
                 className={cn('shrink-0 transition-colors',
                   CONFIGURABLE_FIELDS.includes(field.type)

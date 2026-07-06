@@ -47,7 +47,6 @@ export function ConditionPanel({ currentId, condition, onChange }) {
       .catch(() => {});
   }, [currentId]);
 
-  // Resolve sub-fields when question changes
   useEffect(() => {
     if (!condition?.questionId) { setAvailableSubFields([]); return; }
     const baseId = condition.questionId.split('.')[0];
@@ -77,7 +76,6 @@ export function ConditionPanel({ currentId, condition, onChange }) {
 
   const typeCategory = resolveTypeCategory(effectiveAnswerType);
   
-  // For selection, we restrict operators further based on user request (just equal/not equal)
   const filteredOperators = useMemo(() => {
     let ops = ALL_OPERATORS.filter(op => op.types.includes(typeCategory));
     if (typeCategory === 'selection') {
@@ -225,7 +223,6 @@ export function ConditionPanel({ currentId, condition, onChange }) {
           </div>
         ) : (
           <div className="flex flex-wrap gap-4 items-end">
-            {/* If Question */}
             <div className="flex-1 space-y-2 min-w-[200px]">
               <Label className="text-[11px] font-bold text-slate-500 uppercase">If Question…</Label>
               <Select value={baseQuestionId} onValueChange={handleQuestionSelect}>
@@ -240,7 +237,6 @@ export function ConditionPanel({ currentId, condition, onChange }) {
               </Select>
             </div>
 
-            {/* Sub-field (for Group Fields / Address) */}
             {availableSubFields.length > 0 && (
               <div className="flex-1 space-y-2 min-w-[160px]">
                 <Label className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
@@ -259,7 +255,6 @@ export function ConditionPanel({ currentId, condition, onChange }) {
               </div>
             )}
 
-            {/* Operator */}
             <div className="flex-1 space-y-2 min-w-[160px]">
               <Label className="text-[11px] font-bold text-slate-500 uppercase">Action</Label>
               <Select value={condition?.operator || 'equals'} onValueChange={handleOperatorChange}>
@@ -274,7 +269,6 @@ export function ConditionPanel({ currentId, condition, onChange }) {
               </Select>
             </div>
 
-            {/* Value */}
             {renderValueField()}
           </div>
         )}
