@@ -5,7 +5,7 @@ import {
   SidebarGroupLabel, SidebarGroupContent, SidebarMenu,
   SidebarMenuItem, SidebarMenuButton,
 } from '../components/ui/sidebar';
-import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send, List } from 'lucide-react';
+import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send, List, Gavel } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -37,7 +37,6 @@ export default function Layout({ children }) {
   const isSuperAdmin = user?.role === 'Super Admin';
   const navigationItems = [
     ...(isSuperAdmin || perms.includes('assign_role') || perms.includes('create_role') ? [{ title: 'User List', url: '/', icon: Users }] : []),
-    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Add Question', url: '/question', icon: FileQuestion }] : []),
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Sender Dashboard', url: '/sender', icon: Send }] : []),
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'DOCX Viewer', url: '/docx-viewer', icon: FileText }] : []),
     ...(isSuperAdmin || perms.includes('sign') ? [{ title: 'Sign Document', url: '/signer', icon: FileText }] : []),
@@ -118,6 +117,27 @@ export default function Layout({ children }) {
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+
+            {/* ── Lawyer Section (send permission only) ── */}
+            {(isSuperAdmin || perms.includes('send')) && (
+              <SidebarGroup>
+                <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Lawyer
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild tooltip="Questions">
+                        <Link to="/lawyer/questions" className="flex items-center gap-3">
+                          <Gavel className="h-4 w-4 shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden">Questions</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
           </SidebarContent>
 
           <SidebarFooter className="border-t p-3">

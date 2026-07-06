@@ -7,6 +7,7 @@ const authRoutes = require('./routes/authRoutes');
 const questionRoutes = require('./routes/questionRoute');
 const docxRoutes = require('./routes/docxRoute');
 const roleRoutes = require('./routes/roleRoutes');
+const lawyerQuestionRoutes = require('./routes/lawyerQuestionRoutes');
 const User = require('./models/User');
 const Role = require('./models/Role');
 const { authenticateToken } = require('./middleware/auth');
@@ -84,6 +85,7 @@ app.use('/', authRoutes);
 app.use('/question', authenticateToken, questionRoutes);
 app.use('/docx', authenticateToken, docxRoutes);
 app.use('/roles', authenticateToken, roleRoutes);
+app.use('/api/lawyer/questions', lawyerQuestionRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.get("/", authenticateToken, async (req, res) => {
   try {
