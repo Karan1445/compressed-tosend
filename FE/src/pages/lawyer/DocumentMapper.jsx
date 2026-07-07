@@ -96,22 +96,50 @@ export default function DocumentMapper() {
         const desc = q.description || q.title || q.question;
 
         if (type === 'Group Fields' && q.configuration?.groupFields) {
+          flattened.push({
+            questionId: q._id,
+            label: title,
+            question: desc,
+            fieldType: type,
+            groupId: q._id,
+            isMainGroupQuestion: true,
+            parentLabel: title,
+            options: []
+          });
           q.configuration.groupFields.forEach(sub => {
             const subStar = sub.required ? ' *' : '';
             flattened.push({
               questionId: `${q._id}.group.${sub.id || sub.name}`,
               label: `${title} - ${sub.name}${subStar}`,
+              subLabel: `${sub.name}${subStar}`,
+              parentLabel: title,
+              groupId: q._id,
+              isMainGroupQuestion: false,
               question: desc,
               fieldType: sub.type || 'Text',
               options: sub.configuration?.options || []
             });
           });
         } else if (type === 'Address' && q.configuration?.fields) {
+          flattened.push({
+            questionId: q._id,
+            label: title,
+            question: desc,
+            fieldType: type,
+            groupId: q._id,
+            isMainGroupQuestion: true,
+            parentLabel: title,
+            options: []
+          });
           q.configuration.fields.forEach(sub => {
             const subStar = sub.required ? ' *' : '';
             flattened.push({
               questionId: `${q._id}.address.${sub.id}`,
               label: `${title} - ${sub.name}${subStar}`,
+              subLabel: `${sub.name}${subStar}`,
+              parentLabel: title,
+              groupId: q._id,
+              isMainGroupQuestion: false,
               question: desc,
               fieldType: 'Text',
               options: []
