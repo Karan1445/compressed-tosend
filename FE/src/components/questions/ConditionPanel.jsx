@@ -44,7 +44,7 @@ export function ConditionPanel({ currentId, condition, onChange }) {
           setAllQuestions(data.filter(q => q._id !== currentId));
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [currentId]);
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export function ConditionPanel({ currentId, condition, onChange }) {
   }, [selectedSubField, selectedQuestion]);
 
   const typeCategory = resolveTypeCategory(effectiveAnswerType);
-  
+
   const filteredOperators = useMemo(() => {
     let ops = ALL_OPERATORS.filter(op => op.types.includes(typeCategory));
     if (typeCategory === 'selection') {
@@ -177,15 +177,9 @@ export function ConditionPanel({ currentId, condition, onChange }) {
     <section className="space-y-5">
       <div className="flex items-center justify-between border-b border-slate-100 pb-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-[12px] font-bold text-slate-500 uppercase tracking-widest">
+          <h2 className="text-[12px] font-bold text-slate-500 tracking-widest">
             Section B: Conditional Visibility
           </h2>
-          <div className="group relative">
-            <Info className="h-3.5 w-3.5 text-slate-300 cursor-help" />
-            <div className="absolute bottom-full left-0 mb-2 w-64 bg-slate-800 text-white text-[11px] p-2.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 leading-relaxed font-normal">
-              Define logic that determines when this question should appear. Operators adapt based on the referenced question's type.
-            </div>
-          </div>
         </div>
         {condition && (
           <button onClick={() => onChange(null)}
@@ -231,7 +225,7 @@ export function ConditionPanel({ currentId, condition, onChange }) {
                 </SelectTrigger>
                 <SelectContent className="bg-white max-h-[300px]">
                   {allQuestions.map(q => (
-                    <SelectItem key={q._id} value={q._id} className="text-[13px] py-2.5">{q.title}</SelectItem>
+                    <SelectItem key={q._id} value={q._id} className="text-[13px] py-2.5"><span>{q.title}</span> <span className='text-gray-400 underline ml-auto'>({q?.answerType})</span></SelectItem>
                   ))}
                 </SelectContent>
               </Select>

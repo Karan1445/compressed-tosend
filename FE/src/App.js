@@ -7,6 +7,7 @@ import Layout from './pages/layout';
 import HomePage from './pages/home';
 import { LoginForm } from './pages/login';
 import { SignupForm } from './pages/register';
+import { QuestionPage } from './pages/question';
 import QuestionBuilder from './pages/lawyer/QuestionBuilder';
 import QuestionsList from './pages/lawyer/QuestionsList';
 import DocxPage from './pages/docx/DocxPage';
@@ -20,6 +21,7 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import Unauthorized from './pages/Unauthorized';
 import { refreshMe } from './store/slices/authSlice';
 import './index.css';
+import DocumentManager from './pages/lawyer/DocumentManager';
 
 function getHomePath(user) {
   if (!user) return '/login';
@@ -86,10 +88,13 @@ function AppRoutes() {
       <Route path="/" element={<PermissionRoute permission={['assign_role', 'create_role']}><Layout><HomePage /></Layout></PermissionRoute>} />
       <Route path="/roles/create" element={<PermissionRoute permission="create_role"><Layout><RoleCreation /></Layout></PermissionRoute>} />
       <Route path="/roles/assign" element={<PermissionRoute permission="assign_role"><Layout><RoleAssignment /></Layout></PermissionRoute>} />
+      <Route path="/question" element={<PermissionRoute permission="send"><Layout><QuestionPage /></Layout></PermissionRoute>} />
 
       <Route path="/lawyer/questions" element={<PermissionRoute permission="send"><Layout><QuestionsList /></Layout></PermissionRoute>} />
       <Route path="/lawyer/questions/new" element={<PermissionRoute permission="send"><Layout><QuestionBuilder /></Layout></PermissionRoute>} />
       <Route path="/lawyer/questions/edit/:id" element={<PermissionRoute permission="send"><Layout><QuestionBuilder /></Layout></PermissionRoute>} />
+      <Route path="/lawyer/documents" element={<PermissionRoute permission="send"><Layout><DocumentManager /></Layout></PermissionRoute>} />
+
       <Route path="/sender" element={<PermissionRoute permission="send"><Layout><SenderPage /></Layout></PermissionRoute>} />
       <Route path="/docx-viewer" element={<PermissionRoute permission="send"><Layout><DocxPage /></Layout></PermissionRoute>} />
       <Route path="/submissions" element={<PermissionRoute permission="send"><Layout><SubmissionsPage /></Layout></PermissionRoute>} />
@@ -113,9 +118,9 @@ export default function App() {
       <Toaster
         position="top-right"
         richColors
-        expand
+
         toastOptions={{
-          duration: 3500,
+          duration: 500,
           style: { fontFamily: 'Inter Variable, sans-serif' },
         }}
       />

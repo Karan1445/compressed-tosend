@@ -1637,8 +1637,7 @@ export default function DocxPage() {
         }
       });
     });
-
-    // 2. Process Visibility and Values for all inputs
+ 
     const wrappers = viewerRef.current.querySelectorAll('.docx-injected-input-wrapper');
 
     wrappers.forEach(btn => {

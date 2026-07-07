@@ -39,6 +39,15 @@ export default function QuestionBuilder() {
   const [nestedModalState, setNestedModalState] = useState(null);
 
   useEffect(() => {
+    const handleClick = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+        e.preventDefault();
+      }
+    }
+    window.addEventListener("keydown", handleClick);
+    return () => window.removeEventListener("keydown", handleClick)
+  }, [])
+  useEffect(() => {
     if (isEditMode && id) {
       const token = localStorage.getItem('auth_token');
       fetch(`${API}/${id}`, { headers: { 'Authorization': `Bearer ${token}` } })
@@ -85,6 +94,20 @@ export default function QuestionBuilder() {
     try {
       const token = localStorage.getItem('auth_token');
       const payload = { title: questionTitle.trim(), description, answerType, configuration, required, appearanceCondition };
+
+      if (payload?.answerType == "Checkbox" || payload?.answerType == "Dropdown-selection" || payload?.answerType == "Radio-selection") {
+        if (payload?.configuration?.options >= 0) {
+          toast.error("Please add atleast one feild!")
+          return;
+        }
+      }
+
+      if (payload?.answerType == "Group Fields") {
+        if (payload?.configuration?.groupFields>=0) {
+          toast.error("Please add atleast one feild!")
+          return;
+        }
+      }
       const method = isEditMode ? 'PUT' : 'POST';
       const url = isEditMode ? `${API}/${id}` : API;
       const res = await fetch(url, {
@@ -116,7 +139,6 @@ export default function QuestionBuilder() {
 
   return (
     <div className="w-full px-8 max-w-full mx-auto">
-
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={() => navigate('/lawyer/questions')}
@@ -156,7 +178,7 @@ export default function QuestionBuilder() {
 
         <section className="space-y-6">
           <div className="border-b border-slate-100 pb-3">
-            <h2 className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">
+            <h2 className="text-[12px] font-bold text-slate-400 tracking-widest">
               Section A — Question Details
             </h2>
           </div>
@@ -195,7 +217,7 @@ export default function QuestionBuilder() {
 
         <section className="space-y-6">
           <div className="border-b border-slate-100 pb-3">
-            <h2 className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">
+            <h2 className="text-[12px] font-bold text-slate-400  tracking-widest">
               Section C — Answer Type
             </h2>
           </div>
