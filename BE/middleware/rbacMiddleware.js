@@ -1,6 +1,6 @@
 const Role = require('../models/Role');
 
-// Only users with 'send' permission (Lawyers/Senders)
+ 
 const isLawyer = async (req, res, next) => {
   try {
     if (!req.user || !req.user.role) {
@@ -16,7 +16,7 @@ const isLawyer = async (req, res, next) => {
   }
 };
 
-// Only users with 'sign' permission (Signers/Users)
+ 
 const isUser = async (req, res, next) => {
   try {
     if (!req.user || !req.user.role) {

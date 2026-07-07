@@ -4,17 +4,15 @@ const LawyerQuestion = require('../models/LawyerQuestion');
 const { authenticateToken } = require('../middleware/auth');
 const { isLawyer } = require('../middleware/rbacMiddleware');
 
-// GET all questions for the logged-in lawyer
 router.get('/', authenticateToken, isLawyer, async (req, res) => {
   try {
-    const questions = await LawyerQuestion.find({ createdBy: req.user._id }).sort({ createdAt: -1 });
+    const questions = await LawyerQuestion.find({ createdBy: req.user._id }).sort({ createdAt: -1 }).lean();
     res.json(questions);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET single question by ID
 router.get('/:id', authenticateToken, isLawyer, async (req, res) => {
   try {
     const q = await LawyerQuestion.findOne({ _id: req.params.id, createdBy: req.user._id });
@@ -25,7 +23,6 @@ router.get('/:id', authenticateToken, isLawyer, async (req, res) => {
   }
 });
 
-// POST create new question
 router.post('/', authenticateToken, isLawyer, async (req, res) => {
   try {
     const { title, description, persona, answerType, configuration, required, appearanceCondition } = req.body;
@@ -33,7 +30,6 @@ router.post('/', authenticateToken, isLawyer, async (req, res) => {
     const question = new LawyerQuestion({
       title: title.trim(),
       description: description || '',
-      persona: persona || 'all',
       answerType,
       configuration: configuration || {},
       required: required !== undefined ? required : true,
@@ -47,7 +43,6 @@ router.post('/', authenticateToken, isLawyer, async (req, res) => {
   }
 });
 
-// PUT update question
 router.put('/:id', authenticateToken, isLawyer, async (req, res) => {
   try {
     const { title, description, persona, answerType, configuration, required, appearanceCondition } = req.body;
@@ -63,7 +58,6 @@ router.put('/:id', authenticateToken, isLawyer, async (req, res) => {
   }
 });
 
-// DELETE question
 router.delete('/:id', authenticateToken, isLawyer, async (req, res) => {
   try {
     const deleted = await LawyerQuestion.findOneAndDelete({ _id: req.params.id, createdBy: req.user._id });

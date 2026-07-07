@@ -109,7 +109,7 @@ app.get('/debug/docx', async (req, res) => {
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("Mongo Booted UP!");
-    
+
     await bootstrapRolesAndAdmin();
 
     app.listen(8888, () => {
