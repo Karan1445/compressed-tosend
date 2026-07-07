@@ -1,14 +1,15 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
 export const uploadDocx = createAsyncThunk(
-  'docx/upload',
-  async (file, { getState, rejectWithValue }) => {
+  'lawyerDocx/upload',
+  async ({ file, name }, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
       const formData = new FormData();
       formData.append('document', file);
+      formData.append('name', name);
 
-      const response = await fetch('http://localhost:8888/docx/upload', {
+      const response = await fetch('http://localhost:8888/api/lawyer/docx/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -34,7 +35,7 @@ export const fetchUploadedDocx = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
-      const response = await fetch('http://localhost:8888/docx/list', {
+      const response = await fetch('http://localhost:8888/api/lawyer/docx/list', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -57,7 +58,7 @@ export const saveDocxMappings = createAsyncThunk(
   async ({ docxId, placeholderMappings, clauseConfigs, repeatingConfigs }, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
-      const response = await fetch(`http://localhost:8888/docx/${docxId}/mappings`, {
+      const response = await fetch(`http://localhost:8888/api/lawyer/docx/${docxId}/mappings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -82,7 +83,7 @@ export const deleteDocx = createAsyncThunk(
   async (docxId, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
-      const response = await fetch(`http://localhost:8888/docx/${docxId}`, {
+      const response = await fetch(`http://localhost:8888/api/lawyer/docx/${docxId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -105,7 +106,7 @@ export const assignDocx = createAsyncThunk(
   async ({ docxId, assigneeIds }, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
-      const response = await fetch(`http://localhost:8888/docx/${docxId}/assign`, {
+      const response = await fetch(`http://localhost:8888/api/lawyer/docx/${docxId}/assign`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -130,7 +131,7 @@ export const fetchAssignedDocx = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
-      const response = await fetch('http://localhost:8888/docx/assigned', {
+      const response = await fetch('http://localhost:8888/api/lawyer/docx/assigned', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -152,7 +153,7 @@ export const submitDocx = createAsyncThunk(
   async ({ docxId, answers }, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
-      const response = await fetch(`http://localhost:8888/docx/${docxId}/submit`, {
+      const response = await fetch(`http://localhost:8888/api/lawyer/docx/${docxId}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -178,7 +179,7 @@ export const fetchSubmissions = createAsyncThunk(
   async (docxId, { getState, rejectWithValue }) => {
     try {
       const token = getState().auth.token;
-      const response = await fetch(`http://localhost:8888/docx/${docxId}/submissions`, {
+      const response = await fetch(`http://localhost:8888/api/lawyer/docx/${docxId}/submissions`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -207,8 +208,8 @@ const initialState = {
   error: null,
 };
 
-const docxSlice = createSlice({
-  name: 'docx',
+const lawyerDocxSlice = createSlice({
+  name: 'lawyerDocx',
   initialState,
   reducers: {},
   extraReducers: (builder) => {
@@ -307,4 +308,4 @@ const docxSlice = createSlice({
   },
 });
 
-export default docxSlice.reducer;
+export default lawyerDocxSlice.reducer;

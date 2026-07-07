@@ -21,7 +21,9 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import Unauthorized from './pages/Unauthorized';
 import { refreshMe } from './store/slices/authSlice';
 import './index.css';
-import DocumentManager from './pages/lawyer/DocumentManager';
+import DocumentList from './pages/lawyer/DocumentList';
+import NewDocument from './pages/lawyer/NewDocument';
+import DocumentMapper from './pages/lawyer/DocumentMapper';
 
 function getHomePath(user) {
   if (!user) return '/login';
@@ -93,7 +95,9 @@ function AppRoutes() {
       <Route path="/lawyer/questions" element={<PermissionRoute permission="send"><Layout><QuestionsList /></Layout></PermissionRoute>} />
       <Route path="/lawyer/questions/new" element={<PermissionRoute permission="send"><Layout><QuestionBuilder /></Layout></PermissionRoute>} />
       <Route path="/lawyer/questions/edit/:id" element={<PermissionRoute permission="send"><Layout><QuestionBuilder /></Layout></PermissionRoute>} />
-      <Route path="/lawyer/documents" element={<PermissionRoute permission="send"><Layout><DocumentManager /></Layout></PermissionRoute>} />
+      <Route path="/lawyer/documents" element={<PermissionRoute permission="send"><Layout><DocumentList /></Layout></PermissionRoute>} />
+      <Route path="/lawyer/documents/new" element={<PermissionRoute permission="send"><Layout><NewDocument /></Layout></PermissionRoute>} />
+      <Route path="/lawyer/documents/:id/map" element={<PermissionRoute permission="send"><Layout><DocumentMapper /></Layout></PermissionRoute>} />
 
       <Route path="/sender" element={<PermissionRoute permission="send"><Layout><SenderPage /></Layout></PermissionRoute>} />
       <Route path="/docx-viewer" element={<PermissionRoute permission="send"><Layout><DocxPage /></Layout></PermissionRoute>} />
@@ -120,7 +124,7 @@ export default function App() {
         richColors
 
         toastOptions={{
-          duration: 500,
+          duration: 3500,
           style: { fontFamily: 'Inter Variable, sans-serif' },
         }}
       />

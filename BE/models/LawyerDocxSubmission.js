@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
-const DocxSubmissionSchema = new mongoose.Schema({
+const LawyerDocxSubmissionSchema = new mongoose.Schema({
   docxId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Docx',
+    ref: 'LawyerDocx',
     required: true,
   },
   signerId: {
@@ -47,4 +47,4 @@ const DocxSubmissionSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model('DocxSubmission', DocxSubmissionSchema);
+module.exports = mongoose.model('LawyerDocxSubmission', LawyerDocxSubmissionSchema);

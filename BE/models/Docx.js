@@ -22,27 +22,24 @@ const DocxSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-  mappings: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    default: {},
-  },
-  layout: [{
-    type: mongoose.Schema.Types.Mixed
+  placeholderMappings: [{
+    occurrenceKey: String,
+    questionId: String,
+    placeholderText: String,
+    label: String
   }],
-  draggedFields: [{
-    id: String,
-    questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
-    question: String,
-    type: { type: String },
-    options: [String],
-    required: Boolean,
-    x: Number,
-    y: Number,
-    width: Number,
-    height: Number,
-    dependsOnId: String,
-    dependsOnValue: String
+  clauseConfigs: [{
+    questionId: String,
+    clauseName: String,
+    clauseText: String,
+    operator: String,
+    value: String,
+    actionType: String
+  }],
+  repeatingConfigs: [{
+    questionId: String,
+    clauseName: String,
+    clauseText: String
   }],
   assignees: [{
     type: mongoose.Schema.Types.ObjectId,

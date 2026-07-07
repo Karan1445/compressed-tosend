@@ -1,15 +1,34 @@
 const mongoose = require('mongoose');
 
-const DocxSubmissionSchema = new mongoose.Schema({
-  docxId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Docx',
+const LawyerDocxSchema = new mongoose.Schema({
+  name: {
+    type: String,
     required: true,
   },
-  signerId: {
+  isDraft: {
+    type: Boolean,
+    default: true,
+  },
+  originalName: {
+    type: String,
+    required: true,
+  },
+  fileName: {
+    type: String,
+    required: true,
+  },
+  path: {
+    type: String,
+    required: true,
+  },
+  uploadedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
+  },
+  uploadDate: {
+    type: Date,
+    default: Date.now,
   },
   placeholderMappings: [{
     occurrenceKey: String,
@@ -30,21 +49,10 @@ const DocxSubmissionSchema = new mongoose.Schema({
     clauseName: String,
     clauseText: String
   }],
-  answers: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    required: true,
-    default: {},
-  },
-  submittedAt: {
-    type: Date,
-    default: Date.now,
-  },
-  status: {
-    type: String,
-    enum: ['completed', 'pending'],
-    default: 'completed'
-  }
+  assignees: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }]
 });
 
-module.exports = mongoose.model('DocxSubmission', DocxSubmissionSchema);
+module.exports = mongoose.model('LawyerDocx', LawyerDocxSchema);

@@ -104,8 +104,8 @@ function TypePicker({ value, onChange }) {
             className={cn(
               'flex flex-col items-center gap-1.5 rounded-xl border p-2.5 transition-all text-center',
               selected
-                ? 'border-black bg-black text-white shadow-md'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50'
+                ? 'border-gray-200 bg-black text-white shadow-md'
+                : 'border-transparent text-gray-500 hover:text-black hover:border-gray-200 hover:bg-gray-50'
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />

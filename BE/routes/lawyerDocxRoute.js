@@ -3,8 +3,8 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const Docx = require('../models/Docx');
-const DocxSubmission = require('../models/DocxSubmission');
+const LawyerDocx = require('../models/LawyerDocx');
+const LawyerDocxSubmission = require('../models/LawyerDocxSubmission');
 const { requirePermission } = require('../middleware/auth');
 
 const uploadDir = path.join(__dirname, '../uploads');
@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    cb(null, 'lawyer-' + file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
@@ -44,7 +44,14 @@ router.post('/upload', upload.single('document'), async (req, res) => {
       return res.status(400).json({ msg: 'No file uploaded' });
     }
 
-    const newDocx = new Docx({
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ msg: 'Document name is required' });
+    }
+
+    const newDocx = new LawyerDocx({
+      name,
+      isDraft: true,
       originalName: req.file.originalname,
       fileName: req.file.filename,
       path: 'uploads/' + req.file.filename,
@@ -61,7 +68,7 @@ router.post('/upload', upload.single('document'), async (req, res) => {
 
 router.get('/list', async (req, res) => {
   try {
-    const docs = await Docx.find({ uploadedBy: req.user._id }).sort({ uploadDate: -1 });
+    const docs = await LawyerDocx.find({ uploadedBy: req.user._id }).sort({ uploadDate: -1 });
     res.json(docs);
   } catch (err) {
     console.error(err.message);
@@ -73,7 +80,7 @@ router.put('/:id/mappings', async (req, res) => {
   try {
     const { placeholderMappings, clauseConfigs, repeatingConfigs } = req.body;
 
-    const doc = await Docx.findById(req.params.id);
+    const doc = await LawyerDocx.findById(req.params.id);
     if (!doc) {
       return res.status(404).json({ msg: 'Document not found' });
     }
@@ -85,6 +92,9 @@ router.put('/:id/mappings', async (req, res) => {
     if (placeholderMappings) doc.placeholderMappings = placeholderMappings;
     if (clauseConfigs) doc.clauseConfigs = clauseConfigs;
     if (repeatingConfigs) doc.repeatingConfigs = repeatingConfigs;
+    
+    // Mark as no longer draft after saving mappings
+    doc.isDraft = false;
 
     const updatedDoc = await doc.save();
 
@@ -100,7 +110,7 @@ router.put('/:id/mappings', async (req, res) => {
 router.post('/:id/assign', async (req, res) => {
   try {
     const { assigneeIds } = req.body;
-    const doc = await Docx.findById(req.params.id);
+    const doc = await LawyerDocx.findById(req.params.id);
     if (!doc) {
       return res.status(404).json({ msg: 'Document not found' });
     }
@@ -114,7 +124,7 @@ router.post('/:id/assign', async (req, res) => {
     await doc.save();
 
     for (const assigneeId of assigneeIds) {
-      const submission = new DocxSubmission({
+      const submission = new LawyerDocxSubmission({
         docxId: doc._id,
         signerId: assigneeId,
         status: 'pending',
@@ -137,7 +147,7 @@ router.post('/:id/assign', async (req, res) => {
 
 router.get('/assigned', requirePermission('sign'), async (req, res) => {
   try {
-    const submissions = await DocxSubmission.find({ signerId: req.user._id, status: 'pending' })
+    const submissions = await LawyerDocxSubmission.find({ signerId: req.user._id, status: 'pending' })
       .populate('docxId')
       .sort({ submittedAt: -1 });
     res.json(submissions);
@@ -150,7 +160,7 @@ router.get('/assigned', requirePermission('sign'), async (req, res) => {
 router.post('/:id/submit', requirePermission('sign'), async (req, res) => {
   try {
     const { answers } = req.body;
-    const submission = await DocxSubmission.findById(req.params.id);
+    const submission = await LawyerDocxSubmission.findById(req.params.id);
     
     if (!submission) {
       return res.status(404).json({ msg: 'Assignment not found' });
@@ -165,7 +175,7 @@ router.post('/:id/submit', requirePermission('sign'), async (req, res) => {
     submission.submittedAt = Date.now();
     await submission.save();
 
-    const doc = await Docx.findById(submission.docxId);
+    const doc = await LawyerDocx.findById(submission.docxId);
     if (doc) {
       const idx = doc.assignees.findIndex(id => id.toString() === req.user._id.toString());
       if (idx !== -1) {
@@ -187,14 +197,14 @@ router.post('/:id/submit', requirePermission('sign'), async (req, res) => {
 
 router.get('/:id/submissions', async (req, res) => {
   try {
-    const doc = await Docx.findById(req.params.id);
+    const doc = await LawyerDocx.findById(req.params.id);
     if (!doc) return res.status(404).json({ msg: 'Document not found' });
 
     if (doc.uploadedBy.toString() !== req.user._id.toString() && req.user.role !== 'Super Admin') {
       return res.status(401).json({ msg: 'User not authorized' });
     }
 
-    const submissions = await DocxSubmission.find({ docxId: req.params.id })
+    const submissions = await LawyerDocxSubmission.find({ docxId: req.params.id })
       .populate('signerId', 'name email')
       .sort({ submittedAt: -1 });
 
@@ -210,7 +220,7 @@ router.get('/:id/submissions', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    const doc = await Docx.findById(req.params.id);
+    const doc = await LawyerDocx.findById(req.params.id);
     if (!doc) {
       return res.status(404).json({ msg: 'Document not found' });
     }
@@ -224,7 +234,7 @@ router.delete('/:id', async (req, res) => {
       fs.unlinkSync(filePath);
     }
 
-    await Docx.findByIdAndDelete(req.params.id);
+    await LawyerDocx.findByIdAndDelete(req.params.id);
     res.json({ msg: 'Document removed' });
   } catch (err) {
     console.error(err.message);

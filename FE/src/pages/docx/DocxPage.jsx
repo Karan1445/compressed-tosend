@@ -231,7 +231,7 @@ function GroupConfigModal({ group, layout, setLayout, mappedQuestions, onClose }
             <Input
               value={localGroup.label}
               onChange={e => setLocalGroup(prev => ({ ...prev, label: e.target.value }))}
-              className="text-lg font-bold border-0 border-b border-transparent hover:border-slate-200 focus-visible:border-slate-900 focus-visible:ring-0 rounded-none px-1 h-9 bg-transparent transition-colors shadow-none w-full"
+              className="text-lg font-bold border-0 border-b border-transparent hover:border-slate-200 focus-visible:border-slate-900 focus-visible:ring-0 rounded-md px-1 h-9 bg-transparent transition-colors shadow-none w-full"
             />
           </DialogTitle>
           <div className="flex gap-4 mt-4 border-b">

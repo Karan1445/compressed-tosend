@@ -3,6 +3,7 @@ import authReducer from './slices/authSlice';
 import questionsReducer from './slices/questionSlice';
 import usersReducer from './slices/usersSlice';
 import docxReducer from './slices/docxSlice';
+import lawyerDocxReducer from './slices/lawyerDocxSlice';
 import roleReducer from './slices/roleSlice';
 
 export const store = configureStore({
@@ -11,6 +12,7 @@ export const store = configureStore({
     questions: questionsReducer,
     users: usersReducer,
     docx: docxReducer,
+    lawyerDocx: lawyerDocxReducer,
     roles: roleReducer,
   },
 });
