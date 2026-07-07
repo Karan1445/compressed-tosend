@@ -16,7 +16,7 @@ export function PlaceholderMapDialog({ open, onClose, fields, currentMapping, on
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md bg-white">
         <DialogHeader className="pb-2">
-          <DialogTitle className="text-xl font-semibold">Map Placeholder</DialogTitle>
+          <DialogTitle className="text-xl font-normal">Map Placeholder</DialogTitle>
           <DialogDescription className="text-gray-700 text-sm mt-1">
             Select a field to map to this placeholder.
           </DialogDescription>
@@ -45,11 +45,11 @@ export function PlaceholderMapDialog({ open, onClose, fields, currentMapping, on
                   className="w-full text-left px-4 py-3.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between group"
                 >
                   <div className="space-y-1">
-                    <div className="text-[14px] font-semibold text-black">{field.label}</div>
+                    <div className="text-[14px] font-normal text-black">{field.label}</div>
                     <div className="text-[13px] text-gray-500 truncate max-w-[280px]">{field.question}</div>
                   </div>
                   {currentMapping === field.label && (
-                    <span className="text-[10px] font-bold text-black bg-gray-200 border border-gray-300 rounded px-2 py-1 uppercase">Mapped</span>
+                    <span className="text-[10px] font-normal text-black bg-gray-200 border border-gray-300 rounded px-2 py-1 uppercase">Mapped</span>
                   )}
                 </button>
               ))
@@ -58,10 +58,10 @@ export function PlaceholderMapDialog({ open, onClose, fields, currentMapping, on
         </div>
 
         <DialogFooter className="sm:justify-between pt-2">
-          <Button onClick={onClear} className="text-white bg-black hover:bg-zinc-800 rounded-lg h-10 px-5 text-sm font-semibold">
+          <Button onClick={onClear} className="text-white bg-black hover:bg-zinc-800 rounded-lg h-10 px-5 text-sm font-normal">
             Clear Mapping
           </Button>
-          <Button variant="outline" onClick={onClose} className="rounded-lg border-gray-200 hover:bg-gray-100 text-black h-10 px-5 text-sm font-semibold">Cancel</Button>
+          <Button variant="outline" onClick={onClose} className="rounded-lg border-gray-200 hover:bg-gray-100 text-black h-10 px-5 text-sm font-normal">Cancel</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

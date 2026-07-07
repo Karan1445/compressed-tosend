@@ -308,7 +308,6 @@ export default function DocumentMapper() {
     el.classList.add("mapped");
     el.dataset.mappedLabel = label;
 
-    // Explicitly hide the + button and sizer to guarantee it disappears
     const btn = el.querySelector(".docx-placeholder-clickable");
     if (btn) btn.style.display = "none";
     const sizer = el.querySelector(".docx-placeholder-sizer");
@@ -338,7 +337,6 @@ export default function DocumentMapper() {
       delete el.dataset.mappedLabel;
       badgeContainer.remove();
 
-      // Explicitly show the + button and sizer again
       const btnToRestore = el.querySelector(".docx-placeholder-clickable");
       if (btnToRestore) btnToRestore.style.display = "flex";
       const sizerToRestore = el.querySelector(".docx-placeholder-sizer");
@@ -767,27 +765,27 @@ export default function DocumentMapper() {
               <div className="space-y-8">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[13px] font-bold text-black uppercase tracking-wider">Configurations</h3>
+                    <h3 className="text-[13px] font-normal text-black uppercase tracking-wider">Configurations</h3>
                     <span className="text-[11px] font-medium text-black border border-gray-200 rounded-lg px-2 py-0.5 rounded-full">{builderData.sections.length} Active</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                      <p className="text-[10px] font-bold text-black uppercase mb-1">Clauses</p>
-                      <p className="text-[20px] font-bold text-black">{builderData.sections.filter(s => !s.isRepeating).length}</p>
+                      <p className="text-[10px] font-normal text-black uppercase mb-1">Clauses</p>
+                      <p className="text-[20px] font-normal text-black">{builderData.sections.filter(s => !s.isRepeating).length}</p>
                     </div>
                     <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                      <p className="text-[10px] font-bold text-black uppercase mb-1">Loops</p>
-                      <p className="text-[20px] font-bold text-black">{builderData.sections.filter(s => s.isRepeating).length}</p>
+                      <p className="text-[10px] font-normal text-black uppercase mb-1">Loops</p>
+                      <p className="text-[20px] font-normal text-black">{builderData.sections.filter(s => s.isRepeating).length}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-[12px] font-bold text-black uppercase tracking-widest">Active Sections</h3>
+                  <h3 className="text-[12px] font-normal text-black uppercase tracking-widest">Active Sections</h3>
                   {builderData.sections.length === 0 ? (
                     <div className="bg-white border border-solid border-gray-200 rounded-lg p-8 flex flex-col items-center text-center gap-3">
                       <Scissors className="h-6 w-6 text-black" />
-                      <p className="text-[12px] text-black">Select text and click <strong>Convert to Clause</strong></p>
+                      <p className="text-[12px] text-black">Select text and click <span className="font-normal">Convert to Clause</span></p>
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -797,8 +795,8 @@ export default function DocumentMapper() {
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <h4 className="text-[14px] font-bold text-black">{section.name}</h4>
-                                <span className="px-1.5 py-0.5 border border-gray-200 rounded text-[8px] font-bold uppercase text-black">
+                                <h4 className="text-[14px] font-normal text-black">{section.name}</h4>
+                                <span className="px-1.5 py-0.5 border border-gray-200 rounded text-[8px] font-normal uppercase text-black">
                                   {section.isRepeating ? 'Loop' : 'Clause'}
                                 </span>
                               </div>

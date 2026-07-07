@@ -66,7 +66,7 @@ export default function DocumentList() {
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex-1 flex flex-col">
                 <div className="overflow-x-auto flex-1">
                     <table className="w-full text-sm text-left">
-                        <thead className="text-[11px] text-black bg-white uppercase font-bold border-b border-gray-200">
+                        <thead className="text-[11px] text-black bg-white uppercase font-normal border-b border-gray-200">
                             <tr>
                                 <th className="px-6 py-4">Document Name</th>
                                 <th className="px-6 py-4">Mapped Fields</th>
@@ -102,10 +102,10 @@ export default function DocumentList() {
                                                 {doc.name || doc.originalName}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 font-bold text-[12px] text-black">
+                                        <td className="px-6 py-4 font-normal text-[12px] text-black">
                                             {doc.placeholderMappings?.length || 0} Fields
                                         </td>
-                                        <td className="px-6 py-4 text-gray-700 text-[12px] font-bold">
+                                        <td className="px-6 py-4 text-gray-700 text-[12px] font-normal">
                                             {new Date(doc.uploadDate).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -126,7 +126,7 @@ export default function DocumentList() {
                                                     </AlertDialogTrigger>
                                                     <AlertDialogContent className="bg-white max-w-sm rounded-xl">
                                                         <AlertDialogHeader>
-                                                            <AlertDialogTitle className="text-black font-bold">Delete Document</AlertDialogTitle>
+                                                            <AlertDialogTitle className="text-black font-normal">Delete Document</AlertDialogTitle>
                                                             <AlertDialogDescription className="text-gray-500 text-[13px]">
                                                                 Are you sure you want to delete this document? This action cannot be undone.
                                                             </AlertDialogDescription>
