@@ -24,6 +24,7 @@ import './index.css';
 import DocumentList from './pages/lawyer/DocumentList';
 import NewDocument from './pages/lawyer/NewDocument';
 import DocumentMapper from './pages/lawyer/DocumentMapper';
+import PackageList from './pages/lawyer/PackageList';
 
 function getHomePath(user) {
   if (!user) return '/login';
@@ -98,6 +99,7 @@ function AppRoutes() {
       <Route path="/lawyer/documents" element={<PermissionRoute permission="send"><Layout><DocumentList /></Layout></PermissionRoute>} />
       <Route path="/lawyer/documents/new" element={<PermissionRoute permission="send"><Layout><NewDocument /></Layout></PermissionRoute>} />
       <Route path="/lawyer/documents/:id/map" element={<PermissionRoute permission="send"><Layout><DocumentMapper /></Layout></PermissionRoute>} />
+      <Route path="/lawyer/packages" element={<PermissionRoute permission="send"><Layout><PackageList /></Layout></PermissionRoute>} />
 
       <Route path="/sender" element={<PermissionRoute permission="send"><Layout><SenderPage /></Layout></PermissionRoute>} />
       <Route path="/docx-viewer" element={<PermissionRoute permission="send"><Layout><DocxPage /></Layout></PermissionRoute>} />

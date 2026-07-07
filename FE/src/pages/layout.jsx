@@ -5,7 +5,7 @@ import {
   SidebarGroupLabel, SidebarGroupContent, SidebarMenu,
   SidebarMenuItem, SidebarMenuButton,
 } from '../components/ui/sidebar';
-import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send, List, Gavel, ChartBarIcon, LucideGalleryVerticalEnd } from 'lucide-react';
+import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send, List, Gavel, ChartBarIcon, LucideGalleryVerticalEnd, Package as PackageIcon } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -133,12 +133,18 @@ export default function Layout({ children }) {
                           <span className="group-data-[collapsible=icon]:hidden">Questions</span>
                         </Link>
                       </SidebarMenuButton>
-                      <SidebarMenuButton asChild tooltip="Questions">
+                      <SidebarMenuButton asChild tooltip="Documents">
                         <Link to="/lawyer/documents" className="flex items-center gap-3">
                           <LucideGalleryVerticalEnd className="h-4 w-4 shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden">Documents</span>
                         </Link>
                       </SidebarMenuButton>  
+                      <SidebarMenuButton asChild tooltip="Packages">
+                        <Link to="/lawyer/packages" className="flex items-center gap-3">
+                          <PackageIcon className="h-4 w-4 shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden">Packages</span>
+                        </Link>
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   </SidebarMenu>
                 </SidebarGroupContent>
