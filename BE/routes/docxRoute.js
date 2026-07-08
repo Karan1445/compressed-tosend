@@ -151,7 +151,7 @@ router.post('/:id/submit', requirePermission('sign'), async (req, res) => {
   try {
     const { answers } = req.body;
     const submission = await DocxSubmission.findById(req.params.id);
-    
+
     if (!submission) {
       return res.status(404).json({ msg: 'Assignment not found' });
     }

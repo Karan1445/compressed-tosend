@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -6,6 +6,8 @@ import { Search, Loader2 } from 'lucide-react';
 
 export function PlaceholderMapDialog({ open, onClose, fields, currentMapping, onSelect, onClear }) {
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(()=>{setSearchTerm('')},[open,onClose])
 
   const filteredFields = fields.filter(f =>
     f.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -38,20 +40,19 @@ export function PlaceholderMapDialog({ open, onClose, fields, currentMapping, on
             {filteredFields.length === 0 ? (
               <div className="text-center py-6 text-sm text-gray-500">No fields found</div>
             ) : (
-              filteredFields.map(field => (
-                <button
-                  key={field.questionId}
-                  onClick={() => onSelect(field)}
-                  className="w-full text-left px-4 py-3.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between group"
-                >
-                  <div className="space-y-1">
-                    <div className="text-[14px] font-normal text-black">{field.label}</div>
-                    <div className="text-[13px] text-gray-500 truncate max-w-[280px]">{field.question}</div>
-                  </div>
-                  {currentMapping === field.label && (
-                    <span className="text-[10px] font-normal text-black bg-gray-200 border border-gray-300 rounded px-2 py-1 uppercase">Mapped</span>
-                  )}
-                </button>
+                filteredFields.map(field => (
+                  <button
+                    key={field.questionId}
+                    onClick={() => onSelect(field)}
+                    className="w-full text-left px-4 py-3.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-between group">
+                    <div className="space-y-1">
+                      <div className="text-[14px] font-normal text-black">{field.label}</div>
+                      <div className="text-[13px] text-gray-500 truncate max-w-[280px]">{field.question}</div>
+                    </div>
+                    {currentMapping === field.label && (
+                      <span className="text-[10px] font-normal text-black bg-gray-200 border border-gray-300 rounded px-2 py-1 uppercase">Mapped</span>
+                    )}
+                  </button>
               ))
             )}
           </div>

@@ -6,6 +6,7 @@ const fs = require('fs');
 const LawyerDocx = require('../models/LawyerDocx');
 const LawyerDocxSubmission = require('../models/LawyerDocxSubmission');
 const { requirePermission } = require('../middleware/auth');
+const Package = require('../models/Package');
 
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -43,12 +44,10 @@ router.post('/upload', upload.single('document'), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ msg: 'No file uploaded' });
     }
-
     const { name } = req.body;
     if (!name) {
       return res.status(400).json({ msg: 'Document name is required' });
     }
-
     const newDocx = new LawyerDocx({
       name,
       isDraft: true,
@@ -57,7 +56,6 @@ router.post('/upload', upload.single('document'), async (req, res) => {
       path: 'uploads/' + req.file.filename,
       uploadedBy: req.user._id,
     });
-
     const savedDocx = await newDocx.save();
     res.json({ msg: 'File uploaded successfully', doc: savedDocx });
   } catch (err) {
@@ -92,8 +90,7 @@ router.put('/:id/mappings', async (req, res) => {
     if (placeholderMappings) doc.placeholderMappings = placeholderMappings;
     if (clauseConfigs) doc.clauseConfigs = clauseConfigs;
     if (repeatingConfigs) doc.repeatingConfigs = repeatingConfigs;
-    
-    // Mark as no longer draft after saving mappings
+
     doc.isDraft = false;
 
     const updatedDoc = await doc.save();
@@ -161,7 +158,7 @@ router.post('/:id/submit', requirePermission('sign'), async (req, res) => {
   try {
     const { answers } = req.body;
     const submission = await LawyerDocxSubmission.findById(req.params.id);
-    
+
     if (!submission) {
       return res.status(404).json({ msg: 'Assignment not found' });
     }
@@ -220,6 +217,12 @@ router.get('/:id/submissions', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
+    const packages = await Package.find({ documents: req.params.id }).lean();
+
+    if (packages.length > 0) {
+      return res.status(404).json({ msg: `${packages.length} Contains this document! Please remove document from package first` })
+    }
+
     const doc = await LawyerDocx.findById(req.params.id);
     if (!doc) {
       return res.status(404).json({ msg: 'Document not found' });

@@ -1559,7 +1559,7 @@ export default function DocxPage() {
       return;
     }
 
-    // 1. Process Loopable Configurations (DOM Cloning)
+ 
     const allLoopRules = [];
     layout.forEach(l => {
       if (l.type === 'loopable' && l.enabled) {

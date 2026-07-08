@@ -204,7 +204,7 @@ export default function DocumentMapper() {
     const container = containerRef.current;
     if (!container || !docxLoaded) return;
 
-    // Apply mappings to DOM
+
     Object.entries(mapping).forEach(([key, m]) => {
       const el = container.querySelector(`[data-occurrence-key="${key}"]`);
       if (el) updatePlaceholderDOM(el, m.label, key);
@@ -244,7 +244,7 @@ export default function DocumentMapper() {
         ignoreHeight: false,
       });
 
-      // Post-process placeholders
+
       let occurrenceCount = 0;
       const walkAndReplace = (node) => {
         if (node.nodeType === 3) {
@@ -325,7 +325,11 @@ export default function DocumentMapper() {
     badge.textContent = label;
     const removeBtn = document.createElement("button");
     removeBtn.className = "placeholder-badge-action placeholder-badge-remove";
-    removeBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>`;
+    removeBtn.innerHTML = `
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19 5L5 19M5.00001 5L19 19"></path>
+  </svg>
+`;
     removeBtn.onclick = (e) => {
       e.stopPropagation();
       setMapping((prev) => {
@@ -346,7 +350,6 @@ export default function DocumentMapper() {
     badgeContainer.appendChild(removeBtn);
   };
 
-  // Clicks and Selections
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !docxLoaded) return;
@@ -389,12 +392,12 @@ export default function DocumentMapper() {
       setFloatingActionBtn({ top: rect.bottom + 4, left: rect.left });
     };
 
-    container.addEventListener("click", handleClick);
-    container.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      container.removeEventListener("click", handleClick);
-      container.removeEventListener("mouseup", handleMouseUp);
-    };
+      container.addEventListener("click", handleClick);
+      container.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        container.removeEventListener("click", handleClick);
+        container.removeEventListener("mouseup", handleMouseUp);
+      };
   }, [docxLoaded]);
 
 
@@ -560,9 +563,9 @@ export default function DocumentMapper() {
         _id: s.id.includes('.') ? undefined : s.id,
         clauseName: s.name,
         clauseText: s.clauseText,
-        fieldId: s.condition.fieldQuestionId,
-        operator: s.condition.value.startsWith('!') ? 'not_equals' : 'equals',
-        value: s.condition.value.startsWith('!') ? s.condition.value.slice(1) : s.condition.value,
+        fieldId: s?.condition.fieldQuestionId,
+        operator: s?.condition.value.startsWith('!') ? 'not_equals' : 'equals',
+        value: s?.condition.value.startsWith('!') ? s?.condition.value.slice(1) : s?.condition.value,
         actionType: s.actionType
       }));
 
@@ -580,7 +583,6 @@ export default function DocumentMapper() {
         repeatingConfigs
       })).unwrap();
 
-      // Update isDraft to false conceptually (you could trigger a dedicated backend update if needed)
       toast.success('Mappings saved successfully');
       navigate('/lawyer/documents');
     } catch (err) {
@@ -589,9 +591,8 @@ export default function DocumentMapper() {
     setSaving(false);
   };
 
-  const radioFields = builderData.fields.filter(f => f.fieldType === 'radio' || f.fieldType === 'dropdown' || f.fieldType === 'checkbox');
-  const groupFields = builderData.fields
-    .filter(f => f.questionId.includes(".group."))
+  const radioFields = builderData.fields.filter(f => f.fieldType === 'Radio-selection' || f.fieldType === 'Dropdown-selection' || f.fieldType === 'Checkbox');
+  const groupFields = builderData.fields.filter(f => f.questionId.includes(".group."))
     .map(f => {
       const baseId = f.questionId.split(".")[0];
       const q = builderData.fields.find(raw => raw.questionId === baseId);
@@ -648,17 +649,26 @@ export default function DocumentMapper() {
   };
 
   const removeSection = (id) => {
-    setBuilderData(prev => ({ ...prev, sections: prev.sections.filter(s => s.id !== id) }));
-    const highlights = containerRef.current?.querySelectorAll(`[data-clause-id="${id}"]`);
-    highlights?.forEach((highlight) => {
-      const parent = highlight.parentNode;
-      if (parent) {
-        while (highlight.firstChild) parent.insertBefore(highlight.firstChild, highlight);
-        parent.removeChild(highlight);
-      }
-    });
-  };
+    try {
+      setBuilderData(prev => ({ ...prev, sections: prev.sections.filter(s => s.id !== id) }));
+      const highlights = containerRef?.current?.querySelectorAll(`[data-clause-id="${id}"]`);
+      highlights?.forEach((highlight) => {
+        const parent = highlight.parentNode;
+        if (parent) {
+          while (highlight.firstChild) parent.insertBefore(highlight.firstChild, highlight);
+          parent.removeChild(highlight);
+        }
+      });
 
+      setClauseDialogOpen(false); setEditingClauseId(null); setClauseText(""); setClauseRange(null);
+      setRepeatingDialogOpen(false); setEditingRepeatingId(null);
+
+    } catch (error) {
+
+      setRepeatingDialogOpen(false); setEditingRepeatingId(null); setClauseText(""); setClauseRange(null);
+      setRepeatingDialogOpen(false); setEditingRepeatingId(null);
+    }
+  };
 
   return (
     <div className="flex flex-col h-screen bg-white">
@@ -669,7 +679,7 @@ export default function DocumentMapper() {
           </Button>
           {activeDoc && (
             <div className="flex items-center gap-2 ml-2">
-              <FileText className="h-5 w-5 text-indigo-500" />
+              <FileText className="h-5 w-5 text-slate-500" />
               <span className="text-base font-semibold text-slate-800">{activeDoc.name || activeDoc.originalName}</span>
             </div>
           )}
@@ -690,13 +700,13 @@ export default function DocumentMapper() {
           style={{ top: floatingActionBtn.top, left: floatingActionBtn.left }}
         >
           <button
-            onClick={() => { setFloatingActionBtn(null); setClauseDialogOpen(true); }}
+            onClick={() => { setFloatingActionBtn(null); setClauseDialogOpen(true); setRepeatingDialogOpen(false); }}
             className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-medium text-slate-800 hover:bg-slate-100 rounded-md transition-colors w-full text-left"
           >
             <Scissors className="h-3.5 w-3.5" /> Convert to Clause
           </button>
           <button
-            onClick={() => { setFloatingActionBtn(null); setRepeatingDialogOpen(true); }}
+            onClick={() => { setFloatingActionBtn(null); setRepeatingDialogOpen(true); setClauseDialogOpen(false); }}
             className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-medium text-slate-800 hover:bg-slate-100 rounded-md transition-colors w-full text-left border-t border-slate-100 pt-2 mt-1"
           >
             <FileText className="h-3.5 w-3.5" /> Mark as Repeating
@@ -743,19 +753,19 @@ export default function DocumentMapper() {
                 radioFields={radioFields}
                 initialValues={editingClauseId ? (() => {
                   const s = builderData.sections.find(s => s.id === editingClauseId);
-                  const isNot = s.condition.value.startsWith("!");
-                  return { clauseName: s.name, fieldId: s.condition.fieldQuestionId, operator: isNot ? "not_equals" : "equals", value: isNot ? s.condition.value.slice(1) : s.condition.value, actionType: s.actionType };
+                  const isNot = s?.condition.value.startsWith("!");
+                  return { clauseName: s?.name, fieldId: s?.condition.fieldQuestionId, operator: isNot ? "not_equals" : "equals", value: isNot ? s?.condition.value.slice(1) : s?.condition.value, actionType: s?.actionType };
                 })() : null}
                 onSave={handleClauseSave}
                 onDelete={editingClauseId ? () => removeSection(editingClauseId) : undefined}
-                onCancel={() => { setClauseDialogOpen(false); setEditingClauseId(null); setClauseText(""); setClauseRange(null); }}
+                onCancel={() => { setClauseDialogOpen(false);; setEditingClauseId(null); setClauseText(""); setClauseRange(null); }}
               />
             ) : repeatingDialogOpen ? (
               <RepeatingConfigSidebarForm
                 groupFields={uniqueGroupFields}
                 initialValues={editingRepeatingId ? (() => {
                   const s = builderData.sections.find(s => s.id === editingRepeatingId);
-                  return { clauseName: s.name, fieldId: s.condition.fieldQuestionId };
+                  return { clauseName: s?.name, fieldId: s?.condition.fieldQuestionId };
                 })() : null}
                 onSave={handleRepeatingSave}
                 onDelete={editingRepeatingId ? () => removeSection(editingRepeatingId) : undefined}
@@ -765,30 +775,30 @@ export default function DocumentMapper() {
               <div className="space-y-8">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[13px] font-normal text-black uppercase tracking-wider">Configurations</h3>
+                    <h3 className="text-[13px] font-normal text-black tracking-wider">Configurations</h3>
                     <span className="text-[11px] font-medium text-black border border-gray-200 rounded-lg px-2 py-0.5 rounded-full">{builderData.sections.length} Active</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                      <p className="text-[10px] font-normal text-black uppercase mb-1">Clauses</p>
+                      <p className="text-[10px] font-normal text-black mb-1">Clauses</p>
                       <p className="text-[20px] font-normal text-black">{builderData.sections.filter(s => !s.isRepeating).length}</p>
                     </div>
                     <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-                      <p className="text-[10px] font-normal text-black uppercase mb-1">Loops</p>
+                      <p className="text-[10px] font-normal text-black mb-1">Loops</p>
                       <p className="text-[20px] font-normal text-black">{builderData.sections.filter(s => s.isRepeating).length}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-[12px] font-normal text-black uppercase tracking-widest">Active Sections</h3>
+                  <h3 className="text-[12px] font-normal text-black tracking-widest">Active Sections</h3>
                   {builderData.sections.length === 0 ? (
                     <div className="bg-white border border-solid border-gray-200 rounded-lg p-8 flex flex-col items-center text-center gap-3">
                       <Scissors className="h-6 w-6 text-black" />
                       <p className="text-[12px] text-black">Select text and click <span className="font-normal">Convert to Clause</span></p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 ">
                       {builderData.sections.map(section => (
                         <div key={section.id} className="group bg-white border border-gray-200 rounded-lg p-4 shadow-sm relative overflow-hidden">
                           {section.isRepeating && <div className="absolute top-0 right-0 h-full w-1 bg-black" />}
@@ -808,7 +818,7 @@ export default function DocumentMapper() {
                                 onClick={() => {
                                   setClauseText(section.clauseText);
                                   if (section.isRepeating) { setEditingRepeatingId(section.id); setRepeatingDialogOpen(true); }
-                                  else { setEditingClauseId(section.id); setClauseDialogOpen(true); }
+                                  else { setEditingClauseId(section.id); setClauseDialogOpen(true); setRepeatingDialogOpen(false); }
                                 }}
                               ><Pencil className="h-3.5 w-3.5" /></button>
                               <button
@@ -896,7 +906,7 @@ export default function DocumentMapper() {
           padding: 0 4px;
         }
         .placeholder-inline-badge { text-overflow: ellipsis; white-space: nowrap; overflow: hidden; flex: 1; text-align: left; }
-        .placeholder-badge-action { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; cursor: pointer; color: #dc2626; border-radius: 50%; margin-left: 4px; flex-shrink: 0; transition: background 0.15s; }
+        .placeholder-badge-action { display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; cursor: pointer; color: #dc26269c; border-radius: 50%; margin-left: 4px; flex-shrink: 0; transition: background 0.15s; }
         .placeholder-badge-action:hover { background: rgba(0, 0, 0, 0.05); }
       `}</style>
     </div>

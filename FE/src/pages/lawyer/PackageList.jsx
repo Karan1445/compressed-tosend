@@ -8,28 +8,35 @@ import { Search, Loader2, Package as PackageIcon, Plus, MoreHorizontal } from 'l
 import { DocumentHeader } from '../../components/shared/DocumentHeader';
 import { toast } from 'sonner';
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+    AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '../../components/ui/alert-dialog';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
 } from '../../components/ui/dialog';
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '../../components/ui/select';
 
+const DropDownValues = [
+    { label: "Draft", value: "Draft" },
+    { label: "Published", value: "Published" }
+]
 export default function PackageList() {
     const dispatch = useDispatch();
     const { packages, loading } = useSelector(state => state.package);
     const { documents } = useSelector(state => state.lawyerDocx);
-    
+
     const [searchTerm, setSearchTerm] = useState('');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingPackage, setEditingPackage] = useState(null);
     const [formData, setFormData] = useState({ name: '', status: 'Draft', documents: [] });
-
+    const [refresh, setRefresh] = useState(false);
     useEffect(() => {
         dispatch(fetchPackages());
         dispatch(fetchUploadedDocx());
-    }, [dispatch]);
+    }, [dispatch, refresh]);
 
     const handleDelete = async (id) => {
         try {
@@ -60,6 +67,10 @@ export default function PackageList() {
             toast.error("Package name is required");
             return;
         }
+        if (formData?.documents.length <= 0) {
+            toast.error("Please add atleast one Document!");
+            return;
+        }
 
         try {
             if (editingPackage) {
@@ -70,6 +81,7 @@ export default function PackageList() {
                 toast.success("Package created");
             }
             setIsDialogOpen(false);
+            setRefresh(!refresh)
         } catch (err) {
             toast.error(err || "Operation failed");
         }
@@ -84,16 +96,16 @@ export default function PackageList() {
         }));
     };
 
-    const filteredPackages = packages.filter(pkg => 
+    const filteredPackages = packages.filter(pkg =>
         pkg.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
         <div className="flex flex-col h-full bg-white p-6 md:p-8">
-            <DocumentHeader 
-                title="Packages" 
+            <DocumentHeader
+                title="Packages"
                 rightContent={
-                    <Button 
+                    <Button
                         onClick={() => handleOpenDialog()}
                         className="bg-black hover:bg-zinc-800 text-white font-normal shadow-sm h-10 px-5 gap-2"
                     >
@@ -105,8 +117,8 @@ export default function PackageList() {
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
                 <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input 
-                        placeholder="Search by package name..." 
+                    <Input
+                        placeholder="Search by package name..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                         className="pl-9 h-10 bg-white"
@@ -163,7 +175,26 @@ export default function PackageList() {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button 
+                                                {/* <button
+                                                    onClick={() => {
+                                                        if (pkg) {
+                                                            setEditingPackage(pkg);
+                                                            setFormData({
+                                                                name: pkg.name,
+                                                                status: pkg.status == "Published" ? "Draft" : "Published",
+                                                                documents: pkg.documents.map(d => d._id)
+                                                            });
+                                                            handleSave();
+                                                        } else {
+                                                            setEditingPackage(null);
+                                                            setFormData({ name: '', status: 'Draft', documents: [] });
+                                                        }
+                                                    }}
+                                                    className={`"border border rounded-lg text-[13px] font-normal shadow-sm p-2 ${pkg?.status == "Published" ? "text-white bg-gray-600 border-gray-800 px-5" : "text-white bg-green-600 border-green-800"}`}
+                                                >
+                                                    {pkg?.status == "Published" ? "Draft" : "Published"}
+                                                </button> */}
+                                                <button
                                                     onClick={() => handleOpenDialog(pkg)}
                                                     className="px-4 py-2 border border-gray-200 rounded-lg text-[13px] font-normal text-black bg-white hover:bg-gray-50 transition-colors shadow-sm"
                                                 >
@@ -171,7 +202,7 @@ export default function PackageList() {
                                                 </button>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
-                                                        <button 
+                                                        <button
                                                             className="px-4 py-2 border border-transparent rounded-lg text-[13px] font-normal text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                                                         >
                                                             Delete
@@ -186,8 +217,8 @@ export default function PackageList() {
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter className="mt-4">
                                                             <AlertDialogCancel className="h-9 px-4 rounded-lg border-gray-200 text-gray-700 hover:bg-gray-50 text-[13px] font-normal">Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction 
-                                                                onClick={() => handleDelete(pkg._id)} 
+                                                            <AlertDialogAction
+                                                                onClick={() => handleDelete(pkg._id)}
                                                                 className="h-9 px-4 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[13px] font-normal border-none"
                                                             >
                                                                 Delete Package
@@ -213,7 +244,7 @@ export default function PackageList() {
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-black">Package Name</label>
-                            <Input 
+                            <Input
                                 placeholder="Enter package name"
                                 value={formData.name}
                                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
@@ -221,14 +252,24 @@ export default function PackageList() {
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-black">Status</label>
-                            <select 
+                            {/* <select 
                                 className="w-full h-10 border border-gray-300 rounded-md px-3 text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                 value={formData.status}
                                 onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
                             >
                                 <option value="Draft">Draft</option>
                                 <option value="Published">Published</option>
-                            </select>
+                            </select> */}
+                            <Select value={formData.status} onValueChange={(e) => setFormData(prev => ({ ...prev, status: e }))}>
+                                <SelectTrigger className="bg-white border-slate-200 h-11">
+                                    <SelectValue placeholder="Which field?" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white">
+                                    {DropDownValues.map((item) => {
+                                        return <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                                    })}
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-black">Select Documents</label>
@@ -237,15 +278,15 @@ export default function PackageList() {
                                     <div className="p-4 text-center text-sm text-gray-500">No documents available</div>
                                 ) : (
                                     documents.map(doc => (
-                                        <div 
-                                            key={doc._id} 
+                                        <div
+                                            key={doc._id}
                                             className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer transition-colors"
                                             onClick={() => toggleDocument(doc._id)}
                                         >
-                                            <input 
-                                                type="checkbox" 
+                                            <input
+                                                type="checkbox"
                                                 checked={formData.documents.includes(doc._id)}
-                                                onChange={() => {}}
+                                                onChange={() => { }}
                                                 className="h-4 w-4 text-black rounded border-gray-300 focus:ring-black"
                                             />
                                             <span className="text-sm text-gray-800">{doc.name || doc.originalName}</span>

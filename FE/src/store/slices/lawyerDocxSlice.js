@@ -91,12 +91,12 @@ export const deleteDocx = createAsyncThunk(
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete document');
+        throw new Error(response.msg);
       }
 
       return docxId;
     } catch (error) {
-      return rejectWithValue(error.message || 'An error occurred deleting document');
+      return rejectWithValue(error.msg || 'An error occurred deleting document');
     }
   }
 );

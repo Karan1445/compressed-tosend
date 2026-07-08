@@ -410,7 +410,7 @@ export default function FillDocxPage() {
   useEffect(() => {
     if (!viewerRef.current) return;
 
-    // 1. Process Loopable Configurations (DOM Cloning)
+ 
     const allLoopRules = [];
     effectiveLayout.forEach(l => {
       if (l.type === 'loopable' && l.enabled) {

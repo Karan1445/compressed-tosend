@@ -28,7 +28,7 @@ export default function DocumentList() {
             await dispatch(deleteDocx(id)).unwrap();
             toast.success("Document deleted");
         } catch (err) {
-            toast.error("Failed to delete document");
+            toast.error(err);
         }
     };
 

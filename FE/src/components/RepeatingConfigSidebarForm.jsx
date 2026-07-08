@@ -21,10 +21,10 @@ export function RepeatingConfigSidebarForm({ groupFields, initialValues, onSave,
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-purple-200 overflow-hidden">
-      <div className="p-4 border-b border-purple-100 bg-purple-50/50">
-        <h3 className="font-semibold text-purple-900">{initialValues ? 'Edit Loop' : 'New Loop'}</h3>
-        <p className="text-xs text-purple-600 mt-1">Select a group field to repeat this section for each item.</p>
+    <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+        <h3 className="font-semibold text-slate-900">{initialValues ? 'Edit Loop' : 'New Loop'}</h3>
+        <p className="text-xs text-slate-600 mt-1">Select a group field to repeat this section for each item.</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -53,7 +53,7 @@ export function RepeatingConfigSidebarForm({ groupFields, initialValues, onSave,
 
       <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-2 flex-col">
         <Button 
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white" 
+          className="w-full bg-slate-600 hover:bg-slate-700 text-white" 
           onClick={handleSave}
           disabled={!clauseName || !fieldId}
         >

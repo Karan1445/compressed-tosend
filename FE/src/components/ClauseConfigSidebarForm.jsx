@@ -39,10 +39,10 @@ export function ClauseConfigSidebarForm({ radioFields, initialValues, onSave, on
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="space-y-2">
           <Label className="text-xs font-semibold text-slate-600">Clause Name</Label>
-          <Input 
-            value={clauseName} 
-            onChange={(e) => setClauseName(e.target.value)} 
-            placeholder="e.g. Non-Compete Clause" 
+          <Input
+            value={clauseName}
+            onChange={(e) => setClauseName(e.target.value)}
+            placeholder="e.g. Non-Compete Clause"
             className="h-9"
           />
         </div>
@@ -78,8 +78,10 @@ export function ClauseConfigSidebarForm({ radioFields, initialValues, onSave, on
                 <Select value={value} onValueChange={setValue}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="Select value" /></SelectTrigger>
                   <SelectContent className="bg-white">
-                    {options.map(o => (
-                      <SelectItem key={o} value={o}>{o}</SelectItem>
+                    {options.map((o, index) => (
+                      <SelectItem key={index} value={o.value}>
+                        {o.value}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -103,8 +105,8 @@ export function ClauseConfigSidebarForm({ radioFields, initialValues, onSave, on
       </div>
 
       <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-2 flex-col">
-        <Button 
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" 
+        <Button
+          className="w-full bg-slate-600 hover:bg-slate-700 text-white"
           onClick={handleSave}
           disabled={!clauseName || !fieldId || !value}
         >
