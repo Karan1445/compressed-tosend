@@ -25,6 +25,10 @@ import DocumentList from './pages/lawyer/DocumentList';
 import NewDocument from './pages/lawyer/NewDocument';
 import DocumentMapper from './pages/lawyer/DocumentMapper';
 import PackageList from './pages/lawyer/PackageList';
+import PackageStore from './pages/lawyer/PackageStore';
+import FillPackage from './pages/lawyer/FillPackage';
+import PackageSuccess from './pages/lawyer/PackageSuccess';
+import PastSubmissions from './pages/lawyer/PastSubmissions';
 
 function getHomePath(user) {
   if (!user) return '/login';
@@ -100,6 +104,11 @@ function AppRoutes() {
       <Route path="/lawyer/documents/new" element={<PermissionRoute permission="send"><Layout><NewDocument /></Layout></PermissionRoute>} />
       <Route path="/lawyer/documents/:id/map" element={<PermissionRoute permission="send"><Layout><DocumentMapper /></Layout></PermissionRoute>} />
       <Route path="/lawyer/packages" element={<PermissionRoute permission="send"><Layout><PackageList /></Layout></PermissionRoute>} />
+
+      <Route path="/lawyer/packages/store" element={<PermissionRoute permission="send"><Layout><PackageStore /></Layout></PermissionRoute>} />
+      <Route path="/lawyer/packages/store/:id/fill" element={<PermissionRoute permission="send"><Layout><FillPackage /></Layout></PermissionRoute>} />
+      <Route path="/lawyer/packages/store/success/:submissionId" element={<PermissionRoute permission="send"><Layout><PackageSuccess /></Layout></PermissionRoute>} />
+      <Route path="/lawyer/packages/past-submissions" element={<PermissionRoute permission="send"><Layout><PastSubmissions /></Layout></PermissionRoute>} />
 
       <Route path="/sender" element={<PermissionRoute permission="send"><Layout><SenderPage /></Layout></PermissionRoute>} />
       <Route path="/docx-viewer" element={<PermissionRoute permission="send"><Layout><DocxPage /></Layout></PermissionRoute>} />

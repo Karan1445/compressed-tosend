@@ -13,6 +13,19 @@ router.get('/', authenticateToken, isLawyer, async (req, res) => {
   }
 });
 
+// Fetch multiple questions by IDs — used by the package fill flow (no createdBy filter)
+router.post('/by-ids', authenticateToken, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.json([]);
+    const questions = await LawyerQuestion.find({ _id: { $in: ids } }).lean();
+    res.json(questions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 router.get('/:id', authenticateToken, isLawyer, async (req, res) => {
   try {
     const q = await LawyerQuestion.findOne({ _id: req.params.id, createdBy: req.user._id });

@@ -5,7 +5,7 @@ import {
   SidebarGroupLabel, SidebarGroupContent, SidebarMenu,
   SidebarMenuItem, SidebarMenuButton,
 } from '../components/ui/sidebar';
-import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send, List, Gavel, ChartBarIcon, LucideGalleryVerticalEnd, Package as PackageIcon } from 'lucide-react';
+import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send, List, Gavel, BarChart2, GalleryVerticalEnd, Package as PackageIcon } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -42,6 +42,11 @@ export default function Layout({ children }) {
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'DOCX Viewer', url: '/docx-viewer', icon: FileText }] : []),
     ...(isSuperAdmin || perms.includes('sign') ? [{ title: 'Sign Document', url: '/signer', icon: FileText }] : []),
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Submissions', url: '/submissions', icon: List }] : []),
+    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Lawyer Documents', url: '/lawyer/documents', icon: Gavel }] : []),
+    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Lawyer Questions', url: '/lawyer/questions', icon: FileQuestion }] : []),
+    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Package Builder', url: '/lawyer/packages', icon: PackageIcon }] : []),
+    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Package Store', url: '/lawyer/packages/store', icon: GalleryVerticalEnd }] : []),
+    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'My Submissions', url: '/lawyer/packages/past-submissions', icon: BarChart2 }] : []),
     ...(isSuperAdmin || perms.includes('create_role') ? [{ title: 'Create Role', url: '/roles/create', icon: Shield }] : []),
     ...(isSuperAdmin || perms.includes('assign_role') ? [{ title: 'Assign Role', url: '/roles/assign', icon: UserPlus }] : []),
   ];
@@ -129,13 +134,13 @@ export default function Layout({ children }) {
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild tooltip="Questions">
                         <Link to="/lawyer/questions" className="flex items-center gap-3">
-                          <ChartBarIcon className="h-4 w-4 shrink-0" />
+                          <BarChart2 className="h-4 w-4 shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden">Questions</span>
                         </Link>
                       </SidebarMenuButton>
                       <SidebarMenuButton asChild tooltip="Documents">
                         <Link to="/lawyer/documents" className="flex items-center gap-3">
-                          <LucideGalleryVerticalEnd className="h-4 w-4 shrink-0" />
+                          <GalleryVerticalEnd className="h-4 w-4 shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden">Documents</span>
                         </Link>
                       </SidebarMenuButton>  
