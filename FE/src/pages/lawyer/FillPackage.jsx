@@ -3,10 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Loader2, ArrowLeft, ArrowRight, RotateCcw, AlertCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { resolveRawValue, evaluateCondition } from '../../utils/answerResolver';
 
 const API = 'http://localhost:8888/api/lawyer/packages';
 
-// ─── Helpers ───────────────────────────────────────────────────────────
 function resolveDisplayValue(answers, questionId) {
   const parts = questionId.split('.');
   const base = answers[parts[0]];
@@ -35,13 +35,11 @@ export default function FillPackage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // answers keyed by question._id
   const [answers, setAnswers] = useState({});
   const [currentStep, setCurrentStep] = useState(0);
   const [isReviewing, setIsReviewing] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // ─── Load package + questions ───────────────────────────────────────
   useEffect(() => {
     const storageKey = `pkg_draft_${id}`;
     const QUESTIONS_API = 'http://localhost:8888/api/lawyer/questions';
@@ -52,7 +50,6 @@ export default function FillPackage() {
         if (pkgData.error) { toast.error(pkgData.error); navigate('/lawyer/packages/store'); return; }
         setPkg(pkgData);
 
-        // Extract unique BASE question IDs from all placeholderMappings
         const baseIds = new Set();
         (pkgData.documents || []).forEach(doc => {
           (doc.placeholderMappings || []).forEach(m => {
@@ -66,7 +63,6 @@ export default function FillPackage() {
 
         const idArray = Array.from(baseIds).filter(Boolean);
 
-        // Fetch those specific questions by ID (no createdBy restriction)
         let questions = [];
         if (idArray.length > 0) {
           try {
@@ -84,7 +80,6 @@ export default function FillPackage() {
 
         setLawyerQuestions(questions);
 
-        // Restore draft
         try {
           const saved = localStorage.getItem(storageKey);
           if (saved && saved !== 'undefined') {
@@ -92,14 +87,12 @@ export default function FillPackage() {
             setAnswers(savedAnswers || {});
             setCurrentStep(step || 0);
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) {  }
       })
       .catch(() => toast.error('Failed to load package'))
       .finally(() => setLoading(false));
   }, [id, token, navigate]);
 
-
-  // ─── Build ordered list of unique questions from mapped placeholders ─
   const steps = useMemo(() => {
     if (!pkg || !lawyerQuestions.length) return [];
     const seen = new Set();
@@ -129,19 +122,82 @@ export default function FillPackage() {
     return result;
   }, [pkg, lawyerQuestions]);
 
-  // ─── Save draft on answers change ───────────────────────────────────
+  const isQuestionVisible = useCallback((q) => {
+    if (!q) return false;
+    if (!q.appearanceCondition || !q.appearanceCondition.questionId) return true;
+    
+    const condition = q.appearanceCondition;
+    const targetQ = lawyerQuestions.find(s => s._id === condition.questionId.split('.')[0]);
+    const targetConfig = targetQ?.configuration;
+    const rawValue = resolveRawValue(answers, condition.questionId, targetConfig);
+    
+    return evaluateCondition(rawValue, condition.operator, condition.value);
+  }, [answers, lawyerQuestions]);
+
+  const visibleSteps = useMemo(() => steps.filter(isQuestionVisible), [steps, isQuestionVisible]);
+
   useEffect(() => {
-    if (steps.length > 0) {
+    if (visibleSteps.length > 0 && currentStep >= visibleSteps.length) {
+      setCurrentStep(visibleSteps.length - 1);
+    }
+  }, [visibleSteps.length, currentStep]);
+
+  useEffect(() => {
+    if (visibleSteps.length > 0) {
       localStorage.setItem(`pkg_draft_${id}`, JSON.stringify({ answers, step: currentStep }));
     }
-  }, [answers, currentStep, id, steps.length]);
+  }, [answers, currentStep, id, visibleSteps.length]);
 
   const updateAnswer = useCallback((qId, value) => {
     setAnswers(prev => ({ ...prev, [qId]: value }));
     setErrors(prev => ({ ...prev, [qId]: null }));
   }, []);
 
-  // ─── Validation ──────────────────────────────────────────────────────
+  const getValidationErrors = (q, value) => {
+    if (!q) return null;
+    let val = value;
+    if (typeof val === "object" && val !== null && "_value" in val) val = val._value;
+
+    if (val === undefined || val === null || val === "") return null;
+    const type = q.answerType;
+
+    if (type === "Percentage" && Number(val) > 100) return "Max 100%";
+
+    if ((type === "Number" || type === "Amount") && typeof q.configuration === "object") {
+      const numVal = Number(val);
+      const config = q.configuration;
+      if (config.minRange !== undefined && numVal < config.minRange) return `Minimum value is ${config.minRange}`;
+      if (config.maxRange !== undefined && numVal > config.maxRange) return `Maximum value is ${config.maxRange}`;
+    }
+
+    if (type === "Phone Number") {
+      const str = val.toString();
+      if (!str.startsWith("+")) return "Must start with + (e.g. +91)";
+      const digitsOnly = str.slice(1).replace(/\s/g, ""); // Remove spaces for length check
+      if (digitsOnly.length < 8) return "Phone number too short";
+      if (digitsOnly.length > 15) return "Phone number too long";
+    }
+    if (type === "Email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return "Invalid email format";
+
+    if ((type === "Date" || type === "Date-picker") && typeof q.configuration === "object") {
+      const date = new Date(val);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const config = q.configuration;
+
+      if (config.allowPast === false && date < today) return "Past dates are not allowed";
+      if (config.allowFuture === false && date > today) return "Future dates are not allowed";
+      if (config.minDate && date < new Date(config.minDate)) return `Date must be after ${config.minDate}`;
+      if (config.maxDate && date > new Date(config.maxDate)) return `Date must be before ${config.maxDate}`;
+    }
+
+    if (type === "Address" && typeof value === "object") {
+      if (value.zipcode && !/^\d+$/.test(value.zipcode)) return "Zipcode must be numeric";
+    }
+
+    return null;
+  };
+
   const validateStep = (q) => {
     if (!q) return true;
     const val = answers[q._id];
@@ -166,23 +222,28 @@ export default function FillPackage() {
             return false;
           }
         }
-      }
-      if (type === 'Group Fields') {
+      } else if (type === 'Group Fields') {
         if (!Array.isArray(val) || val.length === 0) {
           setErrors(prev => ({ ...prev, [q._id]: 'This field is required' }));
           return false;
         }
-      }
-      if (type === 'Checkbox') {
+      } else if (type === 'Checkbox') {
         if (!Array.isArray(val) || val.length === 0) {
           setErrors(prev => ({ ...prev, [q._id]: 'Please select at least one option' }));
+          return false;
+        }
+      } else {
+
+        if (typeof val === 'object' || String(val).trim() === '') {
+          setErrors(prev => ({ ...prev, [q._id]: 'This field is required' }));
           return false;
         }
       }
     }
 
-    if (val && type === 'Email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-      setErrors(prev => ({ ...prev, [q._id]: 'Invalid email format' }));
+    const advError = getValidationErrors(q, val);
+    if (advError) {
+      setErrors(prev => ({ ...prev, [q._id]: advError }));
       return false;
     }
 
@@ -191,12 +252,12 @@ export default function FillPackage() {
   };
 
   const handleNext = () => {
-    const q = steps[currentStep];
+    const q = visibleSteps[currentStep];
     if (!validateStep(q)) {
       toast.error('Please fix the errors before continuing');
       return;
     }
-    if (currentStep < steps.length - 1) {
+    if (currentStep < visibleSteps.length - 1) {
       setCurrentStep(prev => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
@@ -224,11 +285,11 @@ export default function FillPackage() {
   };
 
   const handleSubmit = async () => {
-    // Final validation
-    for (const q of steps) {
+
+    for (const q of visibleSteps) {
       if (!validateStep(q)) {
         toast.error(`Please complete: ${q.title}`);
-        const idx = steps.indexOf(q);
+        const idx = visibleSteps.indexOf(q);
         setCurrentStep(idx);
         setIsReviewing(false);
         return;
@@ -254,14 +315,12 @@ export default function FillPackage() {
     }
   };
 
-  // ─── Field Renderer ──────────────────────────────────────────────────
   const renderField = (q) => {
     const type = q.answerType;
     const rawVal = answers[q._id];
     const config = q.configuration || {};
     const err = errors[q._id];
 
-    // Safely extract a scalar string value — never show [object Object]
     const safeStr = (v) => {
       if (v === undefined || v === null) return '';
       if (typeof v === 'object') return ''; // clear unexpected object in scalar field
@@ -275,20 +334,54 @@ export default function FillPackage() {
       case 'Text':
       case 'Short Answer':
       case 'Email':
-      case 'Number':
-      case 'Amount':
-      case 'Percentage':
       case 'Phone Number':
         return (
           <input
-            type={type === 'Number' || type === 'Amount' || type === 'Percentage' ? 'number' : type === 'Email' ? 'email' : 'text'}
+            type={type === 'Email' ? 'email' : 'text'}
             value={safeStr(rawVal)}
             onChange={e => updateAnswer(q._id, e.target.value)}
             placeholder={`Enter ${q.title}...`}
-            max={type === 'Percentage' ? 100 : undefined}
             className={inputClass}
           />
         );
+
+      case 'Number':
+      case 'Amount':
+      case 'Percentage': {
+        let maxVal = undefined;
+        let minVal = undefined;
+
+        if (type === 'Percentage') { maxVal = 100; minVal = 0; }
+        if ((type === 'Number' || type === 'Amount') && config) {
+          if (config.maxRange !== undefined) maxVal = config.maxRange;
+          if (config.minRange !== undefined) minVal = config.minRange;
+        }
+
+        const handleChange = (e) => {
+          let newValue = e.target.value;
+          if (newValue === "") {
+             updateAnswer(q._id, "");
+             return;
+          }
+          const num = Number(newValue);
+          if (maxVal !== undefined && num > maxVal) {
+             newValue = String(maxVal); // lock it to maxVal
+          }
+          updateAnswer(q._id, newValue);
+        };
+
+        return (
+          <input
+            type="number"
+            value={safeStr(rawVal)}
+            onChange={handleChange}
+            placeholder={`Enter ${q.title}...`}
+            max={maxVal}
+            min={minVal}
+            className={inputClass}
+          />
+        );
+      }
 
       case 'Long Answer':
         return (
@@ -302,15 +395,48 @@ export default function FillPackage() {
         );
 
       case 'Date-picker':
-      case 'Date':
+      case 'Date': {
+        const dOpts = {};
+        const todayStr = new Date().toISOString().split('T')[0];
+        let minDateStr = '';
+        let maxDateStr = '';
+
+        if (config.minDate) {
+          try { minDateStr = new Date(config.minDate).toISOString().split('T')[0]; } catch(e){}
+        }
+        if (config.allowPast === false) {
+           if (!minDateStr || minDateStr < todayStr) minDateStr = todayStr;
+        }
+
+        if (config.maxDate) {
+          try { maxDateStr = new Date(config.maxDate).toISOString().split('T')[0]; } catch(e){}
+        }
+        if (config.allowFuture === false) {
+           if (!maxDateStr || maxDateStr > todayStr) maxDateStr = todayStr;
+        }
+
+        if (minDateStr) dOpts.min = minDateStr;
+        if (maxDateStr) dOpts.max = maxDateStr;
+
+        const handleDateChange = (e) => {
+           let dateVal = e.target.value;
+           if (dateVal) {
+              if (minDateStr && dateVal < minDateStr) dateVal = minDateStr;
+              if (maxDateStr && dateVal > maxDateStr) dateVal = maxDateStr;
+           }
+           updateAnswer(q._id, dateVal);
+        }
+
         return (
           <input
             type="date"
             value={val || ''}
-            onChange={e => updateAnswer(q._id, e.target.value)}
+            onChange={handleDateChange}
             className={inputClass}
+            {...dOpts}
           />
         );
+      }
 
       case 'Radio-selection':
       case 'Multiple Choice': {
@@ -448,7 +574,7 @@ export default function FillPackage() {
               <button
                 type="button"
                 onClick={() => updateAnswer(q._id, [...entries, {}])}
-                className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 hover:border-gray-300 transition"
+                className="w-full py-3 border-2 border-solid border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 hover:border-gray-300 transition"
               >
                 + Add Another Entry
               </button>
@@ -469,7 +595,6 @@ export default function FillPackage() {
     }
   };
 
-  // ─── Loading ────────────────────────────────────────────────────────
   if (loading) return (
     <div className="flex justify-center items-center h-[60vh]">
       <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
@@ -478,7 +603,7 @@ export default function FillPackage() {
 
   if (!pkg) return null;
 
-  if (steps.length === 0) return (
+  if (visibleSteps.length === 0) return (
     <div className="max-w-2xl mx-auto p-8 text-center">
       <FileText className="h-12 w-12 text-gray-300 mx-auto mb-3" />
       <h2 className="text-xl font-semibold text-gray-700">No questions required</h2>
@@ -487,12 +612,11 @@ export default function FillPackage() {
     </div>
   );
 
-  const progress = isReviewing ? 100 : Math.round(((currentStep) / steps.length) * 100);
+  const progress = isReviewing ? 100 : Math.round(((currentStep) / visibleSteps.length) * 100);
 
-  // ─── Review Screen ──────────────────────────────────────────────────
   if (isReviewing) {
     return (
-      <div className="max-w-2xl mx-auto p-6 md:p-10 space-y-6 pb-24">
+      <div className="w-full max-w-full mx-auto p-6 md:p-10 space-y-6 pb-24">
         <div>
           <button onClick={() => setIsReviewing(false)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-4 transition-colors">
             <ArrowLeft className="h-4 w-4" /> Edit Answers
@@ -501,25 +625,32 @@ export default function FillPackage() {
           <p className="text-gray-500 text-sm mt-1">Please review all your answers before submitting.</p>
         </div>
 
-        {/* Progress */}
+        {}
         <div className="w-full bg-gray-100 rounded-full h-1.5">
           <div className="bg-gray-900 h-1.5 rounded-full w-full transition-all" />
         </div>
 
-        {/* Answers */}
+        {}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
           <div className="divide-y divide-gray-100">
-            {steps.map((q, idx) => {
+            {visibleSteps.map((q, idx) => {
               const val = answers[q._id];
               let display;
-              if (q.answerType === 'Address' && typeof val === 'object' && val) {
-                display = Object.entries(val).map(([k, v]) => `${k}: ${v}`).join('\n');
-              } else if (q.answerType === 'Group Fields' && Array.isArray(val)) {
-                display = val.map((e, i) => `Entry #${i + 1}: ` + Object.entries(e).map(([k, v]) => `${k}: ${v}`).join(', ')).join('\n');
-              } else if (Array.isArray(val)) {
-                display = val.join(', ');
+              if (q.answerType === 'Address') {
+                if (typeof val === 'object' && val && !Array.isArray(val)) {
+                  display = Object.entries(val).map(([k, v]) => `${k}: ${v}`).join('\n');
+                }
+              } else if (q.answerType === 'Group Fields') {
+                if (Array.isArray(val)) {
+                  display = val.map((e, i) => `Entry #${i + 1}: ` + (typeof e === 'object' ? Object.entries(e).map(([k, v]) => `${k}: ${v}`).join(', ') : e)).join('\n');
+                }
+              } else if (q.answerType === 'Checkbox') {
+                if (Array.isArray(val)) display = val.join(', ');
               } else {
-                display = val ? String(val) : null;
+
+                if (val !== undefined && val !== null) {
+                  display = typeof val === 'object' ? null : String(val); // Ignore stale objects/arrays
+                }
               }
               return (
                 <div key={q._id} className="flex flex-col sm:flex-row gap-4 p-5 hover:bg-gray-50 transition-colors">
@@ -540,7 +671,7 @@ export default function FillPackage() {
           </div>
         </div>
 
-        {/* Actions */}
+        {}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2">
           <button
             onClick={handleReset}
@@ -560,13 +691,12 @@ export default function FillPackage() {
     );
   }
 
-  // ─── Question Step Screen ───────────────────────────────────────────
-  const q = steps[currentStep];
+  const q = visibleSteps[currentStep];
   const err = errors[q?._id];
 
   return (
-    <div className="max-w-2xl mx-auto p-6 md:p-10 space-y-6 pb-24">
-      {/* Header */}
+    <div className="w-full max-w-full mx-auto p-6 md:p-10 space-y-6 pb-24">
+      {}
       <div>
         <button onClick={() => navigate('/lawyer/packages/store')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-4 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Store
@@ -575,10 +705,10 @@ export default function FillPackage() {
         <p className="text-gray-400 text-sm mt-0.5">Answer all questions to generate your documents</p>
       </div>
 
-      {/* Progress */}
+      {}
       <div>
         <div className="flex justify-between items-center mb-1.5">
-          <span className="text-xs font-medium text-gray-500">Question {currentStep + 1} of {steps.length}</span>
+          <span className="text-xs font-medium text-gray-500">Question {currentStep + 1} of {visibleSteps.length}</span>
           <span className="text-xs font-medium text-gray-500">{progress}%</span>
         </div>
         <div className="w-full bg-gray-100 rounded-full h-1.5">
@@ -586,7 +716,7 @@ export default function FillPackage() {
         </div>
       </div>
 
-      {/* Question Card */}
+      {}
       {q && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-8">
           <div className="mb-5">
@@ -608,7 +738,7 @@ export default function FillPackage() {
         </div>
       )}
 
-      {/* Navigation */}
+      {}
       <div className="flex justify-between items-center pt-2">
         <button
           onClick={handlePrev}
@@ -621,7 +751,7 @@ export default function FillPackage() {
           onClick={handleNext}
           className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors"
         >
-          {currentStep === steps.length - 1 ? 'Review Answers' : 'Next'}
+          {currentStep === visibleSteps.length - 1 ? 'Review Answers' : 'Next'}
           <ArrowRight className="h-4 w-4" />
         </button>
       </div>

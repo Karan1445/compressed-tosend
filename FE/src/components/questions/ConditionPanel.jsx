@@ -194,7 +194,7 @@ export function ConditionPanel({ currentId, condition, onChange }) {
         'rounded-xl border transition-all duration-300',
         condition
           ? 'bg-slate-50/50 border-slate-200 p-6 shadow-sm'
-          : 'bg-white border-dashed border-slate-200 p-8 hover:border-slate-300'
+          : 'bg-white border-solid border-slate-200 p-8 hover:border-slate-300'
       )}>
         {!condition ? (
           <div className="flex flex-col items-center justify-center text-center space-y-4 py-2">

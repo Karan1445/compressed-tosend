@@ -3,56 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Loader2, CheckCircle2, FileText, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { createFilledDocx } from '../../utils/docxModifier';
+import { resolveAnswerValue, resolveClauseValue, evaluateCondition } from '../../utils/answerResolver';
+import { generatePdfFromDocxBlob } from '../../utils/pdfGenerator';
 
 const API = 'http://localhost:8888/api/lawyer/packages';
-
-// ── client-side PDF generation ────────────────────────────────────────────────
-async function generatePdfFromDocxBlob(docxBlob, filename) {
-  // Dynamically import heavy libs so they don't bloat initial bundle
-  const { renderAsync } = await import('docx-preview');
-  const html2pdf = (await import('html2pdf.js')).default;
-
-  // Create an off-screen container
-  const container = document.createElement('div');
-  container.style.cssText = 'position:fixed;left:-9999px;top:0;width:816px;background:white;font-family:serif;';
-  document.body.appendChild(container);
-
-  try {
-    await renderAsync(docxBlob, container, null, {
-      className: 'docx-pdf-render',
-      inWrapper: false,
-      ignoreWidth: false,
-      ignoreHeight: true,
-      ignoreFonts: false,
-      breakPages: false,
-    });
-
-    // Force white backgrounds
-    container.querySelectorAll('*').forEach(el => {
-      const s = el.style;
-      if (!s.color || s.color === 'transparent') s.color = '#000';
-      s.background = 'white';
-      s.boxShadow = 'none';
-    });
-
-    await new Promise(r => setTimeout(r, 300)); // let fonts settle
-
-    await html2pdf()
-      .set({
-        margin: [15, 15, 15, 15],
-        filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
-      })
-      .from(container)
-      .save();
-
-  } finally {
-    document.body.removeChild(container);
-  }
-}
 
 export default function PackageSuccess() {
   const { submissionId } = useParams();
@@ -79,18 +34,57 @@ export default function PackageSuccess() {
       .finally(() => setLoading(false));
   }, [submissionId, token, navigate]);
 
+  const generateDocumentBlob = async (doc) => {
+    const res = await fetch(`${API}/store/submissions/${submissionId}/download/raw/${doc._id}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error('Failed to download raw document template');
+    const arrayBuffer = await res.arrayBuffer();
+
+    const sortedMappings = [...(doc.placeholderMappings || [])].sort((a, b) => {
+      const aIdx = parseInt((a.occurrenceKey || '').replace(/[^0-9]/g, ''), 10) || 0;
+      const bIdx = parseInt((b.occurrenceKey || '').replace(/[^0-9]/g, ''), 10) || 0;
+      return aIdx - bIdx;
+    });
+
+    const replacements = [];
+    for (const m of sortedMappings) {
+      const value = resolveAnswerValue(submission.answers || {}, m.questionId, null);
+      const occurrenceIndex = parseInt((m.occurrenceKey || '').replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(occurrenceIndex)) {
+        replacements.push({
+          original: m.placeholderText,
+          value,
+          occurrenceIndex,
+          questionId: m.questionId
+        });
+      }
+    }
+
+    const clauseRemovals = [];
+    for (const c of (doc.clauseConfigs || [])) {
+      const answer = resolveClauseValue(submission.answers || {}, c.questionId);
+      const shouldInclude = evaluateCondition(answer, c.operator, c.value);
+      
+      const action = (c.actionType || '').toLowerCase();
+      if ((action === 'include' || action === 'keep clause') && !shouldInclude) {
+        clauseRemovals.push({ text: c.clauseText });
+      } else if ((action === 'exclude' || action === 'remove clause') && shouldInclude) {
+        clauseRemovals.push({ text: c.clauseText });
+      }
+    }
+
+    const repeating = (doc.repeatingConfigs || []).map(r => ({
+      ...r,
+      clauseText: r.clauseText || r.text
+    }));
+
+    return await createFilledDocx(arrayBuffer, replacements, clauseRemovals, repeating, submission.answers || {}, null);
+  };
+
   const handleDownloadDocx = async (doc) => {
     setDownloadingDocx(doc._id);
     try {
-      const res = await fetch(
-        `${API}/store/submissions/${submissionId}/download/docx/${doc._id}`,
-        { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Download failed' }));
-        throw new Error(err.error || 'Download failed');
-      }
-      const blob = await res.blob();
+      toast.info('Generating DOCX...');
+      const blob = await generateDocumentBlob(doc);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -108,20 +102,9 @@ export default function PackageSuccess() {
   const handleDownloadPdf = async (doc) => {
     setDownloadingPdf(doc._id);
     try {
-      // Step 1: Get the filled DOCX blob from backend
-      const res = await fetch(
-        `${API}/store/submissions/${submissionId}/download/docx/${doc._id}`,
-        { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Download failed' }));
-        throw new Error(err.error || 'Download failed');
-      }
-      const docxBlob = await res.blob();
-
-      // Step 2: Convert to PDF client-side (no LibreOffice needed)
-      const filename = (doc.name || 'document').replace(/\.docx$/i, '') + '_filled.pdf';
       toast.info('Generating PDF, please wait...');
+      const docxBlob = await generateDocumentBlob(doc);
+      const filename = (doc.name || 'document').replace(/\.docx$/i, '') + '_filled.pdf';
       await generatePdfFromDocxBlob(docxBlob, filename);
       toast.success('PDF downloaded!');
     } catch (err) {
@@ -140,51 +123,46 @@ export default function PackageSuccess() {
   const documents = pkg?.documents || [];
 
   return (
-    <div className="max-w-2xl mx-auto px-6 md:px-10 py-16">
-      <div className="text-center mb-10">
-        <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle2 className="h-10 w-10 text-green-500" />
-        </div>
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">All set!</h1>
-        <p className="text-gray-500 mt-2 text-sm leading-relaxed max-w-sm mx-auto">
-          Your answers have been saved. Download your filled documents below as DOCX or PDF.
+    <div className="w-full mx-auto px-6 md:px-10 py-16">
+      <div className="mb-10">
+        <h1 className="text-3xl font-normal text-gray-900 tracking-tight">Success</h1>
+        <p className="text-gray-500 mt-2 text-[15px] leading-relaxed">
+          Your documents have been generated and are ready for download.
         </p>
       </div>
 
-      <div className="space-y-3 mb-8">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Ready for Download</p>
+      <div className="space-y-4 mb-10">
+        <h2 className="text-[14px] font-medium text-gray-900 border-b pb-2">Documents</h2>
         {documents.length === 0 ? (
-          <p className="text-center text-gray-400 py-8 border rounded-xl">No documents available</p>
+          <p className="text-gray-400 py-4">No documents available</p>
         ) : (
           documents.map(doc => (
-            <div key={doc._id} className="p-5 rounded-2xl bg-gray-50 border border-gray-100 hover:border-gray-200 transition-all">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-11 h-11 bg-white rounded-xl shadow-sm flex items-center justify-center border border-gray-100">
-                  <FileText className="h-5 w-5 text-gray-400" />
-                </div>
+            <div key={doc._id} className="py-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-gray-400" />
                 <div>
-                  <p className="font-semibold text-gray-900 text-[14px]">{doc.name || doc.originalName || 'Legal Document'}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Filled Document</p>
+                  <p className="font-medium text-gray-900 text-[14px]">{doc.name || doc.originalName || 'Document'}</p>
+                  <p className="text-[13px] text-gray-500 mt-0.5">Ready for download</p>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   onClick={() => handleDownloadDocx(doc)}
                   disabled={downloadingDocx === doc._id}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-gray-900 text-white text-xs font-semibold hover:bg-gray-700 disabled:opacity-50 transition-colors"
+                  className="flex items-center justify-center gap-2 px-5 py-2 rounded border border-gray-300 text-gray-700 text-[13px] font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
                 >
                   {downloadingDocx === doc._id
-                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating...</>
-                    : <><Download className="h-3.5 w-3.5" /> Download DOCX</>}
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> DOCX</>
+                    : <>DOCX</>}
                 </button>
                 <button
                   onClick={() => handleDownloadPdf(doc)}
                   disabled={downloadingPdf === doc._id}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  className="flex items-center justify-center gap-2 px-5 py-2 rounded bg-gray-900 text-white text-[13px] font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
                 >
                   {downloadingPdf === doc._id
-                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating PDF...</>
-                    : <><Download className="h-3.5 w-3.5" /> Download PDF</>}
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> PDF</>
+                    : <>PDF</>}
                 </button>
               </div>
             </div>
@@ -192,16 +170,16 @@ export default function PackageSuccess() {
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex gap-4">
         <button
           onClick={() => navigate('/lawyer/packages/store')}
-          className="flex-1 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 font-medium hover:bg-gray-50 transition-colors"
+          className="px-6 py-2.5 rounded border border-gray-300 text-[14px] text-gray-700 font-medium hover:bg-gray-50 transition-colors"
         >
           Back to Store
         </button>
         <button
           onClick={() => navigate('/lawyer/packages/past-submissions')}
-          className="flex-1 py-3 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors"
+          className="px-6 py-2.5 rounded bg-gray-100 text-[14px] text-gray-900 font-medium hover:bg-gray-200 transition-colors"
         >
           View Past Submissions
         </button>

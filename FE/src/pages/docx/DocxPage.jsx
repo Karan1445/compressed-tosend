@@ -316,7 +316,7 @@ function GroupConfigModal({ group, layout, setLayout, mappedQuestions, onClose }
                   <Button variant="ghost" size="icon" onClick={() => removeCondition(index)} className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"><Trash2 className="h-4 w-4" /></Button>
                 </div>
               ))}
-              <Button variant="outline" onClick={addCondition} className="w-full text-xs border-dashed border-2">+ Add Condition</Button>
+              <Button variant="outline" onClick={addCondition} className="w-full text-xs border-solid border-2">+ Add Condition</Button>
             </div>
           ) : activeTab === 'loopable' ? (
             <div className="space-y-4">
@@ -491,7 +491,7 @@ function SingleDependencyModal({ fieldKey, questionObj, layout, setLayout, mappe
                 <Button variant="ghost" size="icon" onClick={() => removeCondition(index)} className="h-8 w-8 text-red-500"><Trash2 className="h-4 w-4" /></Button>
               </div>
             ))}
-            <Button variant="outline" onClick={addCondition} className="w-full text-xs border-dashed border-2">+ Add Condition</Button>
+            <Button variant="outline" onClick={addCondition} className="w-full text-xs border-solid border-2">+ Add Condition</Button>
           </div>
         ) : (
           <div className="space-y-4 py-4 min-h-[150px]">

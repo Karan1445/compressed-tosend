@@ -9,8 +9,6 @@ const PizZip = require('pizzip');
 const fs = require('fs');
 const path = require('path');
 
-// ──────────────── LAWYER MANAGEMENT ROUTES ────────────────
-
 router.get('/', authenticateToken, isLawyer, async (req, res) => {
   try {
     const packages = await Package.find({ createdBy: req.user._id }).populate('documents', 'name originalName fileName');
@@ -62,8 +60,6 @@ router.delete('/:id', authenticateToken, isLawyer, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
-// ──────────────── STORE ROUTES ────────────────
 
 router.get('/store/published', authenticateToken, async (req, res) => {
   try {
@@ -128,29 +124,16 @@ router.get('/store/submissions/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ──────────────── DOCUMENT GENERATION ────────────────
-
-/**
- * Core DOCX generation using occurrence-index replacement.
- * Exactly mirrors the reference app's replacePlaceholdersInXml logic.
- * 
- * Steps:
- *  1. Sort mappings by their occurrence index (occ_0, occ_1 ...) 
- *  2. Scan the XML for underscores (___) in document order
- *  3. Replace the Nth blank with the value for mapping[N]
- */
 function generateFilledDocxBuffer(docPath, placeholderMappings, answers) {
   const content = fs.readFileSync(docPath, 'binary');
   const zip = new PizZip(content);
 
-  // Sort mappings by occurrenceKey index (occ_0 < occ_1 < ...)
   const sortedMappings = [...(placeholderMappings || [])].sort((a, b) => {
     const aIdx = parseInt((a.occurrenceKey || '').replace(/[^0-9]/g, ''), 10) || 0;
     const bIdx = parseInt((b.occurrenceKey || '').replace(/[^0-9]/g, ''), 10) || 0;
     return aIdx - bIdx;
   });
 
-  // Build value array indexed by occurrence
   const valueByIndex = {};
   sortedMappings.forEach(m => {
     const idx = parseInt((m.occurrenceKey || '').replace(/[^0-9]/g, ''), 10);
@@ -159,7 +142,6 @@ function generateFilledDocxBuffer(docPath, placeholderMappings, answers) {
     }
   });
 
-  // Process all XML files in the same order as the reference app
   const xmlFiles = Object.keys(zip.files).filter(
     name => name.startsWith('word/') && name.endsWith('.xml') && !name.endsWith('.xml.rels')
   );
@@ -182,11 +164,9 @@ function generateFilledDocxBuffer(docPath, placeholderMappings, answers) {
     if (!file) continue;
     let xml = file.asText();
 
-    // Count placeholders before replacement so globalIndex advances correctly
     const placeholdersInFile = (xml.match(PLACEHOLDER_REGEX) || []).length;
     const fileStartIndex = globalIndex;
 
-    // Replace each placeholder in document order
     let localIndex = 0;
     xml = xml.replace(PLACEHOLDER_REGEX, (match) => {
       const absIndex = fileStartIndex + localIndex;
@@ -205,7 +185,6 @@ function generateFilledDocxBuffer(docPath, placeholderMappings, answers) {
   return zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
 
-// XML escape
 function escapeXml(str) {
   if (!str) return '';
   return str
@@ -216,8 +195,7 @@ function escapeXml(str) {
     .replace(/"/g, '&quot;');
 }
 
-// Download DOCX
-router.post('/store/submissions/:id/download/docx/:docId', authenticateToken, async (req, res) => {
+router.get('/store/submissions/:id/download/raw/:docId', authenticateToken, async (req, res) => {
   try {
     const submission = await PackageSubmission.findOne({ _id: req.params.id, userId: req.user._id });
     if (!submission) return res.status(404).json({ error: 'Submission not found' });
@@ -228,19 +206,16 @@ router.post('/store/submissions/:id/download/docx/:docId', authenticateToken, as
     const docxPath = path.join(__dirname, '..', doc.path);
     if (!fs.existsSync(docxPath)) return res.status(404).json({ error: 'Document file not found on disk' });
 
-    const buffer = generateFilledDocxBuffer(docxPath, doc.placeholderMappings, submission.answers || {});
-    const filename = (doc.name || 'document').replace(/\.docx$/i, '') + '_filled.docx';
-
+    const buffer = fs.readFileSync(docxPath);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="raw_template.docx"`);
     res.send(buffer);
   } catch (error) {
-    console.error('Error generating DOCX:', error);
+    console.error('Error fetching raw DOCX:', error);
     res.status(500).json({ error: error.message || 'Server error' });
   }
 });
 
-// Download PDF (convert filled DOCX → PDF via LibreOffice)
 router.post('/store/submissions/:id/download/pdf/:docId', authenticateToken, async (req, res) => {
   const os = require('os');
   const libre = require('libreoffice-convert');
@@ -260,7 +235,6 @@ router.post('/store/submissions/:id/download/pdf/:docId', authenticateToken, asy
 
     const docxBuffer = generateFilledDocxBuffer(docxPath, doc.placeholderMappings, submission.answers || {});
 
-    // Write to temp file for LibreOffice
     fs.writeFileSync(tmpDocx, docxBuffer);
     const docxForConvert = fs.readFileSync(tmpDocx);
 
@@ -274,18 +248,10 @@ router.post('/store/submissions/:id/download/pdf/:docId', authenticateToken, asy
     console.error('Error generating PDF:', error);
     res.status(500).json({ error: error.message || 'PDF generation failed. Is LibreOffice installed?' });
   } finally {
-    try { if (fs.existsSync(tmpDocx)) fs.unlinkSync(tmpDocx); } catch (e) {}
+    try { if (fs.existsSync(tmpDocx)) fs.unlinkSync(tmpDocx); } catch (e) { }
   }
 });
 
-// ──────────────── ANSWER RESOLVER ────────────────
-
-/**
- * Resolves an answer value for a questionId like:
- *   "baseId"                    → simple value
- *   "baseId.address.city"       → address sub-field
- *   "baseId.group.fieldName"    → first entry of group field
- */
 function resolveAnswerValue(answers, questionId) {
   if (!questionId || !answers) return '';
   const parts = questionId.split('.');
@@ -296,14 +262,20 @@ function resolveAnswerValue(answers, questionId) {
 
   if (parts.length === 1) {
     if (typeof baseVal === 'object' && !Array.isArray(baseVal)) {
-      // Address-like object — join all values
+
       return Object.values(baseVal).filter(Boolean).join(', ');
     }
-    if (Array.isArray(baseVal)) return baseVal.join(', ');
+    if (Array.isArray(baseVal)) {
+      return baseVal.map(item => {
+        if (typeof item === 'object' && item !== null) {
+          return Object.values(item).filter(Boolean).join(', ');
+        }
+        return item;
+      }).filter(Boolean).join('; ');
+    }
     return String(baseVal || '');
   }
 
-  // "address" sub-field: baseId.address.fieldName
   if (parts[1] === 'address' && parts[2]) {
     if (typeof baseVal === 'object' && !Array.isArray(baseVal)) {
       return String(baseVal[parts[2]] || '');
@@ -311,7 +283,6 @@ function resolveAnswerValue(answers, questionId) {
     return '';
   }
 
-  // "group" sub-field: baseId.group.fieldName
   if (parts[1] === 'group' && parts[2]) {
     if (Array.isArray(baseVal)) {
       return baseVal.map(entry => String((entry || {})[parts[2]] || '')).filter(Boolean).join(', ');

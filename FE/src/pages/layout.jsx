@@ -42,11 +42,6 @@ export default function Layout({ children }) {
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'DOCX Viewer', url: '/docx-viewer', icon: FileText }] : []),
     ...(isSuperAdmin || perms.includes('sign') ? [{ title: 'Sign Document', url: '/signer', icon: FileText }] : []),
     ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Submissions', url: '/submissions', icon: List }] : []),
-    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Lawyer Documents', url: '/lawyer/documents', icon: Gavel }] : []),
-    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Lawyer Questions', url: '/lawyer/questions', icon: FileQuestion }] : []),
-    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Package Builder', url: '/lawyer/packages', icon: PackageIcon }] : []),
-    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'Package Store', url: '/lawyer/packages/store', icon: GalleryVerticalEnd }] : []),
-    ...(isSuperAdmin || perms.includes('send') ? [{ title: 'My Submissions', url: '/lawyer/packages/past-submissions', icon: BarChart2 }] : []),
     ...(isSuperAdmin || perms.includes('create_role') ? [{ title: 'Create Role', url: '/roles/create', icon: Shield }] : []),
     ...(isSuperAdmin || perms.includes('assign_role') ? [{ title: 'Assign Role', url: '/roles/assign', icon: UserPlus }] : []),
   ];
@@ -148,6 +143,18 @@ export default function Layout({ children }) {
                         <Link to="/lawyer/packages" className="flex items-center gap-3">
                           <PackageIcon className="h-4 w-4 shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden">Packages</span>
+                        </Link>
+                      </SidebarMenuButton>
+                      <SidebarMenuButton asChild tooltip="Package Store">
+                        <Link to="/lawyer/packages/store" className="flex items-center gap-3">
+                          <GalleryVerticalEnd className="h-4 w-4 shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden">Package Store</span>
+                        </Link>
+                      </SidebarMenuButton>
+                      <SidebarMenuButton asChild tooltip="My Submissions">
+                        <Link to="/lawyer/packages/past-submissions" className="flex items-center gap-3">
+                          <BarChart2 className="h-4 w-4 shrink-0" />
+                          <span className="group-data-[collapsible=icon]:hidden">My Submissions</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

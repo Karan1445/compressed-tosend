@@ -27,14 +27,14 @@ export default function PackageStore() {
   );
 
   return (
-    <div className="p-6 md:p-10 max-w-3xl mx-auto">
+    <div className="p-6 md:p-10 w-full mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Package Store</h1>
         <p className="text-gray-500 mt-1 text-sm">Select a package to fill out and generate your documents.</p>
       </div>
 
       {packages.length === 0 ? (
-        <div className="text-center py-20 border-2 border-dashed rounded-2xl border-gray-200">
+        <div className="text-center py-20 border-2 border-solid rounded-2xl border-gray-200">
           <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 font-medium">No published packages available</p>
           <p className="text-gray-400 text-sm mt-1">Ask a lawyer to publish a package first.</p>
@@ -67,14 +67,7 @@ export default function PackageStore() {
         </div>
       )}
 
-      <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
-        <button
-          onClick={() => navigate('/lawyer/packages/past-submissions')}
-          className="text-sm text-gray-500 hover:text-gray-800 underline underline-offset-4 transition-colors"
-        >
-          View Past Submissions →
-        </button>
-      </div>
+
     </div>
   );
 }
