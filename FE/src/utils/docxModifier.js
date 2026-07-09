@@ -183,7 +183,16 @@ function collectModificationTasks(xml, repeatingConfigs, clauseRemovals, answers
         let baseVal = groupAnswer;
         if (typeof baseVal === "object" && baseVal !== null && "_value" in baseVal)
             baseVal = baseVal._value;
-        const numEntries = Array.isArray(baseVal) ? baseVal.length : (baseVal ? 1 : 0);
+            
+        let numEntries = 0;
+        if (Array.isArray(baseVal)) {
+            numEntries = baseVal.length;
+        } else if (typeof baseVal === 'number' || (typeof baseVal === 'string' && !isNaN(Number(baseVal)) && baseVal.trim() !== '')) {
+            numEntries = Number(baseVal);
+        } else {
+            numEntries = baseVal ? 1 : 0;
+        }
+        
         const { normalized: normTarget } = aggressiveNormalize(config.clauseText);
         const matches = findMatchesInRange(normalizedConcat, normTarget);
         addTasks(matches, 'loop', { config, numEntries });

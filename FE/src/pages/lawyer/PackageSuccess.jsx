@@ -61,7 +61,8 @@ export default function PackageSuccess() {
 
     const clauseRemovals = [];
     for (const c of (doc.clauseConfigs || [])) {
-      const answer = resolveClauseValue(submission.answers || {}, c.questionId);
+      const qId = c.questionId || c.fieldId;
+      const answer = resolveClauseValue(submission.answers || {}, qId);
       const shouldInclude = evaluateCondition(answer, c.operator, c.value);
       
       const action = (c.actionType || '').toLowerCase();
@@ -74,6 +75,7 @@ export default function PackageSuccess() {
 
     const repeating = (doc.repeatingConfigs || []).map(r => ({
       ...r,
+      questionId: r.questionId || r.fieldId,
       clauseText: r.clauseText || r.text
     }));
 

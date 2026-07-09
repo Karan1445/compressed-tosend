@@ -198,18 +198,19 @@ export default function FillPackage() {
     return null;
   };
 
-  const validateStep = (q) => {
+  const validateStep = (q, silent = false) => {
     if (!q) return true;
     const val = answers[q._id];
     const type = q.answerType;
+    let isValid = true;
+    let localErrors = {};
 
     if (q.required) {
       if (val === undefined || val === null || val === '') {
-        setErrors(prev => ({ ...prev, [q._id]: 'This field is required' }));
-        toast.error(`${q.title}: This field is required`);
-        return false;
-      }
-      if (type === 'Address') {
+        localErrors[q._id] = 'This field is required';
+        if (!silent) toast.error(`${q.title}: This field is required`);
+        isValid = false;
+      } else if (type === 'Address') {
         const fields = (q.configuration?.fields?.length > 0) ? q.configuration.fields : [
           { id: 'street', name: 'Street Address', required: true },
           { id: 'city', name: 'City', required: true },
@@ -219,65 +220,66 @@ export default function FillPackage() {
         ];
         for (const f of fields) {
           if (f.required && !(val || {})[f.id]) {
-            toast.error(`${q.title}: ${f.name} is required`);
-            setErrors(prev => ({ ...prev, [`${q._id}_${f.id}`]: 'This field is required' }));
-            return false;
+            if (!silent && isValid) toast.error(`${q.title}: ${f.name} is required`);
+            localErrors[`${q._id}_${f.id}`] = 'This field is required';
+            isValid = false;
           }
         }
       } else if (type === 'Group Fields') {
         if (!Array.isArray(val) || val.length === 0) {
-          setErrors(prev => ({ ...prev, [q._id]: 'This field is required' }));
-          toast.error(`${q.title}: This field is required`);
-          return false;
-        }
-        const groupFields = q.configuration?.groupFields || [];
-        for (let i = 0; i < val.length; i++) {
-          const entry = val[i] || {};
-          for (const f of groupFields.filter(gf => gf.show !== false && gf.visible !== false)) {
-            const subVal = entry[f.name];
-            const errKey = `${q._id}_${i}_${f.name}`;
-            
-            if (f.required) {
-              if (subVal === undefined || subVal === null || subVal === '' || (Array.isArray(subVal) && subVal.length === 0)) {
-                toast.error(`${q.title} (Entry #${i + 1}): ${f.name} is required`);
-                setErrors(prev => ({ ...prev, [errKey]: 'This field is required' }));
-                return false;
+          localErrors[q._id] = 'This field is required';
+          if (!silent) toast.error(`${q.title}: This field is required`);
+          isValid = false;
+        } else {
+          const groupFields = q.configuration?.groupFields || [];
+          for (let i = 0; i < val.length; i++) {
+            const entry = val[i] || {};
+            for (const f of groupFields.filter(gf => gf.show !== false && gf.visible !== false)) {
+              const subVal = entry[f.name];
+              const errKey = `${q._id}_${i}_${f.name}`;
+              
+              if (f.required && (subVal === undefined || subVal === null || subVal === '' || (Array.isArray(subVal) && subVal.length === 0))) {
+                if (!silent && isValid) toast.error(`${q.title} (Entry #${i + 1}): ${f.name} is required`);
+                localErrors[errKey] = 'This field is required';
+                isValid = false;
+              } else {
+                const advErr = getValidationErrors(f, subVal);
+                if (advErr) {
+                  if (!silent && isValid) toast.error(`${q.title} (Entry #${i + 1}) - ${f.name}: ${advErr}`);
+                  localErrors[errKey] = advErr;
+                  isValid = false;
+                }
               }
-            }
-
-            const advErr = getValidationErrors(f, subVal);
-            if (advErr) {
-              toast.error(`${q.title} (Entry #${i + 1}) - ${f.name}: ${advErr}`);
-              setErrors(prev => ({ ...prev, [errKey]: advErr }));
-              return false;
             }
           }
         }
       } else if (type === 'Checkbox') {
         if (!Array.isArray(val) || val.length === 0) {
-          setErrors(prev => ({ ...prev, [q._id]: 'Please select at least one option' }));
-          toast.error(`${q.title}: Please select at least one option`);
-          return false;
+          localErrors[q._id] = 'Please select at least one option';
+          if (!silent) toast.error(`${q.title}: Please select at least one option`);
+          isValid = false;
         }
       } else {
-
         if (typeof val === 'object' || String(val).trim() === '') {
-          setErrors(prev => ({ ...prev, [q._id]: 'This field is required' }));
-          toast.error(`${q.title}: This field is required`);
-          return false;
+          localErrors[q._id] = 'This field is required';
+          if (!silent) toast.error(`${q.title}: This field is required`);
+          isValid = false;
         }
       }
     }
 
-    const advError = getValidationErrors(q, val);
-    if (advError) {
-      setErrors(prev => ({ ...prev, [q._id]: advError }));
-      toast.error(`${q.title}: ${advError}`);
-      return false;
+    if (isValid) {
+      const advError = getValidationErrors(q, val);
+      if (advError) {
+        localErrors[q._id] = advError;
+        if (!silent) toast.error(`${q.title}: ${advError}`);
+        isValid = false;
+      }
     }
 
-    setErrors(prev => ({ ...prev, [q._id]: null }));
-    return true;
+    setErrors(prev => ({ ...prev, [q._id]: null, ...localErrors }));
+    if (isValid) setErrors(prev => ({ ...prev, [q._id]: null })); // clear root error
+    return isValid;
   };
 
   const handleNext = () => {
@@ -315,7 +317,7 @@ export default function FillPackage() {
   const handleSubmit = async () => {
 
     for (const q of visibleSteps) {
-      if (!validateStep(q)) {
+      if (!validateStep(q, true)) { // Silent validation
         toast.error(`Please complete: ${q.title}`);
         const idx = visibleSteps.indexOf(q);
         setCurrentStep(idx);

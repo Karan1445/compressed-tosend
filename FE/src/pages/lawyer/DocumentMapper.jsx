@@ -562,7 +562,7 @@ export default function DocumentMapper() {
         _id: s.id.includes('.') ? undefined : s.id,
         clauseName: s.name,
         clauseText: s.clauseText,
-        fieldId: s?.condition.fieldQuestionId,
+        questionId: s?.condition.fieldQuestionId,
         operator: s?.condition.value.startsWith('!') ? 'not_equals' : 'equals',
         value: s?.condition.value.startsWith('!') ? s?.condition.value.slice(1) : s?.condition.value,
         actionType: s.actionType
@@ -572,7 +572,7 @@ export default function DocumentMapper() {
         _id: s.id.includes('.') ? undefined : s.id,
         clauseName: s.name,
         clauseText: s.clauseText,
-        fieldId: s.condition.fieldQuestionId
+        questionId: s.condition.fieldQuestionId
       }));
 
       await dispatch(saveDocxMappings({

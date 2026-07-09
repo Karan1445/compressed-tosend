@@ -88,8 +88,18 @@ router.put('/:id/mappings', async (req, res) => {
     }
 
     if (placeholderMappings) doc.placeholderMappings = placeholderMappings;
-    if (clauseConfigs) doc.clauseConfigs = clauseConfigs;
-    if (repeatingConfigs) doc.repeatingConfigs = repeatingConfigs;
+    if (clauseConfigs) {
+      doc.clauseConfigs = clauseConfigs.map(c => ({
+        ...c,
+        questionId: c.questionId || c.fieldId
+      }));
+    }
+    if (repeatingConfigs) {
+      doc.repeatingConfigs = repeatingConfigs.map(c => ({
+        ...c,
+        questionId: c.questionId || c.fieldId
+      }));
+    }
 
     doc.isDraft = false;
 
