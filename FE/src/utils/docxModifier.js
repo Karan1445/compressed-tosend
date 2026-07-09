@@ -40,12 +40,11 @@ function replacePlaceholdersInXml(xml, replacements, ctx) {
     let nextAbsoluteIdx = ctx.globalIndex;
     const regex = /_{3,}|\[[^\]]+\]/g;
     return xml.replace(regex, (match) => {
-
         while (ctx.handledIndices.has(nextAbsoluteIdx)) {
             nextAbsoluteIdx++;
         }
         const currentIdx = nextAbsoluteIdx;
-        nextAbsoluteIdx++; // Advance for the next placeholder found in the XML
+        nextAbsoluteIdx++;
         const replacement = replacements.find((r) => r.occurrenceIndex === currentIdx);
         if (replacement && replacement.value !== undefined) {
             return escapeXml(replacement.value);
@@ -311,7 +310,6 @@ function applyClauseTask(xml, task, ctx) {
             return removeTextFromParagraphRuns(xml, para, startCharInPara, endCharInPara);
         }
         else {
-
             let currentXml = xml.slice(0, paragraphs[task.startPara + 1].start) + xml.slice(paragraphs[task.endPara].start);
             const updatedParas = getParagraphs(currentXml);
             const startNew = updatedParas[task.startPara];
@@ -592,7 +590,6 @@ export async function createFilledDocx(originalArrayBuffer, replacements, clause
         if (fileName !== FOOTER_PART_PATH) {
             zip.file(fileName, xml);
         }
-        console.log(`[Docx] Finished processing file ${fileName}, total placeholders in original: ${placeholdersInFile}, handled so far: ${Array.from(ctx.handledIndices).length}`);
     }
 
     if (footerConfig?.enabled) {

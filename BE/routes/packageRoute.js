@@ -11,7 +11,7 @@ const path = require('path');
 
 router.get('/', authenticateToken, isLawyer, async (req, res) => {
   try {
-    const packages = await Package.find({ createdBy: req.user._id }).populate('documents', 'name originalName fileName');
+    const packages = await Package.find({ createdBy: req.user._id }).populate('documents', 'name originalName fileName').lean();
     res.json(packages);
   } catch (error) {
     console.error('Error fetching packages:', error);
@@ -63,8 +63,7 @@ router.delete('/:id', authenticateToken, isLawyer, async (req, res) => {
 
 router.get('/store/published', authenticateToken, async (req, res) => {
   try {
-    const packages = await Package.find({ status: 'Published' })
-      .populate({ path: 'documents', select: 'name originalName fileName path placeholderMappings clauseConfigs repeatingConfigs' });
+    const packages = await Package.find({ status: 'Published', createdBy: {$ne :req.user._id} }).populate({ path: 'documents', select: 'name originalName fileName path placeholderMappings clauseConfigs repeatingConfigs' });
     res.json(packages);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -175,7 +174,7 @@ function generateFilledDocxBuffer(docPath, placeholderMappings, answers) {
       if (valueByIndex.hasOwnProperty(absIndex)) {
         return escapeXml(String(valueByIndex[absIndex]));
       }
-      return match; // leave unchanged if not mapped
+      return match; 
     });
 
     globalIndex = fileStartIndex + placeholdersInFile;

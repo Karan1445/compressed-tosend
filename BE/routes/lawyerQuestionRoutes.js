@@ -13,7 +13,6 @@ router.get('/', authenticateToken, isLawyer, async (req, res) => {
   }
 });
 
-// Fetch multiple questions by IDs — used by the package fill flow (no createdBy filter)
 router.post('/by-ids', authenticateToken, async (req, res) => {
   try {
     const { ids } = req.body;

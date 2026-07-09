@@ -2,7 +2,6 @@ import { renderAsync } from "docx-preview";
 import html2pdf from "html2pdf.js";
 
 const PDF_RENDER_CSS = `
-  
   .docx-pdf-render {
     background: transparent !important;
     padding: 0 !important;

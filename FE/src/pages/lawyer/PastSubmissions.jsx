@@ -17,7 +17,7 @@ async function generatePdfFromDocxBlob(docxBlob, filename) {
   wrapper.style.overflow = 'hidden';
 
   const container = document.createElement('div');
-  container.style.width = '794px'; // A4 width
+  container.style.width = '794px';
   container.style.background = '#ffffff';
   container.style.color = '#000000';
   container.style.margin = '0';
@@ -45,7 +45,7 @@ async function generatePdfFromDocxBlob(docxBlob, filename) {
       if (!s.color || s.color === 'transparent') s.color = '#000000';
     });
 
-    await new Promise(r => setTimeout(r, 1200)); // let fonts settle
+    await new Promise(r => setTimeout(r, 1200));
 
     await html2pdf()
       .set({
@@ -69,7 +69,7 @@ export default function PastSubmissions() {
   const { token } = useSelector(s => s.auth);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [downloading, setDownloading] = useState(null); // "docId-format"
+  const [downloading, setDownloading] = useState(null); 
   const [expandedId, setExpandedId] = useState(null);
   const [pkgDetails, setPkgDetails] = useState({});
 

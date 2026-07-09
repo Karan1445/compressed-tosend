@@ -122,7 +122,6 @@ function walkPath(current, path, fieldConfig, index) {
                 if (!isNaN(pathIndex))
                     i++;
                 if (remainingPath) {
-
                     node = targetEntry;
                     continue;
                 }
@@ -250,7 +249,7 @@ export function evaluateCondition(answer, operator, expectedValue) {
             const targetDate = parseDate(expectedValue);
             if (!targetDate)
                 return false;
-            targetDate.setHours(23, 59, 59, 999); // Midday normalization alternative: after current day ends
+            targetDate.setHours(23, 59, 59, 999);
             return dates.some(d => {
                 const nd = new Date(d);
                 nd.setHours(12, 0, 0, 0);
@@ -277,7 +276,7 @@ export function evaluateCondition(answer, operator, expectedValue) {
                 return null;
             } })() : expectedValue;
             if (!range || (!range.start && !range.end))
-                return true; // No range defined = always match
+                return true;
             const startDate = range.start ? parseDate(range.start) : null;
             const endDate = range.end ? parseDate(range.end) : null;
             if (startDate)
@@ -286,7 +285,7 @@ export function evaluateCondition(answer, operator, expectedValue) {
                 endDate.setHours(23, 59, 59, 999);
             return dates.some(d => {
                 const nd = new Date(d);
-                nd.setHours(12, 0, 0, 0); // Normalize to midday for comparison
+                nd.setHours(12, 0, 0, 0);
                 if (startDate && nd < startDate)
                     return false;
                 if (endDate && nd > endDate)

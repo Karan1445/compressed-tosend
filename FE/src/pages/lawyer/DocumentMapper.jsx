@@ -38,7 +38,6 @@ export default function DocumentMapper() {
   const [docxLoaded, setDocxLoaded] = useState(false);
   const [loadingFile, setLoadingFile] = useState(false);
 
-  // Mapping state
   const [mapping, setMapping] = useState({});
   const [builderData, setBuilderData] = useState({ fields: [], sections: [] });
   const [matchedSections, setMatchedSections] = useState({});
@@ -392,12 +391,12 @@ export default function DocumentMapper() {
       setFloatingActionBtn({ top: rect.bottom + 4, left: rect.left });
     };
 
-      container.addEventListener("click", handleClick);
-      container.addEventListener("mouseup", handleMouseUp);
-      return () => {
-        container.removeEventListener("click", handleClick);
-        container.removeEventListener("mouseup", handleMouseUp);
-      };
+    container.addEventListener("click", handleClick);
+    container.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      container.removeEventListener("click", handleClick);
+      container.removeEventListener("mouseup", handleMouseUp);
+    };
   }, [docxLoaded]);
 
 
@@ -568,7 +567,7 @@ export default function DocumentMapper() {
         value: s?.condition.value.startsWith('!') ? s?.condition.value.slice(1) : s?.condition.value,
         actionType: s.actionType
       }));
-
+      
       const repeatingConfigs = builderData.sections.filter(s => s.isRepeating).map(s => ({
         _id: s.id.includes('.') ? undefined : s.id,
         clauseName: s.name,

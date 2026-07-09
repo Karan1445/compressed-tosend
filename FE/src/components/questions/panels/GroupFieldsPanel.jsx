@@ -46,7 +46,7 @@ export function GroupFieldsPanel({ config, onChange, onOpenNestedConfig }) {
     <div className="border border-[#E5E5E5] rounded-lg p-6 mt-6 space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="text-[14px] font-bold text-foreground">Group Fields Configuration</h3>
-        <button onClick={addGroupField} className="text-[13px] font-semibold text-[#2066E8] hover:underline">
+        <button onClick={addGroupField} className="text-[13px] font-semibold text-gray-700 border border-gray-700 p-2 rounded-xl hover:bg-black hover:text-white hover:border-gray-300">
           + Add Field
         </button>
       </div>

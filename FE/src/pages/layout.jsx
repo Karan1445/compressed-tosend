@@ -5,7 +5,7 @@ import {
   SidebarGroupLabel, SidebarGroupContent, SidebarMenu,
   SidebarMenuItem, SidebarMenuButton,
 } from '../components/ui/sidebar';
-import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send, List, Gavel, BarChart2, GalleryVerticalEnd, Package as PackageIcon } from 'lucide-react';
+import { Users, FileQuestion, FileText, LogOutIcon, KeyRound, MoreVertical, Shield, UserPlus, Send, List, Gavel, BarChart2, GalleryVerticalEnd, Package as PackageIcon, LucideMessageCircleQuestion, LucideStore, BookCheck } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
@@ -129,7 +129,7 @@ export default function Layout({ children }) {
                     <SidebarMenuItem>
                       <SidebarMenuButton asChild tooltip="Questions">
                         <Link to="/lawyer/questions" className="flex items-center gap-3">
-                          <BarChart2 className="h-4 w-4 shrink-0" />
+                          <LucideMessageCircleQuestion className="h-4 w-4 shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden">Questions</span>
                         </Link>
                       </SidebarMenuButton>
@@ -142,18 +142,18 @@ export default function Layout({ children }) {
                       <SidebarMenuButton asChild tooltip="Packages">
                         <Link to="/lawyer/packages" className="flex items-center gap-3">
                           <PackageIcon className="h-4 w-4 shrink-0" />
-                          <span className="group-data-[collapsible=icon]:hidden">Packages</span>
+                          <span className="group-data-[collapsible=icon]:hidden">My Packages</span>
                         </Link>
                       </SidebarMenuButton>
                       <SidebarMenuButton asChild tooltip="Package Store">
                         <Link to="/lawyer/packages/store" className="flex items-center gap-3">
-                          <GalleryVerticalEnd className="h-4 w-4 shrink-0" />
+                          <LucideStore className="h-4 w-4 shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden">Package Store</span>
                         </Link>
                       </SidebarMenuButton>
                       <SidebarMenuButton asChild tooltip="My Submissions">
                         <Link to="/lawyer/packages/past-submissions" className="flex items-center gap-3">
-                          <BarChart2 className="h-4 w-4 shrink-0" />
+                          <BookCheck className="h-4 w-4 shrink-0" />
                           <span className="group-data-[collapsible=icon]:hidden">My Submissions</span>
                         </Link>
                       </SidebarMenuButton>

@@ -149,20 +149,20 @@ export default function PackageSuccess() {
                 <button
                   onClick={() => handleDownloadDocx(doc)}
                   disabled={downloadingDocx === doc._id}
-                  className="flex items-center justify-center gap-2 px-5 py-2 rounded border border-gray-300 text-gray-700 text-[13px] font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                  className="flex items-center justify-center gap-2 px-5 py-2 rounded-xl border border-gray-300 text-gray-700 text-[13px] font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
                 >
                   {downloadingDocx === doc._id
                     ? <><Loader2 className="h-4 w-4 animate-spin" /> DOCX</>
-                    : <>DOCX</>}
+                    : <><Download  className="h-4 w-4"/> DOCX</>}
                 </button>
                 <button
                   onClick={() => handleDownloadPdf(doc)}
                   disabled={downloadingPdf === doc._id}
-                  className="flex items-center justify-center gap-2 px-5 py-2 rounded bg-gray-900 text-white text-[13px] font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                  className="flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-gray-900 text-white text-[13px] font-medium hover:bg-gray-800 disabled:opacity-50 transition-colors"
                 >
                   {downloadingPdf === doc._id
                     ? <><Loader2 className="h-4 w-4 animate-spin" /> PDF</>
-                    : <>PDF</>}
+                    : <><Download  className="h-4 w-4"/> PDF</>}
                 </button>
               </div>
             </div>
@@ -173,13 +173,13 @@ export default function PackageSuccess() {
       <div className="flex gap-4">
         <button
           onClick={() => navigate('/lawyer/packages/store')}
-          className="px-6 py-2.5 rounded border border-gray-300 text-[14px] text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+          className="px-6 py-2.5 border border-gray-400 text-[14px] text-gray-700 font-medium hover:bg-gray-50 transition-colors rounded-xl"
         >
           Back to Store
         </button>
         <button
           onClick={() => navigate('/lawyer/packages/past-submissions')}
-          className="px-6 py-2.5 rounded bg-gray-100 text-[14px] text-gray-900 font-medium hover:bg-gray-200 transition-colors"
+          className="px-6 py-2.5 bg-gray-100 text-[14px] text-gray-900 font-medium hover:bg-gray-200 transition-colors rounded-xl border border-gray-400"
         >
           View Past Submissions
         </button>
