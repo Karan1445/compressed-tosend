@@ -159,13 +159,14 @@ export default function FillPackage() {
     if (typeof val === "object" && val !== null && "_value" in val) val = val._value;
 
     if (val === undefined || val === null || val === "") return null;
-    const type = q.answerType;
+    const type = q.answerType || q.type;
 
     if (type === "Percentage" && Number(val) > 100) return "Max 100%";
 
-    if ((type === "Number" || type === "Amount") && typeof q.configuration === "object") {
+    const config = q.configuration || q || {}; // Support both full question object or inline subfield config
+
+    if (type === "Number" || type === "Amount") {
       const numVal = Number(val);
-      const config = q.configuration;
       if (config.minRange !== undefined && numVal < config.minRange) return `Minimum value is ${config.minRange}`;
       if (config.maxRange !== undefined && numVal > config.maxRange) return `Maximum value is ${config.maxRange}`;
     }
@@ -179,11 +180,10 @@ export default function FillPackage() {
     }
     if (type === "Email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return "Invalid email format";
 
-    if ((type === "Date" || type === "Date-picker") && typeof q.configuration === "object") {
+    if (type === "Date" || type === "Date-picker") {
       const date = new Date(val);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const config = q.configuration;
 
       if (config.allowPast === false && date < today) return "Past dates are not allowed";
       if (config.allowFuture === false && date > today) return "Future dates are not allowed";
@@ -206,6 +206,7 @@ export default function FillPackage() {
     if (q.required) {
       if (val === undefined || val === null || val === '') {
         setErrors(prev => ({ ...prev, [q._id]: 'This field is required' }));
+        toast.error(`${q.title}: This field is required`);
         return false;
       }
       if (type === 'Address') {
@@ -219,23 +220,50 @@ export default function FillPackage() {
         for (const f of fields) {
           if (f.required && !(val || {})[f.id]) {
             toast.error(`${q.title}: ${f.name} is required`);
+            setErrors(prev => ({ ...prev, [`${q._id}_${f.id}`]: 'This field is required' }));
             return false;
           }
         }
       } else if (type === 'Group Fields') {
         if (!Array.isArray(val) || val.length === 0) {
           setErrors(prev => ({ ...prev, [q._id]: 'This field is required' }));
+          toast.error(`${q.title}: This field is required`);
           return false;
+        }
+        const groupFields = q.configuration?.groupFields || [];
+        for (let i = 0; i < val.length; i++) {
+          const entry = val[i] || {};
+          for (const f of groupFields.filter(gf => gf.show !== false && gf.visible !== false)) {
+            const subVal = entry[f.name];
+            const errKey = `${q._id}_${i}_${f.name}`;
+            
+            if (f.required) {
+              if (subVal === undefined || subVal === null || subVal === '' || (Array.isArray(subVal) && subVal.length === 0)) {
+                toast.error(`${q.title} (Entry #${i + 1}): ${f.name} is required`);
+                setErrors(prev => ({ ...prev, [errKey]: 'This field is required' }));
+                return false;
+              }
+            }
+
+            const advErr = getValidationErrors(f, subVal);
+            if (advErr) {
+              toast.error(`${q.title} (Entry #${i + 1}) - ${f.name}: ${advErr}`);
+              setErrors(prev => ({ ...prev, [errKey]: advErr }));
+              return false;
+            }
+          }
         }
       } else if (type === 'Checkbox') {
         if (!Array.isArray(val) || val.length === 0) {
           setErrors(prev => ({ ...prev, [q._id]: 'Please select at least one option' }));
+          toast.error(`${q.title}: Please select at least one option`);
           return false;
         }
       } else {
 
         if (typeof val === 'object' || String(val).trim() === '') {
           setErrors(prev => ({ ...prev, [q._id]: 'This field is required' }));
+          toast.error(`${q.title}: This field is required`);
           return false;
         }
       }
@@ -244,6 +272,7 @@ export default function FillPackage() {
     const advError = getValidationErrors(q, val);
     if (advError) {
       setErrors(prev => ({ ...prev, [q._id]: advError }));
+      toast.error(`${q.title}: ${advError}`);
       return false;
     }
 
@@ -254,7 +283,6 @@ export default function FillPackage() {
   const handleNext = () => {
     const q = visibleSteps[currentStep];
     if (!validateStep(q)) {
-      toast.error('Please fix the errors before continuing');
       return;
     }
     if (currentStep < visibleSteps.length - 1) {
@@ -508,24 +536,31 @@ export default function FillPackage() {
         ];
         return (
           <div className="grid grid-cols-1 gap-4 p-5 border border-gray-200 rounded-xl bg-gray-50/40">
-            {addressFields.filter(f => f.visible !== false).map(f => (
-              <div key={f.id} className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                  {f.name} {f.required && <span className="text-red-500">*</span>}
-                </label>
-                <input
-                  type={f.id === 'zipcode' ? 'text' : 'text'}
-                  value={(val || {})[f.id] || ''}
-                  onChange={e => {
-                    const v = e.target.value;
-                    if (f.id === 'zipcode' && v && !/^\d*$/.test(v)) return;
-                    updateAnswer(q._id, { ...(val || {}), [f.id]: v });
-                  }}
-                  placeholder={f.id === 'zipcode' ? '000000' : `Enter ${f.name}...`}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
-                />
-              </div>
-            ))}
+            {addressFields.filter(f => f.visible !== false).map(f => {
+              const errKey = `${q._id}_${f.id}`;
+              const subErr = errors[errKey];
+              const inputCls = `w-full border rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 transition ${subErr ? 'border-red-400' : 'border-gray-200'}`;
+              return (
+                <div key={f.id} className="space-y-1.5">
+                  <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                    {f.name} {f.required && <span className="text-red-500">*</span>}
+                  </label>
+                  <input
+                    type={f.id === 'zipcode' ? 'text' : 'text'}
+                    value={(val || {})[f.id] || ''}
+                    onChange={e => {
+                      const v = e.target.value;
+                      if (f.id === 'zipcode' && v && !/^\d*$/.test(v)) return;
+                      updateAnswer(q._id, { ...(val || {}), [f.id]: v });
+                      setErrors(prev => ({ ...prev, [errKey]: null }));
+                    }}
+                    placeholder={f.id === 'zipcode' ? '000000' : `Enter ${f.name}...`}
+                    className={inputCls}
+                  />
+                  {subErr && <p className="text-xs text-red-500 mt-1">{subErr}</p>}
+                </div>
+              );
+            })}
           </div>
         );
       }
@@ -549,24 +584,82 @@ export default function FillPackage() {
                 )}
                 {repeating && <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Entry #{entryIdx + 1}</div>}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {groupFields.filter(f => f.show !== false && f.visible !== false).map((field, fi) => (
-                    <div key={fi} className="space-y-1.5">
-                      <label className="text-xs font-semibold text-gray-600">
-                        {field.name} {field.required && <span className="text-red-500">*</span>}
-                      </label>
-                      <input
-                        type="text"
-                        value={(entry || {})[field.name] || ''}
-                        onChange={e => {
-                          const newEntries = [...entries];
-                          newEntries[entryIdx] = { ...(entry || {}), [field.name]: e.target.value };
-                          updateAnswer(q._id, newEntries);
-                        }}
-                        placeholder={`Enter ${field.name}...`}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 transition"
-                      />
-                    </div>
-                  ))}
+                  {groupFields.filter(f => f.show !== false && f.visible !== false).map((field, fi) => {
+                    const subVal = (entry || {})[field.name];
+                    const errKey = `${q._id}_${entryIdx}_${field.name}`;
+                    const subErr = errors[errKey];
+                    const onChange = (newVal) => {
+                      const newEntries = [...entries];
+                      newEntries[entryIdx] = { ...(entry || {}), [field.name]: newVal };
+                      updateAnswer(q._id, newEntries);
+                      setErrors(prev => ({ ...prev, [errKey]: null }));
+                    };
+                    const fType = field.type || field.answerType;
+                    const fConfig = field.configuration || field || {};
+                    const inputCls = `w-full border rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 transition ${subErr ? 'border-red-400' : 'border-gray-200'}`;
+
+                    let fieldEl;
+                    if (fType === 'Dropdown' || fType === 'Dropdown-selection') {
+                      fieldEl = (
+                        <select value={subVal || ''} onChange={e => onChange(e.target.value)} className={inputCls}>
+                          <option value="">Select an option...</option>
+                          {(fConfig.options || []).map((opt, i) => {
+                            const lbl = typeof opt === 'object' ? opt.value : opt;
+                            return <option key={i} value={lbl}>{lbl}</option>;
+                          })}
+                        </select>
+                      );
+                    } else if (fType === 'Radio-selection' || fType === 'Multiple Choice') {
+                      fieldEl = (
+                        <div className="space-y-2">
+                          {(fConfig.options || []).map((opt, i) => {
+                            const lbl = typeof opt === 'object' ? opt.value : opt;
+                            return (
+                              <label key={i} className={`flex items-center gap-3 p-2.5 border rounded-lg cursor-pointer transition ${subVal === lbl ? (subErr ? 'border-red-400 bg-red-50' : 'border-gray-800 bg-gray-50') : (subErr ? 'border-red-300 hover:bg-red-50' : 'border-gray-200 hover:bg-gray-50')}`}>
+                                <input type="radio" value={lbl} checked={subVal === lbl} onChange={() => onChange(lbl)} className="accent-gray-800" />
+                                <span className="text-sm text-gray-800">{lbl}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      );
+                    } else if (fType === 'Checkbox') {
+                      const cVals = Array.isArray(subVal) ? subVal : [];
+                      fieldEl = (
+                        <div className="space-y-2">
+                          {(fConfig.options || []).map((opt, i) => {
+                            const lbl = typeof opt === 'object' ? opt.value : opt;
+                            return (
+                              <label key={i} className={`flex items-center gap-3 p-2.5 border rounded-lg cursor-pointer transition ${cVals.includes(lbl) ? (subErr ? 'border-red-400 bg-red-50' : 'border-gray-800 bg-gray-50') : (subErr ? 'border-red-300 hover:bg-red-50' : 'border-gray-200 hover:bg-gray-50')}`}>
+                                <input type="checkbox" checked={cVals.includes(lbl)} onChange={() => {
+                                  onChange(cVals.includes(lbl) ? cVals.filter(v => v !== lbl) : [...cVals, lbl]);
+                                }} className="accent-gray-800" />
+                                <span className="text-sm text-gray-800">{lbl}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      );
+                    } else if (fType === 'Long Answer') {
+                      fieldEl = <textarea value={subVal || ''} onChange={e => onChange(e.target.value)} placeholder={`Enter ${field.name}...`} rows={3} className={inputCls} />;
+                    } else if (fType === 'Date' || fType === 'Date-picker') {
+                      fieldEl = <input type="date" value={subVal || ''} onChange={e => onChange(e.target.value)} className={inputCls} />;
+                    } else if (fType === 'Number' || fType === 'Amount' || fType === 'Percentage') {
+                      fieldEl = <input type="number" value={subVal || ''} onChange={e => onChange(e.target.value)} placeholder={`Enter ${field.name}...`} className={inputCls} />;
+                    } else {
+                      fieldEl = <input type="text" value={subVal || ''} onChange={e => onChange(e.target.value)} placeholder={`Enter ${field.name}...`} className={inputCls} />;
+                    }
+
+                    return (
+                      <div key={fi} className={`space-y-1.5 ${fType === 'Long Answer' ? 'md:col-span-2' : ''}`}>
+                        <label className="text-xs font-semibold text-gray-600">
+                          {field.name} {field.required && <span className="text-red-500">*</span>}
+                        </label>
+                        {fieldEl}
+                        {subErr && <p className="text-xs text-red-500 mt-1">{subErr}</p>}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
