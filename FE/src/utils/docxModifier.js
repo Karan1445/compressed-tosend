@@ -316,10 +316,38 @@ function applyClauseTask(xml, task, ctx) {
     if (!para || !endPara)
         return xml;
     const { isFullParagraph, startCharInPara, endCharInPara } = task.data;
-    const blockXml = xml.slice(para.start, endPara.end);
-    const placeholdersInRemoved = blockXml.match(/_{3,}|\[[^\]]+\]/g) || [];
-    for (let j = 0; j < placeholdersInRemoved.length; j++) {
-        ctx.handledIndices.add(ctx.globalIndex + task.placeholdersBeforeCount + j);
+    let removedPlaceholdersOffset = 0;
+    let removedPlaceholdersCount = 0;
+
+    if (isFullParagraph) {
+        const blockXml = xml.slice(para.start, endPara.end);
+        removedPlaceholdersCount = (blockXml.match(/_{3,}|\[[^\]]+\]/g) || []).length;
+    } else {
+        if (task.startPara === task.endPara) {
+            const startParaText = para.textContent;
+            const textBeforeRemoval = startParaText.slice(0, startCharInPara);
+            const removedText = startParaText.slice(startCharInPara, endCharInPara + 1);
+            
+            removedPlaceholdersOffset = (textBeforeRemoval.match(/_{3,}|\[[^\]]+\]/g) || []).length;
+            removedPlaceholdersCount = (removedText.match(/_{3,}|\[[^\]]+\]/g) || []).length;
+        } else {
+            const startParaText = para.textContent;
+            const endParaText = endPara.textContent;
+            const textBeforeRemoval = startParaText.slice(0, startCharInPara);
+            
+            let removedText = startParaText.slice(startCharInPara) + "\n";
+            for (let i = task.startPara + 1; i < task.endPara; i++) {
+                removedText += paragraphs[i].textContent + "\n";
+            }
+            removedText += endParaText.slice(0, endCharInPara + 1);
+
+            removedPlaceholdersOffset = (textBeforeRemoval.match(/_{3,}|\[[^\]]+\]/g) || []).length;
+            removedPlaceholdersCount = (removedText.match(/_{3,}|\[[^\]]+\]/g) || []).length;
+        }
+    }
+
+    for (let j = 0; j < removedPlaceholdersCount; j++) {
+        ctx.handledIndices.add(ctx.globalIndex + task.placeholdersBeforeCount + removedPlaceholdersOffset + j);
     }
     if (isFullParagraph) {
         return xml.slice(0, para.start) + xml.slice(endPara.end);

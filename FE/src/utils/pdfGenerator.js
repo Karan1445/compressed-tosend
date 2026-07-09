@@ -52,6 +52,9 @@ export async function generatePdfFromDocxBlob(
   const arrayBuffer = await blob.arrayBuffer();
 
   const wrapper = document.createElement("div");
+  wrapper.style.position = "absolute";
+  wrapper.style.left = "-9999px";
+  wrapper.style.top = "-9999px";
   wrapper.style.height = "0px";
   wrapper.style.overflow = "hidden";
 
@@ -85,6 +88,9 @@ export async function generatePdfFromDocxBlob(
 
     forceWhiteBackgrounds(renderDiv);
 
+    wrapper.style.position = "absolute";
+    wrapper.style.left = "-9999px";
+    wrapper.style.top = "-9999px";
     wrapper.style.height = "auto";
     wrapper.style.overflow = "visible";
 
