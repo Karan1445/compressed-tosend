@@ -218,7 +218,17 @@ function collectModificationTasks(xml, repeatingConfigs, clauseRemovals, answers
         }
         addTasks(matches, 'clause', clause);
     }
-    return tasks.sort((a, b) => b.startPara - a.startPara);
+    return tasks.sort((a, b) => {
+        if (a.startPara !== b.startPara) {
+            return b.startPara - a.startPara;
+        }
+        if (a.type !== b.type) {
+            return a.type === 'clause' ? -1 : 1;
+        }
+        const aStart = a.data?.startCharInPara || 0;
+        const bStart = b.data?.startCharInPara || 0;
+        return bStart - aStart;
+    });
 }
 
 function removeTextFromParagraphRuns(xml, para, fromChar, toChar) {
@@ -330,12 +340,19 @@ function applyClauseTask(xml, task, ctx) {
     }
 }
 function applyModificationTasks(xml, tasks, replacements, answers, ctx) {
+    const deletedParas = new Set();
     for (const task of tasks) {
+        if (deletedParas.has(task.startPara)) continue;
+        
         if (task.type === 'loop') {
             xml = applyLoopTask(xml, task, replacements, answers, ctx);
         }
         else {
+            const oldLength = xml.length;
             xml = applyClauseTask(xml, task, ctx);
+            if (task.data.isFullParagraph && xml.length < oldLength) {
+                deletedParas.add(task.startPara);
+            }
         }
     }
     return xml;
