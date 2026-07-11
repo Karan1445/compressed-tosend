@@ -194,7 +194,10 @@ function collectModificationTasks(xml, repeatingConfigs, clauseRemovals, answers
         }
         
         const { normalized: normTarget } = aggressiveNormalize(config.clauseText);
-        const matches = findMatchesInRange(normalizedConcat, normTarget);
+        let matches = findMatchesInRange(normalizedConcat, normTarget);
+        if (config.occurrenceIndex !== undefined && matches.length > config.occurrenceIndex) {
+            matches = [matches[config.occurrenceIndex]];
+        }
         addTasks(matches, 'loop', { config, numEntries });
     }
 
@@ -215,6 +218,9 @@ function collectModificationTasks(xml, repeatingConfigs, clauseRemovals, answers
                         matches.push({ start: fm.start, end: lm.end });
                 }
             }
+        }
+        if (clause.occurrenceIndex !== undefined && matches.length > clause.occurrenceIndex) {
+            matches = [matches[clause.occurrenceIndex]];
         }
         addTasks(matches, 'clause', clause);
     }

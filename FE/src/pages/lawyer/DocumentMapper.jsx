@@ -49,6 +49,7 @@ export default function DocumentMapper() {
   const [floatingActionBtn, setFloatingActionBtn] = useState(null);
   const [clauseText, setClauseText] = useState("");
   const [clauseRange, setClauseRange] = useState(null);
+  const [clauseOccurrence, setClauseOccurrence] = useState(0);
 
   const [clauseDialogOpen, setClauseDialogOpen] = useState(false);
   const [editingClauseId, setEditingClauseId] = useState(null);
@@ -180,7 +181,8 @@ export default function DocumentMapper() {
             name: c.clauseName,
             clauseText: c.clauseText,
             actionType: c.actionType,
-            condition: { fieldQuestionId: c.fieldId, value: c.operator === 'not_equals' ? `!${c.value}` : c.value }
+            condition: { fieldQuestionId: c.questionId || c.fieldId, value: c.operator === 'not_equals' ? `!${c.value}` : String(c.value) },
+            occurrenceIndex: c.occurrenceIndex
           });
         });
       }
@@ -191,7 +193,8 @@ export default function DocumentMapper() {
             name: r.clauseName,
             clauseText: r.clauseText,
             isRepeating: true,
-            condition: { fieldQuestionId: r.fieldId, value: "LOOP" }
+            condition: { fieldQuestionId: r.questionId || r.fieldId, value: "LOOP" },
+            occurrenceIndex: r.occurrenceIndex
           });
         });
       }
@@ -386,7 +389,58 @@ export default function DocumentMapper() {
       if (originalText.length < 5) return;
 
       const rect = range.getBoundingClientRect();
+      
+      let occurrenceIndex = 0;
+      try {
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        let concatenated = "";
+        let foundConcatenatedIndex = -1;
+        const charMap = [];
+        let lastBlock = null;
+
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          const parent = node.parentNode;
+          if (parent?.closest(".docx-clause-highlight") || parent?.closest(".docx-placeholder-clickable")) continue;
+
+          const content = node.textContent || "";
+          const block = parent.closest("p, div, section");
+          if (concatenated.length > 0 && block && block !== lastBlock && !concatenated.endsWith("\n")) {
+            concatenated += "\n";
+            charMap.push({ node, offset: 0 });
+          }
+          lastBlock = block;
+
+          if (node === range.startContainer) {
+            foundConcatenatedIndex = concatenated.length + range.startOffset;
+          }
+
+          for (let i = 0; i < content.length; i++) {
+            charMap.push({ node, offset: i });
+            concatenated += content[i];
+          }
+        }
+
+        if (foundConcatenatedIndex !== -1) {
+          const { normalized: normalizedConcat, posMap: concatIdxMap } = aggressiveNormalize(concatenated);
+          const { normalized: normalizedClause } = aggressiveNormalize(originalText);
+          let lastIdx = 0;
+          let currentOccurrence = 0;
+          while (true) {
+            const matchIdx = normalizedConcat.indexOf(normalizedClause, lastIdx);
+            if (matchIdx === -1) break;
+            const startCharIdx = concatIdxMap[matchIdx];
+            if (startCharIdx !== undefined && startCharIdx <= foundConcatenatedIndex + 5) {
+              occurrenceIndex = currentOccurrence;
+            }
+            currentOccurrence++;
+            lastIdx = matchIdx + 1;
+          }
+        }
+      } catch (e) {}
+
       setClauseText(originalText);
+      setClauseOccurrence(occurrenceIndex);
       setClauseRange(range.cloneRange());
       setFloatingActionBtn({ top: rect.bottom + 4, left: rect.left });
     };
@@ -565,14 +619,16 @@ export default function DocumentMapper() {
         questionId: s?.condition.fieldQuestionId,
         operator: s?.condition.value.startsWith('!') ? 'not_equals' : 'equals',
         value: s?.condition.value.startsWith('!') ? s?.condition.value.slice(1) : s?.condition.value,
-        actionType: s.actionType
+        actionType: s.actionType,
+        occurrenceIndex: s.occurrenceIndex
       }));
       
       const repeatingConfigs = builderData.sections.filter(s => s.isRepeating).map(s => ({
         _id: s.id.includes('.') ? undefined : s.id,
         clauseName: s.name,
         clauseText: s.clauseText,
-        questionId: s.condition.fieldQuestionId
+        questionId: s.condition.fieldQuestionId,
+        occurrenceIndex: s.occurrenceIndex
       }));
 
       await dispatch(saveDocxMappings({
@@ -610,7 +666,8 @@ export default function DocumentMapper() {
       condition: {
         fieldQuestionId: config.fieldId,
         value: config.operator === "not_equals" ? `!${config.value}` : config.value,
-      }
+      },
+      occurrenceIndex: clauseOccurrence
     };
     if (editingClauseId) {
       setBuilderData(prev => ({ ...prev, sections: prev.sections.map(s => s.id === editingClauseId ? newSection : s) }));
@@ -621,6 +678,7 @@ export default function DocumentMapper() {
     setClauseDialogOpen(false);
     setClauseRange(null);
     setClauseText("");
+    setClauseOccurrence(0);
     setEditingClauseId(null);
     window.getSelection()?.removeAllRanges();
   };
@@ -632,7 +690,8 @@ export default function DocumentMapper() {
       name: config.clauseName,
       clauseText: clauseText,
       condition: { fieldQuestionId: config.fieldId, value: "LOOP" },
-      isRepeating: true
+      isRepeating: true,
+      occurrenceIndex: clauseOccurrence
     };
     if (editingRepeatingId) {
       setBuilderData(prev => ({ ...prev, sections: prev.sections.map(s => s.id === editingRepeatingId ? newSection : s) }));
@@ -752,8 +811,9 @@ export default function DocumentMapper() {
                 radioFields={radioFields}
                 initialValues={editingClauseId ? (() => {
                   const s = builderData.sections.find(s => s.id === editingClauseId);
-                  const isNot = s?.condition.value.startsWith("!");
-                  return { clauseName: s?.name, fieldId: s?.condition.fieldQuestionId, operator: isNot ? "not_equals" : "equals", value: isNot ? s?.condition.value.slice(1) : s?.condition.value, actionType: s?.actionType };
+                  const val = s?.condition?.value !== undefined ? String(s.condition.value) : "";
+                  const isNot = val.startsWith("!");
+                  return { clauseName: s?.name, fieldId: s?.condition?.fieldQuestionId, operator: isNot ? "not_equals" : "equals", value: isNot ? val.slice(1) : val, actionType: s?.actionType };
                 })() : null}
                 onSave={handleClauseSave}
                 onDelete={editingClauseId ? () => removeSection(editingClauseId) : undefined}

@@ -67,9 +67,9 @@ export default function PackageSuccess() {
       
       const action = (c.actionType || '').toLowerCase();
       if ((action === 'include' || action === 'keep clause') && !shouldInclude) {
-        clauseRemovals.push({ text: c.clauseText });
+        clauseRemovals.push({ text: c.clauseText, occurrenceIndex: c.occurrenceIndex });
       } else if ((action === 'exclude' || action === 'remove clause') && shouldInclude) {
-        clauseRemovals.push({ text: c.clauseText });
+        clauseRemovals.push({ text: c.clauseText, occurrenceIndex: c.occurrenceIndex });
       }
     }
 
