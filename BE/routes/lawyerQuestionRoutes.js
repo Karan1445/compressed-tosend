@@ -24,7 +24,6 @@ router.post('/by-ids', authenticateToken, async (req, res) => {
   }
 });
 
-
 router.get('/:id', authenticateToken, isLawyer, async (req, res) => {
   try {
     const q = await LawyerQuestion.findOne({ _id: req.params.id, createdBy: req.user._id });

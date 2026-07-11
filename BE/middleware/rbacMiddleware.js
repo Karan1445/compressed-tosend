@@ -1,6 +1,5 @@
 const Role = require('../models/Role');
 
- 
 const isLawyer = async (req, res, next) => {
   try {
     if (!req.user || !req.user.role) {
@@ -16,7 +15,6 @@ const isLawyer = async (req, res, next) => {
   }
 };
 
- 
 const isUser = async (req, res, next) => {
   try {
     if (!req.user || !req.user.role) {

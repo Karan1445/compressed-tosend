@@ -72,7 +72,6 @@ async function bootstrapRolesAndAdmin() {
   }
 }
 
-
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));

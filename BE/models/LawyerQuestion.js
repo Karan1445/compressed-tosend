@@ -1,12 +1,10 @@
 const mongoose = require('mongoose');
 
-// Schema for individual options (radio, checkbox, dropdown)
 const optionItemSchema = new mongoose.Schema({
   value: { type: String, default: '' },
   showTextInput: { type: Boolean, default: false }
 }, { _id: false });
 
-// Schema for group sub-fields
 const groupFieldSchema = new mongoose.Schema({
   name: { type: String, default: '' },
   type: { type: String, default: 'Text' },
@@ -15,7 +13,6 @@ const groupFieldSchema = new mongoose.Schema({
   configuration: { type: mongoose.Schema.Types.Mixed, default: {} }
 }, { _id: false });
 
-// Schema for appearance condition
 const conditionSchema = new mongoose.Schema({
   questionId: { type: String },
   operator: { type: String },
