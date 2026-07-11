@@ -67,7 +67,6 @@ export default function PackageStore() {
         </div>
       )}
 
-
     </div>
   );
 }

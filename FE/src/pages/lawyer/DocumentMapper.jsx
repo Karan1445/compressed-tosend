@@ -206,7 +206,6 @@ export default function DocumentMapper() {
     const container = containerRef.current;
     if (!container || !docxLoaded) return;
 
-
     Object.entries(mapping).forEach(([key, m]) => {
       const el = container.querySelector(`[data-occurrence-key="${key}"]`);
       if (el) updatePlaceholderDOM(el, m.label, key);
@@ -223,7 +222,6 @@ export default function DocumentMapper() {
     setTimeout(applyHighlights, 500);
 
   }, [docxLoaded, mapping, builderData.sections]);
-
 
   const loadDocx = async (fileOrUrl, isFileObj = false) => {
     if (!containerRef.current) return;
@@ -245,7 +243,6 @@ export default function DocumentMapper() {
         ignoreWidth: false,
         ignoreHeight: false,
       });
-
 
       let occurrenceCount = 0;
       const walkAndReplace = (node) => {
@@ -453,7 +450,6 @@ export default function DocumentMapper() {
     };
   }, [docxLoaded]);
 
-
   const findAndHighlightClauseText = (text, id, name, type) => {
     const container = containerRef.current;
     if (!container || !text) return false;
@@ -562,7 +558,6 @@ export default function DocumentMapper() {
       }
     } catch (err) { }
   };
-
 
   const handleMapSelect = (field) => {
     if (!placeholderTarget) return;
@@ -911,7 +906,6 @@ export default function DocumentMapper() {
         onSelect={handleMapSelect}
         onClear={placeholderTarget && mapping[placeholderTarget.occurrenceKey] ? handleMapClear : undefined}
       />
-
 
       <style>{`
         .docx-repeating-highlight { background: #f3f4f6; border-bottom: 2px solid #000; padding: 1px 0; cursor: pointer; position: relative; display: inline; transition: background 0.2s ease; }

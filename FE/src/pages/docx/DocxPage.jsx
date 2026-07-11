@@ -24,7 +24,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMe
 import { toast } from 'sonner';
 import { uploadDocx, fetchUploadedDocx, saveDocxMappings, deleteDocx, assignDocx, fetchSubmissions } from '../../store/slices/docxSlice';
 
-
 function DependencyValueInput({ cond, updateCondition, index, mappedQuestions }) {
   const depField = mappedQuestions.find(mq => mq.fieldKey === cond.dependsOn);
   const qObj = depField?.questionObj;
@@ -81,7 +80,6 @@ function DependencyValueInput({ cond, updateCondition, index, mappedQuestions })
   return <Input value={cond.value} onChange={e => updateCondition(index, 'value', e.target.value)} className="h-8 mt-1 text-xs" />;
 }
 
-// --- NEW DEPENDENCY UI COMPONENTS ---
 function GroupsSidebar({ layout, setLayout, onOpenGroupModal }) {
   const groups = layout.filter(item => item.type === 'group');
 
@@ -554,7 +552,7 @@ function SingleDependencyModal({ fieldKey, questionObj, layout, setLayout, mappe
     </Dialog>
   );
 }
-// --- END NEW DEPENDENCY UI COMPONENTS ---
+
 
 const getQuestionIcon = (type, className = "h-4 w-4") => {
   switch (type) {
@@ -610,7 +608,6 @@ export default function DocxPage() {
   const [dependencyMode, setDependencyMode] = useState(false);
   const layoutRef = useRef(layout);
   useEffect(() => { layoutRef.current = layout; }, [layout]);
-
 
   useEffect(() => {
     if (isSendModalOpen) {
@@ -1363,7 +1360,6 @@ export default function DocxPage() {
               newMappings[fieldId] = enhancedQ;
               restoredCount++;
 
-
               const btn = fieldBtnsRef.current[fieldId];
               if (btn) {
                 const short = question.question.length > 22 ? question.question.substring(0, 22) + '…' : question.question;
@@ -1559,7 +1555,6 @@ export default function DocxPage() {
       return;
     }
 
- 
     const allLoopRules = [];
     layout.forEach(l => {
       if (l.type === 'loopable' && l.enabled) {
@@ -1578,7 +1573,6 @@ export default function DocxPage() {
         }
       }
 
-      // Collect original blocks
       const originalBlocks = [];
       fields.forEach(fieldKey => {
         const btn = viewerRef.current.querySelector(`.docx-injected-input-wrapper[data-field-id="${fieldKey}"]`);
@@ -1637,7 +1631,7 @@ export default function DocxPage() {
         }
       });
     });
- 
+
     const wrappers = viewerRef.current.querySelectorAll('.docx-injected-input-wrapper');
 
     wrappers.forEach(btn => {
@@ -1702,8 +1696,6 @@ export default function DocxPage() {
       }
     });
   }, [formValues, interactionMode, fieldMappings, layout, questions]);
-
-
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 relative">
@@ -2374,7 +2366,6 @@ export default function DocxPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Render Modals */}
       {activeGroupModal && (
         <GroupConfigModal
           group={activeGroupModal}

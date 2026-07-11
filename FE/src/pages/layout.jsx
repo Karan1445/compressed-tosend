@@ -26,8 +26,6 @@ import { toast } from 'sonner';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout, resetPassword } from '../store/slices/authSlice';
 
-
-
 export default function Layout({ children }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();

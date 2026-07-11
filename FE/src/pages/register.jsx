@@ -32,8 +32,6 @@ export function SignupForm() {
     setFieldErrors((prev) => ({ ...prev, [name]: '' }));
   }
 
-
-
   function validateForm() {
     const errs = { name: '', email: '', password: '', confirmPassword: '' };
     let valid = true;
@@ -123,8 +121,6 @@ export function SignupForm() {
                     <p className="text-sm text-red-600 mt-1">{fieldErrors.confirmPassword}</p>
                   )}
                 </Field>
-
-
 
                 <Field className="pt-2">
                   <Button type="submit" className="w-full bg-black text-white hover:bg-neutral-800" disabled={loading}>

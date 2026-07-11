@@ -41,7 +41,6 @@ export default function UserDirectory() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -66,7 +65,6 @@ export default function UserDirectory() {
         </Card>
       </div>
 
-      {/* Table */}
       <Card>
         <CardHeader className="px-6 py-4 border-b">
           <div className="relative max-w-sm">

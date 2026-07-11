@@ -89,7 +89,6 @@ export default function FillDocxPage() {
       });
     };
 
-    // Check groups
     for (const group of layout.filter(l => l.type === 'group')) {
       if (group.children?.some(c => c.fieldKey === fieldId)) {
         if (group.conditions?.length > 0) {
@@ -99,14 +98,12 @@ export default function FillDocxPage() {
       }
     }
 
-    // Check single rules
     const singleRule = layout.find(l => l.type === 'single_question' && l.fieldKey === fieldId);
     if (singleRule && singleRule.conditions?.length > 0) {
       const visible = singleRule.conditions.every(evaluateCondition);
       if (!visible) return false;
     }
 
-    // Legacy legacy rule
     if (qObj && qObj.dependsOnId) {
       const dependentFieldIds = [];
       if (effectiveMappings) {
@@ -410,7 +407,6 @@ export default function FillDocxPage() {
   useEffect(() => {
     if (!viewerRef.current) return;
 
- 
     const allLoopRules = [];
     effectiveLayout.forEach(l => {
       if (l.type === 'loopable' && l.enabled) {
@@ -429,10 +425,9 @@ export default function FillDocxPage() {
         }
       }
 
-      // Collect original blocks
       const originalBlocks = [];
       fields.forEach(fieldKey => {
-        // Find the ORIGINAL injected wrapper (not clones, clones have _loop_ in data-field-id)
+        
         const btn = viewerRef.current.querySelector(`.docx-injected-input-wrapper[data-field-id="${fieldKey}"]`);
         if (btn) {
           const block = btn.parentElement?.closest('tr') || btn.parentElement?.closest('li') || btn.parentElement?.closest('p, div, section') || btn.parentElement;
@@ -448,12 +443,11 @@ export default function FillDocxPage() {
       const parentElement = originalBlocks[0].parentElement;
       const existingClones = Array.from(parentElement.children).filter(child => child.dataset.loopCloneForId === loopId);
 
-      // Calculate current iterations based on existing clones
       const currentIterations = originalBlocks.length > 0 ? Math.floor(existingClones.length / originalBlocks.length) : 0;
       const targetIterations = Math.max(0, loopCount - 1);
 
       if (currentIterations < targetIterations) {
-        // Add missing clones
+        
         let lastReferenceNode = existingClones.length > 0 ? existingClones[existingClones.length - 1] : originalBlocks[originalBlocks.length - 1];
 
         for (let i = currentIterations + 1; i <= targetIterations; i++) {
@@ -479,12 +473,11 @@ export default function FillDocxPage() {
           });
         }
       } else if (currentIterations > targetIterations) {
-        // Remove excess clones
+        
         const clonesToRemove = existingClones.filter(c => parseInt(c.dataset.loopCloneIndex) > targetIterations);
         clonesToRemove.forEach(c => c.remove());
       }
 
-      // Toggle visibility of original blocks if loopCount === 0
       originalBlocks.forEach(origBlock => {
         if (loopCount === 0) {
           origBlock.style.display = 'none';
@@ -523,7 +516,7 @@ export default function FillDocxPage() {
               btn.parentElement.style.visibility = 'hidden';
             }
           } else {
-            // For shouldRender, evaluate conditions on the original field rules
+            
             if (shouldRender(originalFieldId, qObj, fieldId)) {
               if (input && input.tagName !== 'DIV') {
                 if (input.type === 'checkbox') {
@@ -547,7 +540,7 @@ export default function FillDocxPage() {
               }
 
               const block = btn.parentElement?.closest('tr') || btn.parentElement?.closest('li') || btn.parentElement?.closest('p, div, section, article') || btn.parentElement;
-              // Since block visibility is handled in step 1, we just ensure the wrapper is visible
+              
               btn.style.visibility = 'visible';
               if (btn.parentElement?.tagName === 'SPAN') {
                 btn.parentElement.style.visibility = 'visible';
@@ -570,8 +563,6 @@ export default function FillDocxPage() {
       }
     });
   }, [formValues, submission, questions, loading, effectiveLayout, effectiveMappings, effectiveDraggedFields]);
-
-
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">

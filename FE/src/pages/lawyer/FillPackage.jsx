@@ -87,7 +87,7 @@ export default function FillPackage() {
             setAnswers(savedAnswers || {});
             setCurrentStep(step || 0);
           }
-        } catch (e) {  }
+        } catch (e) { }
       })
       .catch(() => toast.error('Failed to load package'))
       .finally(() => setLoading(false));
@@ -125,12 +125,12 @@ export default function FillPackage() {
   const isQuestionVisible = useCallback((q) => {
     if (!q) return false;
     if (!q.appearanceCondition || !q.appearanceCondition.questionId) return true;
-    
+
     const condition = q.appearanceCondition;
     const targetQ = lawyerQuestions.find(s => s._id === condition.questionId.split('.')[0]);
     const targetConfig = targetQ?.configuration;
     const rawValue = resolveRawValue(answers, condition.questionId, targetConfig);
-    
+
     return evaluateCondition(rawValue, condition.operator, condition.value);
   }, [answers, lawyerQuestions]);
 
@@ -163,7 +163,7 @@ export default function FillPackage() {
 
     if (type === "Percentage" && Number(val) > 100) return "Max 100%";
 
-    const config = q.configuration || q || {}; // Support both full question object or inline subfield config
+    const config = q.configuration || q || {};
 
     if (type === "Number" || type === "Amount") {
       const numVal = Number(val);
@@ -237,7 +237,7 @@ export default function FillPackage() {
             for (const f of groupFields.filter(gf => gf.show !== false && gf.visible !== false)) {
               const subVal = entry[f.name];
               const errKey = `${q._id}_${i}_${f.name}`;
-              
+
               if (f.required && (subVal === undefined || subVal === null || subVal === '' || (Array.isArray(subVal) && subVal.length === 0))) {
                 if (!silent && isValid) toast.error(`${q.title} (Entry #${i + 1}): ${f.name} is required`);
                 localErrors[errKey] = 'This field is required';
@@ -278,7 +278,7 @@ export default function FillPackage() {
     }
 
     setErrors(prev => ({ ...prev, [q._id]: null, ...localErrors }));
-    if (isValid) setErrors(prev => ({ ...prev, [q._id]: null })); // clear root error
+    if (isValid) setErrors(prev => ({ ...prev, [q._id]: null }));
     return isValid;
   };
 
@@ -317,7 +317,7 @@ export default function FillPackage() {
   const handleSubmit = async () => {
 
     for (const q of visibleSteps) {
-      if (!validateStep(q, true)) { // Silent validation
+      if (!validateStep(q, true)) {
         toast.error(`Please complete: ${q.title}`);
         const idx = visibleSteps.indexOf(q);
         setCurrentStep(idx);
@@ -390,12 +390,12 @@ export default function FillPackage() {
         const handleChange = (e) => {
           let newValue = e.target.value;
           if (newValue === "") {
-             updateAnswer(q._id, "");
-             return;
+            updateAnswer(q._id, "");
+            return;
           }
           const num = Number(newValue);
           if (maxVal !== undefined && num > maxVal) {
-             newValue = String(maxVal); // lock it to maxVal
+            newValue = String(maxVal);
           }
           updateAnswer(q._id, newValue);
         };
@@ -432,29 +432,29 @@ export default function FillPackage() {
         let maxDateStr = '';
 
         if (config.minDate) {
-          try { minDateStr = new Date(config.minDate).toISOString().split('T')[0]; } catch(e){}
+          try { minDateStr = new Date(config.minDate).toISOString().split('T')[0]; } catch (e) { }
         }
         if (config.allowPast === false) {
-           if (!minDateStr || minDateStr < todayStr) minDateStr = todayStr;
+          if (!minDateStr || minDateStr < todayStr) minDateStr = todayStr;
         }
 
         if (config.maxDate) {
-          try { maxDateStr = new Date(config.maxDate).toISOString().split('T')[0]; } catch(e){}
+          try { maxDateStr = new Date(config.maxDate).toISOString().split('T')[0]; } catch (e) { }
         }
         if (config.allowFuture === false) {
-           if (!maxDateStr || maxDateStr > todayStr) maxDateStr = todayStr;
+          if (!maxDateStr || maxDateStr > todayStr) maxDateStr = todayStr;
         }
 
         if (minDateStr) dOpts.min = minDateStr;
         if (maxDateStr) dOpts.max = maxDateStr;
 
         const handleDateChange = (e) => {
-           let dateVal = e.target.value;
-           if (dateVal) {
-              if (minDateStr && dateVal < minDateStr) dateVal = minDateStr;
-              if (maxDateStr && dateVal > maxDateStr) dateVal = maxDateStr;
-           }
-           updateAnswer(q._id, dateVal);
+          let dateVal = e.target.value;
+          if (dateVal) {
+            if (minDateStr && dateVal < minDateStr) dateVal = minDateStr;
+            if (maxDateStr && dateVal > maxDateStr) dateVal = maxDateStr;
+          }
+          updateAnswer(q._id, dateVal);
         }
 
         return (
@@ -720,12 +720,10 @@ export default function FillPackage() {
           <p className="text-gray-500 text-sm mt-1">Please review all your answers before submitting.</p>
         </div>
 
-        {}
         <div className="w-full bg-gray-100 rounded-full h-1.5">
           <div className="bg-gray-900 h-1.5 rounded-full w-full transition-all" />
         </div>
 
-        {}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
           <div className="divide-y divide-gray-100">
             {visibleSteps.map((q, idx) => {
@@ -744,7 +742,7 @@ export default function FillPackage() {
               } else {
 
                 if (val !== undefined && val !== null) {
-                  display = typeof val === 'object' ? null : String(val); // Ignore stale objects/arrays
+                  display = typeof val === 'object' ? null : String(val);
                 }
               }
               return (
@@ -766,7 +764,6 @@ export default function FillPackage() {
           </div>
         </div>
 
-        {}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2">
           <button
             onClick={handleReset}
@@ -791,7 +788,7 @@ export default function FillPackage() {
 
   return (
     <div className="w-full max-w-full mx-auto p-6 md:p-10 space-y-6 pb-24">
-      {}
+
       <div>
         <button onClick={() => navigate('/lawyer/packages/store')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-4 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to Store
@@ -800,7 +797,6 @@ export default function FillPackage() {
         <p className="text-gray-400 text-sm mt-0.5">Answer all questions to generate your documents</p>
       </div>
 
-      {}
       <div>
         <div className="flex justify-between items-center mb-1.5">
           <span className="text-xs font-medium text-gray-500">Question {currentStep + 1} of {visibleSteps.length}</span>
@@ -811,7 +807,6 @@ export default function FillPackage() {
         </div>
       </div>
 
-      {}
       {q && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 md:p-8">
           <div className="mb-5">
@@ -833,7 +828,6 @@ export default function FillPackage() {
         </div>
       )}
 
-      {}
       <div className="flex justify-between items-center pt-2">
         <button
           onClick={handlePrev}

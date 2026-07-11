@@ -620,7 +620,7 @@ export async function createFilledDocx(originalArrayBuffer, replacements, clause
         const orderB = order(b);
         if (orderA !== orderB)
             return orderA - orderB;
-        return a.localeCompare(b); // Sort header1 vs header2
+        return a.localeCompare(b); 
     });
     const ctx = {
         globalIndex: 0,

@@ -109,7 +109,7 @@ export function LoginForm({ className }) {
                   <Field>
                     <div className="flex items-center">
                       <FieldLabel htmlFor="password">Password</FieldLabel>
-                      {/* Forgot password dialog */}
+                      
                       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                         <DialogTrigger asChild>
                           <button className="ml-auto inline-block text-sm underline-offset-4 hover:underline cursor-pointer">
