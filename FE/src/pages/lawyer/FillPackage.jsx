@@ -174,7 +174,7 @@ export default function FillPackage() {
     if (type === "Phone Number") {
       const str = val.toString();
       if (!str.startsWith("+")) return "Must start with + (e.g. +91)";
-      const digitsOnly = str.slice(1).replace(/\s/g, ""); // Remove spaces for length check
+      const digitsOnly = str.slice(1).replace(/\s/g, "");
       if (digitsOnly.length < 8) return "Phone number too short";
       if (digitsOnly.length > 15) return "Phone number too long";
     }
@@ -353,11 +353,11 @@ export default function FillPackage() {
 
     const safeStr = (v) => {
       if (v === undefined || v === null) return '';
-      if (typeof v === 'object') return ''; // clear unexpected object in scalar field
+      if (typeof v === 'object') return '';
       return String(v);
     };
 
-    const val = rawVal; // keep raw for Address/Group; use safeStr() for scalar fields
+    const val = rawVal;
     const inputClass = `w-full border rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-300 transition ${err ? 'border-red-400' : 'border-gray-200'}`;
 
     switch (type) {
