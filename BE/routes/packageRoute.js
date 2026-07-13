@@ -251,6 +251,28 @@ router.post('/store/submissions/:id/download/pdf/:docId', authenticateToken, asy
   }
 });
 
+router.post('/store/submissions/convert-pdf', authenticateToken, require('express').raw({ type: '*/*', limit: '50mb' }), async (req, res) => {
+  const os = require('os');
+  const libre = require('libreoffice-convert');
+  const { promisify } = require('util');
+  const libreConvert = promisify(libre.convert);
+  
+  try {
+    const docxBuffer = req.body;
+    if (!docxBuffer || !Buffer.isBuffer(docxBuffer)) {
+      return res.status(400).json({ error: 'Invalid or missing DOCX buffer' });
+    }
+
+    const pdfBuffer = await libreConvert(docxBuffer, '.pdf', undefined);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error generating PDF from uploaded DOCX:', error);
+    res.status(500).json({ error: error.message || 'PDF generation failed. Is LibreOffice installed?' });
+  }
+});
+
 function resolveAnswerValue(answers, questionId) {
   if (!questionId || !answers) return '';
   const parts = questionId.split('.');

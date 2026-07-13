@@ -142,7 +142,7 @@ function findMatchesInRange(normalizedConcat, normalizedTarget) {
     }
     return matches;
 }
-function collectModificationTasks(xml, repeatingConfigs, clauseRemovals, answers) {
+function collectModificationTasks(xml, repeatingConfigs, clauseRemovals, answers, clauseCounters = {}, loopCounters = {}) {
     const paragraphs = getParagraphs(xml);
     const { concatenated, charToPara } = getConcatenatedInfo(paragraphs);
     const { normalized: normalizedConcat, posMap: concatIdxMap } = aggressiveNormalize(concatenated);
@@ -194,8 +194,18 @@ function collectModificationTasks(xml, repeatingConfigs, clauseRemovals, answers
         
         const { normalized: normTarget } = aggressiveNormalize(config.clauseText);
         let matches = findMatchesInRange(normalizedConcat, normTarget);
-        if (config.occurrenceIndex !== undefined && matches.length > config.occurrenceIndex) {
-            matches = [matches[config.occurrenceIndex]];
+        if (config.occurrenceIndex !== undefined) {
+            const configId = config._id || config.clauseName;
+            const globalSeen = loopCounters[configId] || 0;
+            const localMatchesCount = matches.length;
+            
+            const targetIdxLocal = config.occurrenceIndex - globalSeen;
+            if (targetIdxLocal >= 0 && targetIdxLocal < localMatchesCount) {
+                matches = [matches[targetIdxLocal]];
+            } else {
+                matches = [];
+            }
+            loopCounters[configId] = globalSeen + localMatchesCount;
         }
         addTasks(matches, 'loop', { config, numEntries });
     }
@@ -218,8 +228,18 @@ function collectModificationTasks(xml, repeatingConfigs, clauseRemovals, answers
                 }
             }
         }
-        if (clause.occurrenceIndex !== undefined && matches.length > clause.occurrenceIndex) {
-            matches = [matches[clause.occurrenceIndex]];
+        if (clause.occurrenceIndex !== undefined) {
+            const configId = clause._id || clause.clauseName || clause.text;
+            const globalSeen = clauseCounters[configId] || 0;
+            const localMatchesCount = matches.length;
+            
+            const targetIdxLocal = clause.occurrenceIndex - globalSeen;
+            if (targetIdxLocal >= 0 && targetIdxLocal < localMatchesCount) {
+                matches = [matches[targetIdxLocal]];
+            } else {
+                matches = [];
+            }
+            clauseCounters[configId] = globalSeen + localMatchesCount;
         }
         addTasks(matches, 'clause', clause);
     }
@@ -621,25 +641,26 @@ export async function createFilledDocx(originalArrayBuffer, replacements, clause
             return orderA - orderB;
         return a.localeCompare(b); 
     });
-    const ctx = {
-        globalIndex: 0,
-        handledIndices: new Set()
-    };
+    
+    let globalIndex = 0;
+    const ctx = { globalIndex, handledIndices: new Set() };
+    const clauseCounters = {};
+    const loopCounters = {};
+
     for (const fileName of sortedFiles) {
         const file = zip.file(fileName);
         if (!file)
             continue;
         let xml = await file.async("string");
-        const fileStartIndex = ctx.globalIndex;
         const placeholdersInFile = (xml.match(/_{3,}|\[[^\]]+\]/g) || []).length;
 
-        const tasks = collectModificationTasks(xml, repeatingConfigs, clauseRemovals, answers);
+        const tasks = collectModificationTasks(xml, repeatingConfigs, clauseRemovals, answers, clauseCounters, loopCounters);
 
         xml = applyModificationTasks(xml, tasks, replacements, answers, ctx);
 
         xml = replacePlaceholdersInXml(xml, replacements, ctx);
 
-        ctx.globalIndex = fileStartIndex + placeholdersInFile;
+        ctx.globalIndex = ctx.globalIndex + placeholdersInFile;
 
         const restoreTokens = (xml) => {
             return xml.replace(/__UNMAPPED_LOOP_PH_\d+__/g, "______________________________");

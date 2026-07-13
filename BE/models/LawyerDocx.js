@@ -42,12 +42,14 @@ const LawyerDocxSchema = new mongoose.Schema({
     clauseText: String,
     operator: String,
     value: String,
-    actionType: String
+    actionType: String,
+    occurrenceIndex: Number
   }],
   repeatingConfigs: [{
     questionId: String,
     clauseName: String,
-    clauseText: String
+    clauseText: String,
+    occurrenceIndex: Number
   }],
   assignees: [{
     type: mongoose.Schema.Types.ObjectId,

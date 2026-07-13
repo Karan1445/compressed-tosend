@@ -212,9 +212,20 @@ export default function DocumentMapper() {
     });
 
     const applyHighlights = () => {
+      const container = containerRef.current;
+      if (container) {
+        const highlights = container.querySelectorAll(".docx-clause-highlight");
+        highlights.forEach((highlight) => {
+          const parent = highlight.parentNode;
+          if (parent) {
+            while (highlight.firstChild) parent.insertBefore(highlight.firstChild, highlight);
+            parent.removeChild(highlight);
+          }
+        });
+      }
       const nextMatched = {};
       builderData.sections.forEach(s => {
-        const found = findAndHighlightClauseText(s.clauseText, s.id, s.name, s.isRepeating ? 'repeating' : 'clause');
+        const found = findAndHighlightClauseText(s.clauseText, s.id, s.name, s.isRepeating ? 'repeating' : 'clause', s.occurrenceIndex);
         nextMatched[s.id] = found;
       });
       setMatchedSections(nextMatched);
@@ -398,7 +409,7 @@ export default function DocumentMapper() {
         while (walker.nextNode()) {
           const node = walker.currentNode;
           const parent = node.parentNode;
-          if (parent?.closest(".docx-clause-highlight") || parent?.closest(".docx-placeholder-clickable")) continue;
+          if (parent?.closest(".placeholder-badge-container") || parent?.closest(".docx-placeholder-text")) continue;
 
           const content = node.textContent || "";
           const block = parent.closest("p, div, section");
@@ -450,7 +461,7 @@ export default function DocumentMapper() {
     };
   }, [docxLoaded]);
 
-  const findAndHighlightClauseText = (text, id, name, type) => {
+  const findAndHighlightClauseText = (text, id, name, type, occurrenceIndex) => {
     const container = containerRef.current;
     if (!container || !text) return false;
     try {
@@ -462,7 +473,7 @@ export default function DocumentMapper() {
       while (walker.nextNode()) {
         const node = walker.currentNode;
         const parent = node.parentNode;
-        if (parent?.closest(".docx-clause-highlight") || parent?.closest(".docx-placeholder-clickable")) continue;
+        if (parent?.closest(".placeholder-badge-container") || parent?.closest(".docx-placeholder-text")) continue;
 
         const content = node.textContent || "";
         const block = parent.closest("p, div, section");
@@ -484,22 +495,28 @@ export default function DocumentMapper() {
 
       let lastIdx = 0;
       let foundCount = 0;
+      let currentOccurrence = 0;
+      
       while (true) {
         const matchIdx = normalizedConcat.indexOf(normalizedClause, lastIdx);
         if (matchIdx === -1) break;
-        foundCount++;
+        
+        if (occurrenceIndex === undefined || currentOccurrence === occurrenceIndex) {
+          foundCount++;
+          const startCharIdx = concatIdxMap[matchIdx];
+          const endCharIdx = concatIdxMap[matchIdx + normalizedClause.length - 1];
+
+          if (startCharIdx !== undefined && endCharIdx !== undefined) {
+            const range = document.createRange();
+            range.setStart(charMap[startCharIdx].node, charMap[startCharIdx].offset);
+            const endInfo = charMap[endCharIdx];
+            range.setEnd(endInfo.node, Math.min(endInfo.offset + 1, endInfo.node.textContent.length));
+            highlightClauseInRange(range, id, name, type);
+          }
+        }
+        
+        currentOccurrence++;
         lastIdx = matchIdx + 1;
-
-        const startCharIdx = concatIdxMap[matchIdx];
-        const endCharIdx = concatIdxMap[matchIdx + normalizedClause.length - 1];
-
-        if (startCharIdx === undefined || endCharIdx === undefined) continue;
-
-        const range = document.createRange();
-        range.setStart(charMap[startCharIdx].node, charMap[startCharIdx].offset);
-        const endInfo = charMap[endCharIdx];
-        range.setEnd(endInfo.node, Math.min(endInfo.offset + 1, endInfo.node.textContent.length));
-        highlightClauseInRange(range, id, name, type);
       }
       return foundCount > 0;
     } catch (err) {
@@ -697,6 +714,7 @@ export default function DocumentMapper() {
     setRepeatingDialogOpen(false);
     setClauseRange(null);
     setClauseText("");
+    setClauseOccurrence(0);
     setEditingRepeatingId(null);
     window.getSelection()?.removeAllRanges();
   };

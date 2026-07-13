@@ -30,7 +30,7 @@ async function generatePdfFromDocxBlob(docxBlob, filename) {
     await renderAsync(docxBlob, container, null, {
       className: 'docx-pdf-render',
       inWrapper: false,
-      ignoreWidth: false,
+      ignoreWidth: true,
       ignoreHeight: true,
       ignoreFonts: false,
       breakPages: false,
@@ -49,12 +49,12 @@ async function generatePdfFromDocxBlob(docxBlob, filename) {
 
     await html2pdf()
       .set({
-        margin: [15, 15, 15, 15],
+        margin: 0,
         filename,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 1.0 },
         html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+        pagebreak: { mode: ['css', 'legacy'], avoid: ["tr", "td", "th", "h1", "h2", "h3", "h4", "h5", "h6", "img", "figure", "blockquote", "table"] },
       })
       .from(container)
       .save();
@@ -126,14 +126,15 @@ export default function PastSubmissions() {
       
       const action = (c.actionType || '').toLowerCase();
       if ((action === 'include' || action === 'keep clause') && !shouldInclude) {
-        clauseRemovals.push({ text: c.clauseText });
+        clauseRemovals.push({ _id: c._id, clauseName: c.clauseName, text: c.clauseText, occurrenceIndex: c.occurrenceIndex });
       } else if ((action === 'exclude' || action === 'remove clause') && shouldInclude) {
-        clauseRemovals.push({ text: c.clauseText });
+        clauseRemovals.push({ _id: c._id, clauseName: c.clauseName, text: c.clauseText, occurrenceIndex: c.occurrenceIndex });
       }
     }
 
     const repeating = (doc.repeatingConfigs || []).map(r => ({
       ...r,
+      questionId: r.questionId || r.fieldId,
       clauseText: r.clauseText || r.text
     }));
 
@@ -165,10 +166,13 @@ export default function PastSubmissions() {
       toast.info('Generating PDF, please wait...');
       const docxBlob = await generateDocumentBlob(sub, doc);
       const filename = (doc.name || 'document').replace(/\.docx$/i, '') + '_filled.pdf';
+      
       await generatePdfFromDocxBlob(docxBlob, filename);
+      
       toast.success('PDF downloaded!');
     } catch (err) {
-      toast.error('PDF generation failed');
+      console.error('PDF generation error:', err);
+      toast.error(err.message || 'PDF generation failed');
     } finally {
       setDownloading(null);
     }

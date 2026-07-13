@@ -67,9 +67,9 @@ export default function PackageSuccess() {
       
       const action = (c.actionType || '').toLowerCase();
       if ((action === 'include' || action === 'keep clause') && !shouldInclude) {
-        clauseRemovals.push({ text: c.clauseText, occurrenceIndex: c.occurrenceIndex });
+        clauseRemovals.push({ _id: c._id, clauseName: c.clauseName, text: c.clauseText, occurrenceIndex: c.occurrenceIndex });
       } else if ((action === 'exclude' || action === 'remove clause') && shouldInclude) {
-        clauseRemovals.push({ text: c.clauseText, occurrenceIndex: c.occurrenceIndex });
+        clauseRemovals.push({ _id: c._id, clauseName: c.clauseName, text: c.clauseText, occurrenceIndex: c.occurrenceIndex });
       }
     }
 
@@ -107,9 +107,12 @@ export default function PackageSuccess() {
       toast.info('Generating PDF, please wait...');
       const docxBlob = await generateDocumentBlob(doc);
       const filename = (doc.name || 'document').replace(/\.docx$/i, '') + '_filled.pdf';
+      
       await generatePdfFromDocxBlob(docxBlob, filename);
+      
       toast.success('PDF downloaded!');
     } catch (err) {
+      console.error('PDF generation error:', err);
       toast.error(err.message || 'PDF generation failed');
     } finally {
       setDownloadingPdf(null);

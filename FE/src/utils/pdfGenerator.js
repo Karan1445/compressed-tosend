@@ -80,7 +80,7 @@ export async function generatePdfFromDocxBlob(
       renderFooters: true,
       renderFootnotes: true,
       renderEndnotes: true,
-      ignoreWidth: false,
+      ignoreWidth: true,
       breakPages: false,     
     });
 
@@ -96,19 +96,15 @@ export async function generatePdfFromDocxBlob(
 
     const pdfWorker = html2pdf()
       .set({
-        margin: [12, -4, 12, -4],
+        margin: 0,
         filename,
-        image: { type: "jpeg", quality: 0.98 },
+        image: { type: "jpeg", quality: 1.0 },
         html2canvas: {
           scale: 2,
           useCORS: true,
           backgroundColor: "#ffffff",
           logging: false,
           allowTaint: true,
-          scrollX: 0,
-          scrollY: -window.scrollY,
-          width: 794,
-          windowWidth: 794,
         },
         jsPDF: {
           unit: "mm",
@@ -116,15 +112,8 @@ export async function generatePdfFromDocxBlob(
           orientation: "portrait",
         },
         pagebreak: {
-          mode: ["avoid-all", "css", "legacy"],
-          avoid: [
-            "tr", "td", "th",
-            "p", "li",
-            "h1", "h2", "h3", "h4", "h5", "h6",
-            "img", "figure", "blockquote",
-            '[class*="docx-pdf-render-p"]',
-            '[class*="docx-pdf-render-tblRow"]',
-          ],
+          mode: ["css", "legacy"],
+          avoid: ["tr", "td", "th", "h1", "h2", "h3", "h4", "h5", "h6", "img", "figure", "blockquote", "table"],
         },
       })
       .from(renderDiv);
