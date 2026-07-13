@@ -118,7 +118,7 @@ export function ClauseConfigSidebarForm({ radioFields, initialValues, onSave, on
               Delete
             </Button>
           )}
-          <Button variant="ghost" className="flex-1" onClick={onCancel}>
+          <Button variant="ghost" className="flex-1 border border-gray-300" onClick={onCancel}>
             Cancel
           </Button>
         </div>

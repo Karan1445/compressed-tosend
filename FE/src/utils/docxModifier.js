@@ -69,7 +69,6 @@ export function aggressiveNormalize(s) {
                 i++;
                 count++;
             }
-
             normalized += "_";
             posMap.push(i - (count - 1));
             continue;

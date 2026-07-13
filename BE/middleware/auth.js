@@ -22,7 +22,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || 'fallback_secret_key', { expiresIn: '1d' });
+  return jwt.sign({ userId }, process.env.JWT_SECRET || 'fallback_secret_key', { expiresIn: '7d' });
 };
 
 const requirePermission = (permission) => {

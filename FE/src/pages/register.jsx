@@ -24,7 +24,7 @@ export function SignupForm() {
     }
   }, [error, dispatch]);
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/;
 
   function handleChange(e) {
     const { name, value } = e.target;

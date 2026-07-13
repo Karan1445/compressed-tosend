@@ -178,7 +178,7 @@ export default function FillPackage() {
       if (digitsOnly.length < 8) return "Phone number too short";
       if (digitsOnly.length > 15) return "Phone number too long";
     }
-    if (type === "Email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) return "Invalid email format";
+    if (type === "Email" && !/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/.test(val)) return "Invalid email format";
 
     if (type === "Date" || type === "Date-picker") {
       const date = new Date(val);

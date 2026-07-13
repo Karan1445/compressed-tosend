@@ -1,34 +1,34 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Provider, useSelector, useDispatch } from 'react-redux';
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { store } from './store';
 import { Toaster } from 'sonner';
-import Layout from './pages/layout';
-import HomePage from './pages/home';
-import { LoginForm } from './pages/login';
-import { SignupForm } from './pages/register';
-import { QuestionPage } from './pages/question';
-import QuestionBuilder from './pages/lawyer/QuestionBuilder';
-import QuestionsList from './pages/lawyer/QuestionsList';
-import DocxPage from './pages/docx/DocxPage';
-import RoleCreation from './pages/roles/RoleCreation';
-import RoleAssignment from './pages/roles/RoleAssignment';
-import SenderPage from './pages/sender/SenderPage';
-import SignerPage from './pages/signer/SignerPage';
-import FillDocxPage from './pages/signer/FillDocxPage';
-import SubmissionsPage from './pages/sender/SubmissionsPage';
-import ResetPasswordPage from './pages/ResetPasswordPage';
-import Unauthorized from './pages/Unauthorized';
 import { refreshMe } from './store/slices/authSlice';
 import './index.css';
-import DocumentList from './pages/lawyer/DocumentList';
-import NewDocument from './pages/lawyer/NewDocument';
-import DocumentMapper from './pages/lawyer/DocumentMapper';
-import PackageList from './pages/lawyer/PackageList';
-import PackageStore from './pages/lawyer/PackageStore';
-import FillPackage from './pages/lawyer/FillPackage';
-import PackageSuccess from './pages/lawyer/PackageSuccess';
-import PastSubmissions from './pages/lawyer/PastSubmissions';
+import Layout from './pages/layout';
+const HomePage = lazy(() => import('./pages/home'));
+const LoginForm = lazy(() => import('./pages/login').then(module => ({ default: module.LoginForm })));
+const SignupForm = lazy(() => import('./pages/register').then(module => ({ default: module.SignupForm })));
+const QuestionPage = lazy(() => import('./pages/question').then(module => ({ default: module.QuestionPage })));
+const QuestionBuilder = lazy(() => import('./pages/lawyer/QuestionBuilder'));
+const QuestionsList = lazy(() => import('./pages/lawyer/QuestionsList'));
+const DocxPage = lazy(() => import('./pages/docx/DocxPage'));
+const RoleCreation = lazy(() => import('./pages/roles/RoleCreation'));
+const RoleAssignment = lazy(() => import('./pages/roles/RoleAssignment'));
+const SenderPage = lazy(() => import('./pages/sender/SenderPage'));
+const SignerPage = lazy(() => import('./pages/signer/SignerPage'));
+const FillDocxPage = lazy(() => import('./pages/signer/FillDocxPage'));
+const SubmissionsPage = lazy(() => import('./pages/sender/SubmissionsPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
+const Unauthorized = lazy(() => import('./pages/Unauthorized'));
+const DocumentList = lazy(() => import('./pages/lawyer/DocumentList'));
+const NewDocument = lazy(() => import('./pages/lawyer/NewDocument'));
+const DocumentMapper = lazy(() => import('./pages/lawyer/DocumentMapper'));
+const PackageList = lazy(() => import('./pages/lawyer/PackageList'));
+const PackageStore = lazy(() => import('./pages/lawyer/PackageStore'));
+const FillPackage = lazy(() => import('./pages/lawyer/FillPackage'));
+const PackageSuccess = lazy(() => import('./pages/lawyer/PackageSuccess'));
+const PastSubmissions = lazy(() => import('./pages/lawyer/PastSubmissions'));
 
 function getHomePath(user) {
   if (!user) return '/login';
@@ -77,7 +77,7 @@ function RoleSyncProvider({ children }) {
     dispatch(refreshMe());
     const interval = setInterval(() => {
       dispatch(refreshMe());
-    }, 30000);
+    }, 100000);
     return () => clearInterval(interval);
   }, [token, dispatch]);
 
@@ -85,7 +85,7 @@ function RoleSyncProvider({ children }) {
 }
 
 function AppRoutes() {
-  return (
+  return (  
     <Routes>
       <Route path="/login" element={<PublicRoute><LoginForm /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><SignupForm /></PublicRoute>} />

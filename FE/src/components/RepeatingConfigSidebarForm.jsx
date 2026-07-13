@@ -65,7 +65,7 @@ export function RepeatingConfigSidebarForm({ groupFields, initialValues, onSave,
               Delete
             </Button>
           )}
-          <Button variant="ghost" className="flex-1" onClick={onCancel}>
+          <Button variant="ghost" className="flex-1 border border-gray-300" onClick={onCancel}>
             Cancel
           </Button>
         </div>

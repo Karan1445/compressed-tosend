@@ -30,7 +30,7 @@ export default function NewDocument() {
 
         setIsSaving(true);
         try {
-            const result = await dispatch(uploadDocx({ 
+            const result = await dispatch(uploadDocx({
                 file: uploadedFile.file, 
                 name: docName
             })).unwrap();
